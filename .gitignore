@@ -1,0 +1,12 @@
+*.cache
+SharpOpenGl/obj/x86/Debug/SharpOpenGl.csproj.FileListAbsolute.txt
+SharpOpenGl/obj/x86/Debug/SharpOpenGl.Form1.resources
+SharpOpenGl/obj/x86/Debug/SharpOpenGl.Properties.Resources.resources
+SharpOpenGl/obj/x86/Debug/SharpOpenGl.exe
+SharpOpenGl/obj/x86/Debug/SharpOpenGl.pdb
+SharpOpenGl/bin/Debug/OpenTK.dll
+SharpOpenGl/bin/Debug/SharpOpenGl.exe
+SharpOpenGl/bin/Debug/SharpOpenGl.vshost.exe.manifest
+SharpOpenGl/bin/Debug/SharpOpenGl.pdb
+SharpOpenGl/bin/Debug/SharpOpenGl.vshost.exe
+SharpOpenGl/bin/Debug/OpenTK.GLControl.dll

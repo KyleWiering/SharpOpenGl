@@ -21,8 +21,7 @@ namespace SharpOpenGl
         Stopwatch sw;
         Camera Camera;
         int SpaceField;
-        const int WIDTH = 1024;
-        const int HEIGHT = 800;
+        
 
         Model Player;
         ButtonHandler ButtonHandler;
@@ -42,11 +41,7 @@ namespace SharpOpenGl
             Player = new Model();
             InitializePlayer();
             InitializeSpaceField();
-
-           
-           
             SetupViewport();
-           
            
             Application.Idle += new EventHandler(Application_Idle);  
         }
@@ -87,9 +82,6 @@ namespace SharpOpenGl
             int w = glControl1.Width;
             int h = glControl1.Height;
 
-           // double aspect = WIDTH / (double)HEIGHT;
-            //Matrix4 perspective = Matrix4.CreatePerspectiveFieldOfView(MathHelper.PiOver4, (float)aspect, 0.1f, 10000.0f);
-            //GL.LoadMatrix(ref perspective);
             GL.Viewport(0, 0, w, h); // Use all of the glControl painting area
             GLPerspective(45.0f, w / h, 0.1f, 10000.0f);
            
@@ -108,10 +100,6 @@ namespace SharpOpenGl
             GL.LoadIdentity();
             
             Camera.AdjustCamera();
-          //  GL.Translate(Player.ModelPositionVector);
-           // GL.Rotate(Player.ModelOrientationVector.X, 1.0f, 0.0f, .0f);
-           // GL.Rotate(Player.ModelOrientationVector.Y, 0.0f, 1.0f, .0f);
-           // GL.Rotate(Player.ModelOrientationVector.Z, 0.0f, 0.0f, 1.0f);
            
              if (glControl1.Focused)
                 GL.Color3(Color.Yellow);
@@ -126,14 +114,7 @@ namespace SharpOpenGl
             GL.Vertex3(100, 20, 1);
             GL.Vertex3(100, 50, 1);
             GL.End();
-           // 
-
-           // Camera.AdjustCamera();
-
-          //  GL.LoadIdentity();
-          //  GL.CallList(SpaceField);
-          //  GL.End();
-           
+        
             
             
             glControl1.SwapBuffers();
