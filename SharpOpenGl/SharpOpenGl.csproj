@@ -55,6 +55,10 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="environment\EnvironmentController.cs" />
+    <Compile Include="environment\IEnvironment.cs" />
+    <Compile Include="environment\Model.cs" />
+    <Compile Include="environment\Spacefield.cs" />
     <Compile Include="ObjectHandler.cs" />
     <Compile Include="ButtonHandler.cs" />
     <Compile Include="Camera.cs" />

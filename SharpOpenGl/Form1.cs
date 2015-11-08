@@ -10,6 +10,7 @@ using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK;
 using System.Diagnostics;
+using SharpOpenGl.environment;
 
 namespace SharpOpenGl
 {
@@ -20,17 +21,18 @@ namespace SharpOpenGl
         float rotation = 0;
         Stopwatch sw;
         Camera Camera;
-        int SpaceField;
-        
-
+        EnvironmentController EnvironmentController;
+        double EllapsedTime;
         Model Player;
         ButtonHandler ButtonHandler;
 
         public Form1()
         {
+            EllapsedTime = 0;
             sw = new Stopwatch(); // available to all event handlers
             InitializeComponent();
             ButtonHandler = new ButtonHandler();
+            EnvironmentController = new EnvironmentController();
         }
 
         // What to do for GL Initialization. 
@@ -40,7 +42,7 @@ namespace SharpOpenGl
             Camera = new Camera();
             Player = new Model();
             InitializePlayer();
-            InitializeSpaceField();
+            EnvironmentController.Initialize();
             SetupViewport();
            
             Application.Idle += new EventHandler(Application_Idle);  
@@ -51,15 +53,15 @@ namespace SharpOpenGl
             while (glControl1.IsIdle)
             {
                 sw.Stop(); // we've measured everything since last Idle run
-                double milliseconds = sw.Elapsed.TotalMilliseconds;
+                EllapsedTime = sw.Elapsed.TotalMilliseconds;
                 sw.Reset(); // reset stopwatch
                 sw.Start(); // restart stopwatch
 
                 
-                rotation += (float)milliseconds / 20.0f;   
+                
 
                 TriggerCameraStuff();
-                Render();
+                Render(EllapsedTime);
                 sw.Start();   
             }
         }
@@ -70,15 +72,14 @@ namespace SharpOpenGl
             return;
             
             SetupViewport();
-            Render();
+            Render(EllapsedTime);
         }
 
-        private void Render()
+        private void Render(double EllapsedTime)
         {
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             GL.MatrixMode(MatrixMode.Modelview);
-
             int w = glControl1.Width;
             int h = glControl1.Height;
 
@@ -90,7 +91,7 @@ namespace SharpOpenGl
             
             Camera.AdjustCamera();
             GL.Translate(Camera.CameraPosition);
-            GL.CallList(SpaceField); // if you want to fly 'through' the starfield, don't set it to the camera position.
+            EnvironmentController.ExternalRender();
            
 
             GL.Rotate(Player.ModelOrientationVector.X, 1.0f, 0.0f, .0f);
@@ -105,18 +106,14 @@ namespace SharpOpenGl
                 GL.Color3(Color.Yellow);
             else
                 GL.Color3(Color.Blue);
-            GL.Rotate(rotation/2, Vector3.UnitZ); // OpenTK has this nice Vector3 class!
 
-            
-            GL.Begin(BeginMode.Triangles);
-            
-            GL.Vertex3(10, 20, 1);
-            GL.Vertex3(100, 20, 1);
-            GL.Vertex3(100, 50, 1);
-            GL.End();
-        
-            
-            
+            GL.Rotate(rotation / 2, Vector3.UnitZ); // OpenTK has this nice Vector3 class!
+
+            EnvironmentController.Update(EllapsedTime);
+            EnvironmentController.Render();
+
+
+
             glControl1.SwapBuffers();
         }
 
@@ -124,7 +121,7 @@ namespace SharpOpenGl
         {
             if (!isOpenGlInitialized) // Play nice
             return;
-          Render();
+             Render(EllapsedTime);
         }
 
         private void SetupViewport()
@@ -173,44 +170,16 @@ namespace SharpOpenGl
 
         public void InitializePlayer()
         {
-            Player.SetLocation(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+            Player.Initialize();
         }
 
-        public void InitializeSpaceField()
+        public void InitializeEnvironment()
         {
-            Random rand = new Random();
-            SpaceField = GL.GenLists(1);
-            GL.NewList(SpaceField, ListMode.Compile);
-            Console.Out.WriteLine("Space Field Initialized");
-           // GL.Disable(EnableCap.Lighting);
-            GL.Begin(PrimitiveType.Points);
-            GL.Rotate(0, 1.0f, 0.0f, .0f);
-            GL.Rotate(0, 0.0f, 1.0f, .0f);
-            GL.Rotate(0, 0.0f, 0.0f, 1.0f);
-            GL.Translate(0,0,0);
-        
-            float r, g, b;
-
-            for (int i = 0; i < 1000; i++)
-            {//Fun starfield making of random stars
-                float xxx = (rand.Next(1000)) - 500;
-                float yyy = (rand.Next(1000)) - 500;
-                float zzz = (rand.Next(1000)) - 500;
-
-                //GL.Color3(Color.White);
-                r = rand.Next(5);
-                g = rand.Next(5);
-                b = rand.Next(5);
-                //need to set color
-                GL.Color3((r / 5) + .5, (g / 5) + .5, (b / 5) + .5);
-                // GL.Color3(Color.White);
-                GL.Vertex3(xxx, yyy, zzz);
-            }
-            GL.End();
-
-            //GL.Enable(EnableCap.Lighting);
-            GL.EndList();
+            EnvironmentController test = new EnvironmentController();
         }
+
+    
+
 
         void GLPerspective(double fovY, double aspect, double zNear, double zFar)
         {

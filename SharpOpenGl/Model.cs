@@ -119,6 +119,12 @@ namespace SharpOpenGl
             GL.EndList();
         }
 
+        public void Initialize()
+        {
+            SetLocation(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+        }
+
+
         public void SetLocation(float x, float y, float z, float xr, float yr, float zr)
         {
             ModelPositionVector = new Vector3(x,y,z);
