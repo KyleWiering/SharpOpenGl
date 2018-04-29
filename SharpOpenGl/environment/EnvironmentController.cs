@@ -11,6 +11,9 @@ namespace SharpOpenGl.environment
         public Spacefield Spacefield { get; private set; }
         
         public Model Model { get; set; }
+
+        public models.Alphabet Alphabet { get; set; }
+
         public EnvironmentController()
         {
             
@@ -24,6 +27,10 @@ namespace SharpOpenGl.environment
             Model = new Model();
             Model.Initialize();
 
+            Alphabet = new models.Alphabet();
+            Alphabet.Initialize();
+
+
         }
 
         public void ExternalRender()
@@ -35,11 +42,13 @@ namespace SharpOpenGl.environment
         public void Render()
         {
             Model.Render();
+            Alphabet.Render(1);
         }
 
         public void Update(double EllapsedTime)
         {
             Model.Update(EllapsedTime);
+            Alphabet.Update(EllapsedTime);
         }
 
         void IEnvironment.Destroy()

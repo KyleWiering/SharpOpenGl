@@ -42,16 +42,25 @@ namespace SharpOpenGl.environment
         public void Render()
         {
 
-           
+            GL.PushMatrix();
             GL.Rotate(rotation / 2, Vector3.UnitZ);
             GL.CallList(glTriangleObject); // if you want to fly 'through' the starfield, don't set it to the camera position.
-          //  GL.PopMatrix();
+            GL.PopMatrix();
         }
 
 
         public void Update(double EllapsedTime)
         {
+            //This will rotate everything...
+            
+           
             rotation += (float)EllapsedTime / 20.0f;
+            
+
+
+
+
+
             //GL.PushMatrix();
             // OpenTK has this nice Vector3 class!
         }
