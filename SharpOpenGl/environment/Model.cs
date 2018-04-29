@@ -25,13 +25,16 @@ namespace SharpOpenGl.environment
             glTriangleObject = GL.GenLists(2);
             Console.Out.WriteLine("Model Initialized");
             GL.NewList(glTriangleObject, ListMode.Compile);
-            GL.Begin(PrimitiveType.Triangles);
+            GL.Begin(PrimitiveType.Lines);
             GL.Color3(Color.Yellow);
             
                 
             GL.Vertex3(10, 20, 1);
             GL.Vertex3(100, 20, 1);
-            GL.Vertex3(100, 50, 1);
+            GL.Vertex3(100, 20, 1);
+            GL.Vertex3(100, 110, 1);
+
+
             GL.End();
             GL.EndList();
         }

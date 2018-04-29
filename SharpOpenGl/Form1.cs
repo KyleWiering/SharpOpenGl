@@ -23,7 +23,6 @@ namespace SharpOpenGl
         Camera Camera;
         EnvironmentController EnvironmentController;
         double EllapsedTime;
-        Model Player;
         ButtonHandler ButtonHandler;
 
         public Form1()
@@ -40,8 +39,6 @@ namespace SharpOpenGl
         {
             isOpenGlInitialized = true;
             Camera = new Camera();
-            Player = new Model();
-            InitializePlayer();
             EnvironmentController.Initialize();
             SetupViewport();
            
@@ -56,9 +53,6 @@ namespace SharpOpenGl
                 EllapsedTime = sw.Elapsed.TotalMilliseconds;
                 sw.Reset(); // reset stopwatch
                 sw.Start(); // restart stopwatch
-
-                
-                
 
                 TriggerCameraStuff();
                 Render(EllapsedTime);
@@ -92,12 +86,6 @@ namespace SharpOpenGl
             Camera.AdjustCamera();
             GL.Translate(Camera.CameraPosition);
             EnvironmentController.ExternalRender();
-           
-
-            GL.Rotate(Player.ModelOrientationVector.X, 1.0f, 0.0f, .0f);
-            GL.Rotate(Player.ModelOrientationVector.Y, 0.0f, 1.0f, .0f);
-            GL.Rotate(Player.ModelOrientationVector.Z, 0.0f, 0.0f, 1.0f);
-           
             GL.LoadIdentity();
             
             Camera.AdjustCamera();
@@ -159,27 +147,12 @@ namespace SharpOpenGl
             Camera.RotateX(ButtonHandler.AxisRotation.X);
             Camera.RotateY(ButtonHandler.AxisRotation.Y);
             Camera.RotateZ(ButtonHandler.AxisRotation.Z);
-
-            Player.AddX(ButtonHandler.AxisMovement.X);
-            Player.AddY(ButtonHandler.AxisMovement.Y);
-            Player.AddZ(ButtonHandler.AxisMovement.Z);
-            Player.AddXRot(ButtonHandler.AxisRotation.X);
-            Player.AddYRot(ButtonHandler.AxisRotation.Y);
-            Player.AddZRot(ButtonHandler.AxisRotation.Z);
-        }
-
-        public void InitializePlayer()
-        {
-            Player.Initialize();
         }
 
         public void InitializeEnvironment()
         {
             EnvironmentController test = new EnvironmentController();
         }
-
-    
-
 
         void GLPerspective(double fovY, double aspect, double zNear, double zFar)
         {
