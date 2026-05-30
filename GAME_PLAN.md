@@ -961,21 +961,21 @@ If unsure what to work on, follow this priority:
 - [x] Write combat tests
 
 ### Phase 6 — UI & HUD
-- [ ] Implement `UIManager`
-- [ ] Implement widget base class
-- [ ] Implement `Button` widget
-- [ ] Implement `Panel` widget
-- [ ] Implement `MainMenuScreen`
-- [ ] Implement `GameplayHUD`
-- [ ] Implement `ResourceBar`
-- [ ] Implement `Minimap`
-- [ ] Implement `UnitInfoPanel`
-- [ ] Implement `PauseScreen`
-- [ ] Implement `MissionSelectScreen`
-- [ ] Implement `ShipDesignerScreen`
-- [ ] Implement UI scaling
-- [ ] Implement UI anchoring
-- [ ] Write UI tests
+- [x] Implement `UIManager`
+- [x] Implement widget base class
+- [x] Implement `Button` widget
+- [x] Implement `Panel` widget
+- [x] Implement `MainMenuScreen`
+- [x] Implement `GameplayHUD`
+- [x] Implement `ResourceBar`
+- [x] Implement `Minimap`
+- [x] Implement `UnitInfoPanel`
+- [x] Implement `PauseScreen`
+- [x] Implement `MissionSelectScreen`
+- [x] Implement `ShipDesignerScreen`
+- [x] Implement UI scaling
+- [x] Implement UI anchoring
+- [x] Write UI tests
 
 ### Phase 7 — Mission System
 - [ ] Implement `MissionLoader`
