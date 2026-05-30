@@ -1,10 +1,46 @@
-C# OpenGl Project 
-=================
+# SharpOpenGL Engine
 
-Introduction
-------------
+[![Build and Screenshot](https://github.com/KyleWiering/SharpOpenGl/actions/workflows/build-and-screenshot.yml/badge.svg)](https://github.com/KyleWiering/SharpOpenGl/actions/workflows/build-and-screenshot.yml)
 
-This project has been created to hightlight the use of C# and opengl with openTK. Mostly experimental work in a 3d environment that 'might' lead to some form of a rendering engine.  I had started with an old school project and converted it from opengl1 to opengl3.
+## Introduction
 
-### Examples
+A C# OpenGL rendering engine built with [OpenTK 4.x](https://opentk.net/) on .NET 8. Originally converted from a C++ OpenGL project, now modernized to use:
+
+- **.NET 8** SDK-style project
+- **OpenTK 4.8** with GameWindow (cross-platform)
+- **Modern OpenGL 3.3+** (shaders, VAOs, VBOs)
+- **GitHub Actions CI/CD** with automated screenshot verification
+
+## Prerequisites
+
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+
+## Build & Run
+
+```bash
+dotnet restore
+dotnet build
+dotnet run --project SharpOpenGl
+```
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| W/S | Move forward/backward |
+| Q/E | Strafe left/right |
+| Z/X | Move up/down |
+| A/D | Rotate left/right |
+| ESC | Exit |
+
+## Screenshot Mode (for CI/CD)
+
+Run headlessly and capture a rendered frame:
+
+```bash
+dotnet run --project SharpOpenGl -- --screenshot --screenshot-path output.png
+```
+
+## Render Example
+
 ![Rotating Triangle](https://raw.githubusercontent.com/KyleWiering/SharpOpenGl/master/render001.PNG "Rotating Triangle")
