@@ -34,3 +34,17 @@ public record ObjectiveChangedEvent(string MissionId, string ObjectiveId, bool C
 
 /// <summary>Fired when a game scene transition is requested.</summary>
 public record SceneTransitionEvent(string FromScene, string ToScene);
+
+// ── Combat events ──────────────────────────────────────────────────────────
+
+/// <summary>Fired when a projectile hits a target entity.</summary>
+public record ProjectileHitEvent(uint ProjectileId, uint TargetId, float Damage);
+
+/// <summary>Fired when a unit deals damage to another entity after armor/shield reduction.</summary>
+public record DamageDealtEvent(uint AttackerId, uint TargetId, float RawDamage, float FinalDamage);
+
+/// <summary>Fired when a hero ability is activated.</summary>
+public record AbilityActivatedEvent(uint CasterId, int Slot, string AbilityId);
+
+/// <summary>Fired when an entity dies during combat (HP drops to zero).</summary>
+public record UnitDiedEvent(uint VictimId, uint KillerId, int XpAwarded);

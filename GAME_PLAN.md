@@ -948,17 +948,17 @@ If unsure what to work on, follow this priority:
 - [x] Write economy tests
 
 ### Phase 5 — Combat & Abilities
-- [ ] Implement `CombatSystem`
-- [ ] Implement `DamageCalculator`
-- [ ] Implement `ProjectileSystem`
-- [ ] Implement projectile types
-- [ ] Implement unit death handling
-- [ ] Implement `AbilitySystem`
-- [ ] Implement ability types
-- [ ] Implement targeting AI
-- [ ] Implement squad combat behavior
-- [ ] Create `balance.json`
-- [ ] Write combat tests
+- [x] Implement `CombatSystem`
+- [x] Implement `DamageCalculator`
+- [x] Implement `ProjectileSystem`
+- [x] Implement projectile types
+- [x] Implement unit death handling
+- [x] Implement `AbilitySystem`
+- [x] Implement ability types
+- [x] Implement targeting AI
+- [x] Implement squad combat behavior
+- [x] Create `balance.json`
+- [x] Write combat tests
 
 ### Phase 6 — UI & HUD
 - [ ] Implement `UIManager`
