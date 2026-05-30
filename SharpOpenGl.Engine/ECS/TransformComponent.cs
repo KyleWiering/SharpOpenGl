@@ -11,15 +11,18 @@ public sealed class TransformComponent
     /// <summary>World-space position.</summary>
     public Vector3 Position { get; set; } = Vector3.Zero;
 
-    /// <summary>Rotation expressed as Euler angles in degrees (Yaw/Pitch/Roll → X/Y/Z).</summary>
+    /// <summary>
+    /// Rotation expressed as Euler angles in degrees: X = Pitch, Y = Yaw, Z = Roll.
+    /// </summary>
     public Vector3 EulerAngles { get; set; } = Vector3.Zero;
 
     /// <summary>Non-uniform scale.</summary>
     public Vector3 Scale { get; set; } = Vector3.One;
 
     /// <summary>
-    /// Compute the model matrix (TRS order: scale → rotate → translate).
-    /// Rotation order: Y (yaw) × X (pitch) × Z (roll).
+    /// Compute the model matrix in OpenTK's row-vector convention (v × M).
+    /// Matrices are applied left-to-right, so the order here is:
+    /// scale → yaw (Y) → pitch (X) → roll (Z) → translate.
     /// </summary>
     public Matrix4 GetModelMatrix()
     {
