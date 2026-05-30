@@ -1,0 +1,118 @@
+{
+  "_comment": "Mission template — copy and fill in all fields. Remove _comment before use.",
+  "id": "mission_id",
+  "displayName": "Mission Display Name",
+  "description": "Short description shown on the mission select screen.",
+  "map": "sector_alpha",
+  "briefing": {
+    "text": "Pre-mission narrative text shown on the briefing screen.",
+    "objectives_preview": [
+      "First primary objective summary",
+      "Optional secondary objective summary"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [5, 5],
+    "startingUnits": ["hero_default"],
+    "startingResources": {
+      "energy": 500,
+      "minerals": 300,
+      "data": 0,
+      "crew": 10
+    }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "objective_1",
+        "type": "destroy_target",
+        "target": "enemy_entity_tag",
+        "description": "Destroy the target entity"
+      },
+      {
+        "_types": "destroy_target | escort | survive_time | collect | reach_area | condition",
+        "id": "survive_obj",
+        "type": "survive_time",
+        "seconds": 120,
+        "description": "Survive for 2 minutes"
+      },
+      {
+        "id": "collect_obj",
+        "type": "collect",
+        "resource": "energy",
+        "amount": 1000,
+        "description": "Collect 1000 energy"
+      },
+      {
+        "id": "reach_obj",
+        "type": "reach_area",
+        "position": [30, 30],
+        "radius": 5,
+        "description": "Reach the beacon"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "bonus_1",
+        "type": "survive_time",
+        "seconds": 300,
+        "description": "Complete within 5 minutes (bonus)"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "trigger_1",
+      "_condition_types": "timer | kill_count | resource_threshold | area_enter",
+      "condition": { "type": "timer", "seconds": 30 },
+      "actions": [
+        {
+          "_action_types": "spawn_units | dialog | camera_pan | complete_objective | fail_mission",
+          "type": "spawn_units",
+          "units": ["fighter_basic"],
+          "position": [40, 40]
+        },
+        {
+          "type": "dialog",
+          "speaker": "Enemy",
+          "text": "Reinforcements have arrived!"
+        }
+      ],
+      "once": true
+    },
+    {
+      "id": "trigger_resource",
+      "condition": { "type": "resource_threshold", "resource": "energy", "threshold": 2000 },
+      "actions": [
+        { "type": "dialog", "speaker": "AI", "text": "Energy reserves are high." }
+      ],
+      "once": true
+    },
+    {
+      "id": "trigger_kills",
+      "condition": { "type": "kill_count", "count": 10 },
+      "actions": [
+        { "type": "dialog", "speaker": "Commander", "text": "Ten enemies eliminated." }
+      ],
+      "once": true
+    }
+  ],
+  "victory": {
+    "_types": "all_primary_complete | timer | custom",
+    "type": "all_primary_complete"
+  },
+  "defeat": {
+    "_types": "hero_destroyed | timer",
+    "type": "hero_destroyed"
+  },
+  "rewards": {
+    "resources": {
+      "energy": 0,
+      "minerals": 0,
+      "data": 0,
+      "crew": 0
+    },
+    "xp": 0,
+    "unlocks": []
+  }
+}

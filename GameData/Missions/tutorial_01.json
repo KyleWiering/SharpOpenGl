@@ -1,0 +1,84 @@
+{
+  "id": "tutorial_01",
+  "displayName": "First Contact",
+  "description": "Learn the basics of fleet command.",
+  "map": "sector_alpha",
+  "briefing": {
+    "text": "Commander, sensors have detected an enemy scout in our sector. Neutralise it before it can report our position.",
+    "objectives_preview": [
+      "Destroy the enemy scout",
+      "Protect your base"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [5, 5],
+    "startingUnits": ["hero_default"],
+    "startingResources": {
+      "energy": 500,
+      "minerals": 300,
+      "data": 0,
+      "crew": 10
+    }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "destroy_scout",
+        "type": "destroy_target",
+        "target": "enemy_scout_1",
+        "description": "Destroy the enemy scout ship"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "no_damage",
+        "type": "survive_time",
+        "seconds": 60,
+        "description": "Survive for 60 seconds"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "spawn_wave_1",
+      "condition": { "type": "timer", "seconds": 30 },
+      "actions": [
+        {
+          "type": "spawn_units",
+          "units": ["fighter_basic", "fighter_basic"],
+          "position": [50, 50]
+        },
+        {
+          "type": "dialog",
+          "speaker": "AI",
+          "text": "Incoming hostiles detected on long-range sensors!"
+        }
+      ],
+      "once": true
+    },
+    {
+      "id": "intro_message",
+      "condition": { "type": "timer", "seconds": 2 },
+      "actions": [
+        {
+          "type": "dialog",
+          "speaker": "Commander",
+          "text": "All systems nominal. Move out and find that scout."
+        }
+      ],
+      "once": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": {
+      "energy": 200,
+      "minerals": 0,
+      "data": 50,
+      "crew": 0
+    },
+    "xp": 100,
+    "unlocks": ["fighter_advanced"]
+  }
+}
