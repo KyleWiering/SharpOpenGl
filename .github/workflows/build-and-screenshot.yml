@@ -1,0 +1,55 @@
+name: Build and Screenshot
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-screenshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install Mesa and OpenGL dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mesa-utils libgl1-mesa-dev libglu1-mesa-dev xvfb libopengl0 libglfw3
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+
+      - name: Run screenshot test
+        run: |
+          xvfb-run -a -s "-screen 0 1024x768x24" \
+            dotnet run --project SharpOpenGl --configuration Release -- --screenshot --screenshot-path screenshot.png
+
+      - name: Verify screenshot exists
+        run: |
+          if [ -f screenshot.png ]; then
+            echo "✅ Screenshot captured successfully!"
+            file screenshot.png
+          else
+            echo "❌ Screenshot was not generated"
+            exit 1
+          fi
+
+      - name: Upload screenshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-screenshot
+          path: screenshot.png
+          retention-days: 30
