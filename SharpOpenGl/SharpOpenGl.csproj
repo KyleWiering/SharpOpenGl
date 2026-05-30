@@ -14,4 +14,8 @@
     <PackageReference Include="StbImageWriteSharp" Version="1.16.7" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\SharpOpenGl.Engine\SharpOpenGl.Engine.csproj" />
+  </ItemGroup>
+
 </Project>

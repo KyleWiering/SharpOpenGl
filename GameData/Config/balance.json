@@ -1,0 +1,38 @@
+{
+  "_comment": "Game balance tables. Tune numbers here without code changes.",
+  "combat": {
+    "damageFormula": "finalDamage = baseDamage * (100 / (100 + armor)) - shieldAbsorb",
+    "minimumDamage": 1
+  },
+  "unitStats": {
+    "fighter_basic": {
+      "maxHP": 100,
+      "shields": 0,
+      "armor": 10,
+      "speed": 80,
+      "weaponDamage": 15,
+      "weaponRange": 200,
+      "weaponFireRate": 2.0,
+      "cost": { "energy": 50, "minerals": 75, "data": 0, "crew": 1 }
+    },
+    "hero_default": {
+      "maxHP": 1000,
+      "shields": 500,
+      "armor": 50,
+      "speed": 120,
+      "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 5 }
+    }
+  },
+  "buildingStats": {
+    "command_center": {
+      "maxHP": 2000,
+      "armor": 100,
+      "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+      "buildTime": 0
+    }
+  },
+  "economy": {
+    "upkeepPerShip": { "energy": 0.5, "crew": 0.1 },
+    "resourceNodeRespawnSeconds": 120
+  }
+}

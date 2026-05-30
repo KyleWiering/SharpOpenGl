@@ -1,0 +1,20 @@
+{
+  "id": "fighter_basic",
+  "displayName": "Interceptor Mk.I",
+  "category": "fighter",
+  "mesh": "meshes/fighter_basic.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 100, "shields": 0, "armor": 10 },
+    "movement": { "speed": 80, "acceleration": 120, "turnRate": 180 },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 15, "range": 200, "fireRate": 2.0 }
+    ],
+    "squadMember": {
+      "formationSlot": -1,
+      "formationOffset": [0, 0, 0]
+    }
+  },
+  "cost": { "energy": 50, "minerals": 75, "data": 0, "crew": 1 },
+  "buildTime": 15
+}

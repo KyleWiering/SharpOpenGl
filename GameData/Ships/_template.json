@@ -1,0 +1,16 @@
+{
+  "_comment": "Template for ship definitions. All fields shown with defaults.",
+  "id": "ship_template",
+  "displayName": "Unnamed Ship",
+  "category": "fighter",
+  "mesh": "",
+  "fallbackMesh": "default",
+  "components": {
+    "health":   { "maxHP": 100,  "shields": 0,   "armor": 0 },
+    "movement": { "speed": 60,   "acceleration": 60, "turnRate": 90 },
+    "weapons":  [],
+    "abilities": []
+  },
+  "cost":      { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 10
+}

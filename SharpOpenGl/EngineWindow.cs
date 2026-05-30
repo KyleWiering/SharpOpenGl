@@ -3,6 +3,7 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Environment;
 using StbImageWriteSharp;
 using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
@@ -11,7 +12,7 @@ namespace SharpOpenGl;
 
 /// <summary>
 /// Main game window using OpenTK 4.x GameWindow.
-/// Replaces the old WinForms Form1 + GLControl approach.
+/// Shader compilation is delegated to <see cref="ShaderManager"/> from SharpOpenGl.Engine.
 /// </summary>
 public class EngineWindow : GameWindow
 {
@@ -22,7 +23,7 @@ public class EngineWindow : GameWindow
     private readonly bool _screenshotMode;
     private readonly string _screenshotPath;
 
-    // Shader program
+    private ShaderManager _shaderManager = null!;
     private int _shaderProgram;
     private int _uniformProjection;
     private int _uniformView;
@@ -52,7 +53,13 @@ public class EngineWindow : GameWindow
         GL.DepthFunc(DepthFunction.Less);
         GL.Enable(EnableCap.ProgramPointSize);
 
-        InitShaders();
+        _shaderManager = new ShaderManager();
+        _shaderProgram = _shaderManager.CreateProgram(VertexShaderSource, FragmentShaderSource);
+        _uniformProjection = ShaderManager.GetUniform(_shaderProgram, "projection");
+        _uniformView = ShaderManager.GetUniform(_shaderProgram, "view");
+        _uniformModel = ShaderManager.GetUniform(_shaderProgram, "model");
+        _uniformColor = ShaderManager.GetUniform(_shaderProgram, "overrideColor");
+
         _environment.Initialize();
 
         Console.WriteLine("SharpOpenGL Engine initialized.");
@@ -64,7 +71,6 @@ public class EngineWindow : GameWindow
 
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-        // Set up matrices
         var projection = Matrix4.CreatePerspectiveFieldOfView(
             MathHelper.DegreesToRadians(45.0f),
             (float)Size.X / Size.Y,
@@ -83,7 +89,6 @@ public class EngineWindow : GameWindow
 
         _frameCount++;
 
-        // In screenshot mode, render a few frames then capture and exit
         if (_screenshotMode && _frameCount >= 5)
         {
             CaptureScreenshot(_screenshotPath);
@@ -122,88 +127,7 @@ public class EngineWindow : GameWindow
     {
         base.OnUnload();
         _environment.Dispose();
-        GL.DeleteProgram(_shaderProgram);
-    }
-
-    private void InitShaders()
-    {
-        string vertexShaderSource = @"
-#version 330 core
-layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec3 aColor;
-
-uniform mat4 projection;
-uniform mat4 view;
-uniform mat4 model;
-uniform vec4 overrideColor;
-
-out vec3 fragColor;
-
-void main()
-{
-    gl_Position = projection * view * model * vec4(aPosition, 1.0);
-    gl_PointSize = 2.0;
-    if (overrideColor.a > 0.0)
-        fragColor = overrideColor.rgb;
-    else
-        fragColor = aColor;
-}
-";
-
-        string fragmentShaderSource = @"
-#version 330 core
-in vec3 fragColor;
-out vec4 outputColor;
-
-void main()
-{
-    outputColor = vec4(fragColor, 1.0);
-}
-";
-
-        int vertexShader = GL.CreateShader(ShaderType.VertexShader);
-        GL.ShaderSource(vertexShader, vertexShaderSource);
-        GL.CompileShader(vertexShader);
-        CheckShaderCompile(vertexShader);
-
-        int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-        GL.ShaderSource(fragmentShader, fragmentShaderSource);
-        GL.CompileShader(fragmentShader);
-        CheckShaderCompile(fragmentShader);
-
-        _shaderProgram = GL.CreateProgram();
-        GL.AttachShader(_shaderProgram, vertexShader);
-        GL.AttachShader(_shaderProgram, fragmentShader);
-        GL.LinkProgram(_shaderProgram);
-        CheckProgramLink(_shaderProgram);
-
-        GL.DeleteShader(vertexShader);
-        GL.DeleteShader(fragmentShader);
-
-        _uniformProjection = GL.GetUniformLocation(_shaderProgram, "projection");
-        _uniformView = GL.GetUniformLocation(_shaderProgram, "view");
-        _uniformModel = GL.GetUniformLocation(_shaderProgram, "model");
-        _uniformColor = GL.GetUniformLocation(_shaderProgram, "overrideColor");
-    }
-
-    private static void CheckShaderCompile(int shader)
-    {
-        GL.GetShader(shader, ShaderParameter.CompileStatus, out int success);
-        if (success == 0)
-        {
-            string info = GL.GetShaderInfoLog(shader);
-            throw new Exception($"Shader compilation failed: {info}");
-        }
-    }
-
-    private static void CheckProgramLink(int program)
-    {
-        GL.GetProgram(program, GetProgramParameterName.LinkStatus, out int success);
-        if (success == 0)
-        {
-            string info = GL.GetProgramInfoLog(program);
-            throw new Exception($"Program linking failed: {info}");
-        }
+        _shaderManager.Dispose();
     }
 
     private void CaptureScreenshot(string path)
@@ -226,4 +150,41 @@ void main()
         var writer = new ImageWriter();
         writer.WritePng(flipped, width, height, ColorComponents.RedGreenBlueAlpha, stream);
     }
+
+    // ── Shader sources ────────────────────────────────────────────────────────
+
+    private const string VertexShaderSource = @"
+#version 330 core
+layout(location = 0) in vec3 aPosition;
+layout(location = 1) in vec3 aColor;
+
+uniform mat4 projection;
+uniform mat4 view;
+uniform mat4 model;
+uniform vec4 overrideColor;
+
+out vec3 fragColor;
+
+void main()
+{
+    gl_Position = projection * view * model * vec4(aPosition, 1.0);
+    gl_PointSize = 2.0;
+    if (overrideColor.a > 0.0)
+        fragColor = overrideColor.rgb;
+    else
+        fragColor = aColor;
 }
+";
+
+    private const string FragmentShaderSource = @"
+#version 330 core
+in vec3 fragColor;
+out vec4 outputColor;
+
+void main()
+{
+    outputColor = vec4(fragColor, 1.0);
+}
+";
+}
+
