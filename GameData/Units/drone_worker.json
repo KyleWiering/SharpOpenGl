@@ -1,0 +1,19 @@
+{
+  "id": "drone_worker",
+  "displayName": "Worker Drone",
+  "category": "worker",
+  "mesh": "meshes/drone_worker.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health":    { "maxHP": 50, "shields": 0, "armor": 0 },
+    "movement":  { "speed": 60, "acceleration": 80, "turnRate": 360 },
+    "weapons":   [],
+    "resourceCollector": {
+      "carryCapacity": 20,
+      "harvestRate": 5,
+      "depositTarget": null
+    }
+  },
+  "cost":      { "energy": 30, "minerals": 20, "data": 0, "crew": 1 },
+  "buildTime": 10
+}

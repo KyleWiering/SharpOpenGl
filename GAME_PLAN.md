@@ -224,17 +224,17 @@ SharpOpenGl/
 
 ### Tasks
 
-- [ ] Create `SharpOpenGl.Engine` class library project
-- [ ] Extract shader management into `ShaderManager` class
-- [ ] Create `IRenderer` interface for platform-agnostic rendering
-- [ ] Implement `MeshBuilder` for procedural geometry (quads, grids, lines)
-- [ ] Create `DefaultObject` — a wireframe cube/diamond rendered when no asset is defined
-- [ ] Implement `AssetManager` with JSON loading
-- [ ] Create `EventBus` for decoupled system communication
-- [ ] Add `IInputProvider` abstraction (keyboard, touch, gamepad)
-- [ ] Set up `SharpOpenGl.Tests` project with xUnit
-- [ ] Ensure existing desktop app still works via the new library
-- [ ] Ensure WebGL2 `docs/engine.js` parity plan is documented
+- [x] Create `SharpOpenGl.Engine` class library project
+- [x] Extract shader management into `ShaderManager` class
+- [x] Create `IRenderer` interface for platform-agnostic rendering
+- [x] Implement `MeshBuilder` for procedural geometry (quads, grids, lines)
+- [x] Create `DefaultObject` — a wireframe cube/diamond rendered when no asset is defined
+- [x] Implement `AssetManager` with JSON loading
+- [x] Create `EventBus` for decoupled system communication
+- [x] Add `IInputProvider` abstraction (keyboard, touch, gamepad)
+- [x] Set up `SharpOpenGl.Tests` project with xUnit
+- [x] Ensure existing desktop app still works via the new library
+- [x] Ensure WebGL2 `docs/engine.js` parity plan is documented
 
 ### Acceptance Criteria
 
@@ -881,17 +881,17 @@ If unsure what to work on, follow this priority:
 ## 19. Master Checklist
 
 ### Phase 0 — Engine Foundation
-- [ ] Create `SharpOpenGl.Engine` class library project
-- [ ] Extract shader management into `ShaderManager`
-- [ ] Create `IRenderer` interface
-- [ ] Implement `MeshBuilder`
-- [ ] Implement `DefaultObject`
-- [ ] Implement `AssetManager` with JSON loading
-- [ ] Create `EventBus`
-- [ ] Add `IInputProvider` abstraction
-- [ ] Set up test project
-- [ ] Verify desktop app works through new library
-- [ ] Document WebGL2 parity plan
+- [x] Create `SharpOpenGl.Engine` class library project
+- [x] Extract shader management into `ShaderManager`
+- [x] Create `IRenderer` interface
+- [x] Implement `MeshBuilder`
+- [x] Implement `DefaultObject`
+- [x] Implement `AssetManager` with JSON loading
+- [x] Create `EventBus`
+- [x] Add `IInputProvider` abstraction
+- [x] Set up test project
+- [x] Verify desktop app works through new library
+- [x] Document WebGL2 parity plan
 
 ### Phase 1 — Core Game Systems (ECS)
 - [ ] Implement `Entity` ID system

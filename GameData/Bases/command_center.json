@@ -1,0 +1,18 @@
+{
+  "id": "command_center",
+  "displayName": "Command Center",
+  "category": "base",
+  "mesh": "meshes/command_center.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 2000, "shields": 0, "armor": 100 },
+    "building": {
+      "buildingType": "command_center",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [2, 2]
+    }
+  },
+  "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 0
+}
