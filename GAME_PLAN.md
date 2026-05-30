@@ -906,18 +906,18 @@ If unsure what to work on, follow this priority:
 - [x] Write ECS unit tests
 
 ### Phase 2 — Entities & Units
-- [ ] Define `HeroComponent`
-- [ ] Define `MovementComponent`
-- [ ] Define `HealthComponent`
-- [ ] Define `WeaponComponent`
-- [ ] Define `SquadMemberComponent`
-- [ ] Define `BuildingComponent`
-- [ ] Implement `ShipFactory`
-- [ ] Implement `BaseFactory`
-- [ ] Implement `UnitFactory`
-- [ ] Create entity JSON templates
-- [ ] Implement Default Fallback rendering
-- [ ] Write factory unit tests
+- [x] Define `HeroComponent`
+- [x] Define `MovementComponent`
+- [x] Define `HealthComponent`
+- [x] Define `WeaponComponent`
+- [x] Define `SquadMemberComponent`
+- [x] Define `BuildingComponent`
+- [x] Implement `ShipFactory`
+- [x] Implement `BaseFactory`
+- [x] Implement `UnitFactory`
+- [x] Create entity JSON templates
+- [x] Implement Default Fallback rendering
+- [x] Write factory unit tests
 
 ### Phase 3 — Map & Grid
 - [ ] Implement `GridCell`
