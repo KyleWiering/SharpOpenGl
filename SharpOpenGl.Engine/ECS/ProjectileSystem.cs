@@ -44,8 +44,8 @@ public sealed class ProjectileSystem : GameSystem
 
             bool hit = proj.Type switch
             {
-                ProjectileType.Linear  => StepLinear(world, proj, transform, deltaTime),
-                ProjectileType.Homing  => StepHoming(world, proj, transform, deltaTime),
+                ProjectileType.Linear  => StepLinear(world, proj, transform, deltaTime, projEntity),
+                ProjectileType.Homing  => StepHoming(world, proj, transform, deltaTime, projEntity),
                 ProjectileType.AoE     => StepAoE(world, proj, transform, deltaTime, projEntity),
                 _                      => false,
             };
@@ -59,20 +59,22 @@ public sealed class ProjectileSystem : GameSystem
 
     // ── Linear ────────────────────────────────────────────────────────────────
 
-    private bool StepLinear(World world, ProjectileComponent proj, TransformComponent transform, float dt)
+    private bool StepLinear(World world, ProjectileComponent proj, TransformComponent transform, float dt,
+        Entity projEntity)
     {
         // Check hit at current position before moving (catches slow-moving projectiles).
-        if (CheckHit(world, proj, transform.Position, single: true)) return true;
+        if (CheckHit(world, proj, transform.Position, single: true, projEntity)) return true;
 
         transform.Position += proj.Direction * proj.Speed * dt;
 
         // Check hit at new position.
-        return CheckHit(world, proj, transform.Position, single: true);
+        return CheckHit(world, proj, transform.Position, single: true, projEntity);
     }
 
     // ── Homing ────────────────────────────────────────────────────────────────
 
-    private bool StepHoming(World world, ProjectileComponent proj, TransformComponent transform, float dt)
+    private bool StepHoming(World world, ProjectileComponent proj, TransformComponent transform, float dt,
+        Entity projEntity)
     {
         if (!world.IsAlive(proj.Target))
         {
@@ -88,7 +90,7 @@ public sealed class ProjectileSystem : GameSystem
         if (toTarget.LengthSquared < HitRadius * HitRadius)
         {
             // Reached target.
-            ApplyDamage(world, proj, proj.Target);
+            ApplyDamage(world, proj, proj.Target, projEntity);
             return true;
         }
 
@@ -106,7 +108,7 @@ public sealed class ProjectileSystem : GameSystem
         if (!world.IsAlive(proj.Target))
         {
             // Detonate at current position.
-            ExplodeAoE(world, proj, transform.Position);
+            ExplodeAoE(world, proj, transform.Position, projEntity);
             return true;
         }
 
@@ -116,7 +118,7 @@ public sealed class ProjectileSystem : GameSystem
 
         if (toTarget.LengthSquared < HitRadius * HitRadius)
         {
-            ExplodeAoE(world, proj, transform.Position);
+            ExplodeAoE(world, proj, transform.Position, projEntity);
             return true;
         }
 
@@ -125,7 +127,7 @@ public sealed class ProjectileSystem : GameSystem
         return false;
     }
 
-    private void ExplodeAoE(World world, ProjectileComponent proj, Vector3 center)
+    private void ExplodeAoE(World world, ProjectileComponent proj, Vector3 center, Entity projEntity)
     {
         float radiusSq = proj.BlastRadius * proj.BlastRadius;
 
@@ -140,7 +142,7 @@ public sealed class ProjectileSystem : GameSystem
             if ((candidatePos - center).LengthSquared > radiusSq) continue;
 
             float final = DamageCalculator.Apply(proj.Damage, health);
-            _bus.Publish(new ProjectileHitEvent(0u, candidate.Index, proj.Damage));
+            _bus.Publish(new ProjectileHitEvent(projEntity.Index, candidate.Index, proj.Damage));
             _bus.Publish(new DamageDealtEvent(proj.Owner.Index, candidate.Index, proj.Damage, final));
         }
     }
@@ -150,7 +152,7 @@ public sealed class ProjectileSystem : GameSystem
     /// <summary>
     /// Broad-phase check: find the first (or all) hostile entities within <see cref="HitRadius"/>.
     /// </summary>
-    private bool CheckHit(World world, ProjectileComponent proj, Vector3 pos, bool single)
+    private bool CheckHit(World world, ProjectileComponent proj, Vector3 pos, bool single, Entity projEntity)
     {
         bool anyHit = false;
 
@@ -164,7 +166,7 @@ public sealed class ProjectileSystem : GameSystem
             var candidatePos = world.GetComponent<TransformComponent>(candidate)?.Position ?? pos;
             if ((candidatePos - pos).LengthSquared > HitRadius * HitRadius) continue;
 
-            ApplyDamage(world, proj, candidate);
+            ApplyDamage(world, proj, candidate, projEntity);
             anyHit = true;
 
             if (single) return true;
@@ -173,13 +175,13 @@ public sealed class ProjectileSystem : GameSystem
         return anyHit;
     }
 
-    private void ApplyDamage(World world, ProjectileComponent proj, Entity target)
+    private void ApplyDamage(World world, ProjectileComponent proj, Entity target, Entity projEntity)
     {
         var health = world.GetComponent<HealthComponent>(target);
         if (health == null) return;
 
         float final = DamageCalculator.Apply(proj.Damage, health);
-        _bus.Publish(new ProjectileHitEvent(0u, target.Index, proj.Damage));
+        _bus.Publish(new ProjectileHitEvent(projEntity.Index, target.Index, proj.Damage));
         _bus.Publish(new DamageDealtEvent(proj.Owner.Index, target.Index, proj.Damage, final));
     }
 }
