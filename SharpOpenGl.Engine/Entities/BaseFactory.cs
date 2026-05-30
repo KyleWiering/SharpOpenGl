@@ -33,7 +33,7 @@ public sealed class BaseFactory
         world.AddComponent(entity, new TransformComponent());
 
         string meshKey = FactoryHelpers.ResolveMesh(_assets, def.Mesh, def.FallbackMesh);
-        world.AddComponent(entity, new RenderComponent { MeshId = -1 });
+        world.AddComponent(entity, new RenderComponent { MeshKey = meshKey, MeshId = -1 });
 
         FactoryHelpers.ApplyHealth(world, entity, def.Components?.Health);
         FactoryHelpers.ApplyBuilding(world, entity, def.Components?.Building);

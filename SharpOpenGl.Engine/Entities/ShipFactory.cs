@@ -43,7 +43,7 @@ public sealed class ShipFactory
 
         // Render — resolve mesh with fallback
         string meshKey = FactoryHelpers.ResolveMesh(_assets, def.Mesh, def.FallbackMesh);
-        world.AddComponent(entity, new RenderComponent { MeshId = -1 });
+        world.AddComponent(entity, new RenderComponent { MeshKey = meshKey, MeshId = -1 });
 
         // Core gameplay components
         FactoryHelpers.ApplyHealth(world, entity, def.Components?.Health);

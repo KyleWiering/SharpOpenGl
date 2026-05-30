@@ -8,8 +8,15 @@ namespace SharpOpenGl.Engine.ECS;
 public sealed class RenderComponent
 {
     /// <summary>
-    /// Vertex array object handle returned by the renderer.
-    /// A value of <c>-1</c> means "use default object".
+    /// Asset key for the mesh to render (e.g. "meshes/hero_vanguard.obj").
+    /// The renderer resolves this key to a GPU buffer on first render.
+    /// An empty string means "use the default fallback object".
+    /// </summary>
+    public string MeshKey { get; set; } = string.Empty;
+
+    /// <summary>
+    /// GPU vertex-array-object handle assigned by the renderer at load time.
+    /// A value of <c>-1</c> means the mesh has not been uploaded yet.
     /// </summary>
     public int MeshId { get; set; } = -1;
 
