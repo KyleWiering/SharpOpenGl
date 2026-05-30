@@ -920,19 +920,20 @@ If unsure what to work on, follow this priority:
 - [x] Write factory unit tests
 
 ### Phase 3 — Map & Grid
-- [ ] Implement `GridCell`
-- [ ] Implement `GridSystem`
-- [ ] Implement coordinate conversion
-- [ ] Implement A* pathfinding
-- [ ] Implement flow-field pathfinding
-- [ ] Implement `MapLoader`
-- [ ] Implement `MapGenerator`
-- [ ] Implement `FogOfWar`
-- [ ] Implement height layers
-- [ ] Implement `RTSCamera`
-- [ ] Implement camera height adjustment
-- [ ] Create sample map JSON
-- [ ] Write pathfinding tests
+- [x] Implement `GridCell`
+- [x] Implement `GridSystem`
+- [x] Implement coordinate conversion
+- [x] Implement A* pathfinding
+- [x] Implement flow-field pathfinding
+- [x] Implement `MapLoader`
+- [x] Implement `MapGenerator`
+- [x] Implement `FogOfWar`
+- [x] Implement height layers
+- [x] Implement `RTSCamera`
+- [x] Implement camera height adjustment
+- [x] Create sample map JSON
+- [x] Write pathfinding tests
+- [x] Write grid coordinate conversion tests
 
 ### Phase 4 — Resources & Economy
 - [ ] Define `ResourceType` enum

@@ -1,0 +1,33 @@
+{
+  "_comment": "Map definition template — copy and rename to create a new map.",
+  "id": "map_id_here",
+  "displayName": "Human-Readable Map Name",
+  "gridSize": [64, 64],
+  "cellSize": 1.0,
+  "layers": ["surface", "orbital"],
+  "terrain": {
+    "default": "space",
+    "regions": [
+      {
+        "_comment_cells": "List of individual cells to override.",
+        "type": "asteroid_field",
+        "cells": [[0, 0], [1, 0]]
+      },
+      {
+        "_comment_rect": "Rectangle covering [minX, minY, maxX, maxY] (inclusive).",
+        "type": "nebula",
+        "rect": [10, 10, 20, 20]
+      }
+    ]
+  },
+  "spawnPoints": [
+    { "player": 1, "position": [3,  3],  "layer": "surface" },
+    { "player": 2, "position": [60, 60], "layer": "surface" }
+  ],
+  "resourceNodes": [
+    { "type": "energy",   "position": [15, 15], "amount": 5000 },
+    { "type": "minerals", "position": [45, 20], "amount": 3000 },
+    { "type": "data",     "position": [32, 48], "amount": 2000 },
+    { "type": "crew",     "position": [8,  50], "amount": 1500 }
+  ]
+}
