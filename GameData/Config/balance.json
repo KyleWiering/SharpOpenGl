@@ -2,7 +2,25 @@
   "_comment": "Game balance tables. Tune numbers here without code changes.",
   "combat": {
     "damageFormula": "finalDamage = baseDamage * (100 / (100 + armor)) - shieldAbsorb",
-    "minimumDamage": 1
+    "minimumDamage": 1,
+    "hitRadius": 2.0,
+    "projectileBaseSpeed": 400.0,
+    "projectileBaseLifetime": 5.0,
+    "xpPerKill": 25,
+    "targetingRange": {
+      "fighter_basic": 200,
+      "hero_default": 600
+    },
+    "projectileTypes": {
+      "laser":   { "type": "instant", "speed": 0,    "lifetime": 0   },
+      "default": { "type": "linear",  "speed": 400,  "lifetime": 5   },
+      "missile": { "type": "homing",  "speed": 300,  "lifetime": 8   },
+      "grenade": { "type": "aoe",     "speed": 200,  "lifetime": 6,   "blastRadius": 15 }
+    },
+    "abilities": {
+      "shield_boost": { "cooldown": 30, "shieldRestorePercent": 0.5 },
+      "emp_burst":    { "cooldown": 60 }
+    }
   },
   "unitStats": {
     "fighter_basic": {
