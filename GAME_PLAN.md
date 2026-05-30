@@ -936,16 +936,16 @@ If unsure what to work on, follow this priority:
 - [x] Write grid coordinate conversion tests
 
 ### Phase 4 — Resources & Economy
-- [ ] Define `ResourceType` enum
-- [ ] Implement `ResourceManager`
-- [ ] Implement `ResourceNode` component
-- [ ] Implement `ResourceCollectorComponent`
-- [ ] Implement `ResourceSystem`
-- [ ] Implement `BuildQueue`
-- [ ] Implement resource UI data
-- [ ] Create `resources.json` config
-- [ ] Implement node depletion
-- [ ] Write economy tests
+- [x] Define `ResourceType` enum
+- [x] Implement `ResourceManager`
+- [x] Implement `ResourceNode` component
+- [x] Implement `ResourceCollectorComponent`
+- [x] Implement `ResourceSystem`
+- [x] Implement `BuildQueue`
+- [x] Implement resource UI data
+- [x] Create `resources.json` config
+- [x] Implement node depletion
+- [x] Write economy tests
 
 ### Phase 5 — Combat & Abilities
 - [ ] Implement `CombatSystem`
