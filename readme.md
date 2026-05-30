@@ -4,7 +4,7 @@
 
 ## Introduction
 
-A C# OpenGL rendering engine built with [OpenTK 4.x](https://opentk.net/) on .NET 8. Originally converted from a C++ OpenGL project, now modernized to use:
+A C# OpenGL rendering engine built with [OpenTK 4.x](https://opentk.net/) on .NET 8. Originally a C++ university project, converted to C# with OpenGL 1.x, now modernized to use:
 
 - **.NET 8** SDK-style project
 - **OpenTK 4.8** with GameWindow (cross-platform)

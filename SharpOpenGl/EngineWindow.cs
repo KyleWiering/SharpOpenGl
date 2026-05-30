@@ -29,6 +29,8 @@ public class EngineWindow : GameWindow
     private int _uniformModel;
     private int _uniformColor;
 
+    private const float MovementSpeed = 50f;
+
     public EngineWindow(GameWindowSettings gameSettings, NativeWindowSettings nativeSettings,
         bool screenshotMode = false, string screenshotPath = "screenshot.png")
         : base(gameSettings, nativeSettings)
@@ -98,9 +100,9 @@ public class EngineWindow : GameWindow
             return;
 
         _inputHandler.Update(KeyboardState);
-        _camera.MoveXAxis(_inputHandler.AxisMovement.X * (float)args.Time * 50f);
-        _camera.MoveYAxis(_inputHandler.AxisMovement.Y * (float)args.Time * 50f);
-        _camera.MoveZAxis(_inputHandler.AxisMovement.Z * (float)args.Time * 50f);
+        _camera.MoveXAxis(_inputHandler.AxisMovement.X * (float)args.Time * MovementSpeed);
+        _camera.MoveYAxis(_inputHandler.AxisMovement.Y * (float)args.Time * MovementSpeed);
+        _camera.MoveZAxis(_inputHandler.AxisMovement.Z * (float)args.Time * MovementSpeed);
         _camera.RotateX(_inputHandler.AxisRotation.X * (float)args.Time);
         _camera.RotateY(_inputHandler.AxisRotation.Y * (float)args.Time);
 
