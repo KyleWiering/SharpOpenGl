@@ -1,0 +1,63 @@
+{
+  "_comment": "Mission template — copy this file and fill in the fields.",
+  "id": "mission_id_here",
+  "displayName": "Mission Display Name",
+  "description": "Short description of the mission.",
+  "map": "sector_alpha",
+  "briefing": {
+    "text": "Narrative briefing text shown before the mission starts.",
+    "objectivesPreview": ["Objective 1 summary", "Objective 2 summary"]
+  },
+  "startConditions": {
+    "playerSpawn": [5, 5],
+    "startingUnits": ["hero_default"],
+    "startingResources": { "energy": 500, "minerals": 300, "data": 0, "crew": 10 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "objective_id",
+        "type": "destroy_target | escort | survive_time | collect | reach_area",
+        "target": "entity_id (for destroy/escort)",
+        "condition": "expression (for condition type)",
+        "description": "Human-readable objective text"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "optional_objective_id",
+        "type": "condition",
+        "condition": "boolean expression",
+        "description": "Optional bonus objective"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "trigger_id",
+      "condition": {
+        "type": "timer | area_enter | kill_count | resource_threshold | custom",
+        "seconds": 0,
+        "count": 0,
+        "target": "entity_id",
+        "position": [0, 0],
+        "radius": 5.0,
+        "resourceType": "energy",
+        "threshold": 0
+      },
+      "actions": [
+        { "type": "spawn_units", "units": ["unit_id"], "position": [0, 0] },
+        { "type": "dialog", "speaker": "Speaker Name", "text": "Dialog text" },
+        { "type": "camera_pan", "cameraTarget": [0, 0] }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete | custom_condition" },
+  "defeat": { "type": "hero_destroyed | base_destroyed | timer_expired" },
+  "rewards": {
+    "resources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+    "xp": 0,
+    "unlocks": []
+  }
+}

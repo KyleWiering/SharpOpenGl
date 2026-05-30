@@ -218,344 +218,45 @@ SharpOpenGl/
 
 ---
 
-## 4. Phase 0 — Engine Foundation
+## 4. Phase 0 — Engine Foundation ✅
 
-**Goal**: Refactor the existing engine into a modular, reusable core library that both desktop and WebGL targets consume.
-
-### Tasks
-
-- [x] Create `SharpOpenGl.Engine` class library project
-- [x] Extract shader management into `ShaderManager` class
-- [x] Create `IRenderer` interface for platform-agnostic rendering
-- [x] Implement `MeshBuilder` for procedural geometry (quads, grids, lines)
-- [x] Create `DefaultObject` — a wireframe cube/diamond rendered when no asset is defined
-- [x] Implement `AssetManager` with JSON loading
-- [x] Create `EventBus` for decoupled system communication
-- [x] Add `IInputProvider` abstraction (keyboard, touch, gamepad)
-- [x] Set up `SharpOpenGl.Tests` project with xUnit
-- [x] Ensure existing desktop app still works via the new library
-- [x] Ensure WebGL2 `docs/engine.js` parity plan is documented
-
-### Acceptance Criteria
-
-- Desktop app renders same scene through new engine library
-- Unit tests pass for math, grid, and ECS utilities
-- `DefaultObject` renders correctly when no mesh is specified
+**Completed.** Modular engine core library (`SharpOpenGl.Engine`) with `ShaderManager`, `IRenderer`, `MeshBuilder`, `DefaultObject`, `AssetManager`, `EventBus`, `IInputProvider`, and xUnit test project.
 
 ---
 
-## 5. Phase 1 — Core Game Systems
+## 5. Phase 1 — Core Game Systems ✅
 
-**Goal**: Implement the Entity-Component-System framework and foundational game loop.
-
-### ECS Design
-
-```
-Entity = uint ID
-Component = struct/class with data only
-System = processes all entities with matching component sets each frame
-World = container for all entities, components, and systems
-```
-
-### Tasks
-
-- [x] Implement `Entity` (lightweight ID + generation counter)
-- [x] Implement `ComponentPool<T>` (sparse set or dictionary per type)
-- [x] Implement `World` (entity creation/destruction, system registration)
-- [x] Implement base `GameSystem` class with `Update(float deltaTime)`
-- [x] Create `TransformComponent` (Position, Rotation, Scale in 3D)
-- [x] Create `RenderComponent` (MeshId, Color, Visible flag)
-- [x] Implement `RenderSystem` that draws all entities with RenderComponent
-- [x] Implement `SceneManager` (load/unload scenes, transition handling)
-- [x] Implement game state machine (Menu → Loading → Playing → Paused)
-- [x] Write unit tests for ECS operations
-
-### Acceptance Criteria
-
-- Can create 1000 entities with transforms, update them at 60fps
-- Scene transitions work (menu → game → pause → menu)
-- ECS tests cover create/destroy/query operations
+**Completed.** ECS framework: `Entity` (ID + generation), `ComponentPool<T>`, `World`, `GameSystem`, `TransformComponent`, `RenderComponent`, `RenderSystem`, `SceneManager`, game state machine.
 
 ---
 
-## 6. Phase 2 — Entities & Units
+## 6. Phase 2 — Entities & Units ✅
 
-**Goal**: Define the entity types for the game — hero ship, squadron units, bases, and resource nodes.
-
-### Hero Ship
-
-- Single player-controlled capital ship
-- Upgradeable (weapons, shields, speed, abilities)
-- Persists across missions
-- Has unique abilities (special attacks, buffs)
-
-### Squadron Units
-
-- Groups of 3–12 smaller ships
-- Formation-based movement (V, line, circle, custom)
-- Shared health pool or individual HP (configurable)
-- Auto-attack with basic AI
-
-### Bases / Structures
-
-- Stationary buildings on grid cells
-- Production queues (build units over time)
-- Resource collection radius
-- Defensive capabilities (turrets)
-
-### Tasks
-
-- [ ] Define `HeroComponent` (level, XP, ability slots, upgrade tree reference)
-- [ ] Define `MovementComponent` (speed, acceleration, turnRate, pathTarget)
-- [ ] Define `HealthComponent` (currentHP, maxHP, shields, armor)
-- [ ] Define `WeaponComponent` (damage, range, fireRate, projectileType)
-- [ ] Define `SquadMemberComponent` (squadId, formationSlot, formationOffset)
-- [ ] Define `BuildingComponent` (buildingType, buildQueue, productionRate)
-- [ ] Implement `ShipFactory` — reads JSON definition, creates entity with all components
-- [ ] Implement `BaseFactory` — reads JSON, places building on grid
-- [ ] Implement `UnitFactory` — generic factory for any unit type
-- [ ] Create `hero_default.json` template with all configurable fields
-- [ ] Create `fighter_basic.json` template
-- [ ] Create `command_center.json` template
-- [ ] Implement **Default Fallback**: if JSON references undefined mesh/texture, use `DefaultObject`
-- [ ] Write unit tests for factories
-
-### JSON Entity Template Example
-
-```json
-{
-  "id": "hero_default",
-  "displayName": "Vanguard",
-  "category": "hero",
-  "mesh": "meshes/hero_vanguard.obj",
-  "fallbackMesh": "default",
-  "components": {
-    "health": { "maxHP": 1000, "shields": 500, "armor": 50 },
-    "movement": { "speed": 120, "acceleration": 60, "turnRate": 90 },
-    "weapons": [
-      { "slot": 0, "type": "laser", "damage": 25, "range": 300, "fireRate": 4.0 },
-      { "slot": 1, "type": "missile", "damage": 100, "range": 600, "fireRate": 0.5 }
-    ],
-    "abilities": [
-      { "slot": 0, "id": "shield_boost", "cooldown": 30 },
-      { "slot": 1, "id": "emp_burst", "cooldown": 60 }
-    ]
-  },
-  "upgrades": {
-    "tree": "tech_trees/hero_vanguard.json"
-  }
-}
-```
-
-### Acceptance Criteria
-
-- Hero ship spawns from JSON, renders with correct components
-- Undefined meshes fall back to default object
-- Squadrons form up in configured formation
-- Bases place on grid correctly
+**Completed.** Entity types with JSON-driven definitions: `HeroComponent`, `MovementComponent`, `HealthComponent`, `WeaponComponent`, `SquadMemberComponent`, `BuildingComponent`. Factories: `ShipFactory`, `BaseFactory`, `UnitFactory`. Default fallback rendering for missing assets.
 
 ---
 
-## 7. Phase 3 — Map & Grid System
+## 7. Phase 3 — Map & Grid System ✅
 
-**Goal**: Implement the spatial grid, maps, pathfinding, and fog of war.
-
-### Grid Design
-
-- Hexagonal or square grid (configurable per map — start with square)
-- Each cell has: terrain type, occupancy, resource node, visibility state
-- Multiple vertical layers (surface, orbital) for the 3D height aspect
-- Map sizes: Small (32×32), Medium (64×64), Large (128×128)
-
-### Camera Height / 3D Perspective
-
-- Camera positioned above the plane looking down at an angle (30–60° tilt)
-- Player can zoom in/out (adjusting height + angle)
-- At closest zoom: near-isometric view showing ship detail
-- At farthest zoom: strategic overview, units become icons
-- Height layers allow units to be "above" or "below" the main plane
-
-### Tasks
-
-- [ ] Implement `GridCell` (position, terrain, occupant, layer, fogState)
-- [ ] Implement `GridSystem` (create grid, get neighbors, coordinate conversion)
-- [ ] Implement world-to-grid and grid-to-world coordinate mapping
-- [ ] Implement A* pathfinding on grid (with terrain costs)
-- [ ] Implement flow-field pathfinding for large groups
-- [ ] Implement `MapLoader` — load map from JSON (terrain layout, spawn points, resources)
-- [ ] Implement `MapGenerator` — procedural generation with seed
-- [ ] Implement `FogOfWar` — per-player visibility based on unit sight ranges
-- [ ] Implement height layers (orbital layer above surface layer)
-- [ ] Implement `RTSCamera` — top-down with tilt, zoom, pan, edge-scroll
-- [ ] Implement camera height adjustment (Z-axis movement for perspective shift)
-- [ ] Create `sector_alpha.json` sample map
-- [ ] Write pathfinding unit tests
-- [ ] Write grid coordinate conversion tests
-
-### Map JSON Template
-
-```json
-{
-  "id": "sector_alpha",
-  "displayName": "Sector Alpha",
-  "gridSize": [64, 64],
-  "layers": ["surface", "orbital"],
-  "terrain": {
-    "default": "space",
-    "regions": [
-      { "type": "asteroid_field", "cells": [[10,10], [10,11], [11,10]] },
-      { "type": "nebula", "rect": [20, 20, 30, 30] }
-    ]
-  },
-  "spawnPoints": [
-    { "player": 1, "position": [5, 5], "layer": "surface" },
-    { "player": 2, "position": [58, 58], "layer": "surface" }
-  ],
-  "resourceNodes": [
-    { "type": "energy", "position": [15, 15], "amount": 5000 },
-    { "type": "minerals", "position": [45, 20], "amount": 3000 }
-  ]
-}
-```
-
-### Acceptance Criteria
-
-- Grid renders visually with cell borders
-- Pathfinding finds valid paths around obstacles
-- Camera zoom changes perspective angle smoothly
-- Fog of war hides unexplored areas
-- Maps load from JSON successfully
+**Completed.** Spatial grid (`GridCell`, `GridSystem`), coordinate conversion, A* and flow-field pathfinding, `MapLoader`, `MapGenerator`, `FogOfWar`, height layers, `RTSCamera` with adjustable tilt/zoom.
 
 ---
 
-## 8. Phase 4 — Resources & Economy
+## 8. Phase 4 — Resources & Economy ✅
 
-**Goal**: Implement the 4-resource economy system.
-
-### Resource Types
-
-| Resource | Lore Name | Gathered From | Use |
-|----------|-----------|---------------|-----|
-| **Energy** | Plasma Cores | Solar collectors, star proximity | Powers buildings, shields, abilities |
-| **Minerals** | Astrium Ore | Asteroid mining | Ship/base construction |
-| **Data** | Quantum Fragments | Derelict scans, research stations | Tech upgrades, special units |
-| **Crew** | Personnel | Training facilities, recruitment | Manning ships/stations, hero abilities |
-
-### Economy Design
-
-- Resources stored per-player (global pool)
-- Buildings/units cost resources to produce
-- Some resources regenerate (energy), others are finite on map (minerals)
-- Trade between resource types at a conversion rate (later multiplayer marketplace)
-- Upkeep costs for large fleets
-
-### Tasks
-
-- [ ] Define `ResourceType` enum (Energy, Minerals, Data, Crew)
-- [ ] Implement `ResourceManager` (per-player storage, income/expense tracking)
-- [ ] Implement `ResourceNode` component (type, amount, harvestRate, depleted flag)
-- [ ] Implement `ResourceCollectorComponent` (assigned node, carry capacity, deposit target)
-- [ ] Implement `ResourceSystem` — processes collection, deposits, income ticks
-- [ ] Implement `BuildQueue` — deducts resources on start, refunds on cancel
-- [ ] Implement resource UI display data (current/max/income per second)
-- [ ] Define `resources.json` config (starting amounts, max storage, conversion rates)
-- [ ] Implement resource node depletion and respawn timers
-- [ ] Write economy balance tests (ensure no infinite resource exploits)
-
-### Acceptance Criteria
-
-- All 4 resources track correctly
-- Workers harvest and deposit
-- Buildings cost correct resources
-- Insufficient resources prevents build
-- Resource nodes deplete and show visual feedback
+**Completed.** 4 resource types (Energy, Minerals, Data, Crew), `ResourceManager`, `ResourceNode`, `ResourceCollectorComponent`, `ResourceSystem`, `BuildQueue`, node depletion, `resources.json` config.
 
 ---
 
-## 9. Phase 5 — Combat & Abilities
+## 9. Phase 5 — Combat & Abilities ✅
 
-**Goal**: Implement the combat system with projectiles, damage, and hero abilities.
-
-### Combat Design
-
-- Real-time combat with auto-attack within range
-- Projectile types: instant (laser), travel-time (missile), area (explosion)
-- Damage formula: `finalDamage = baseDamage * (100 / (100 + armor)) - shieldAbsorb`
-- Unit death → removal from world, drop loot/XP
-- Hero abilities with cooldowns and resource costs
-
-### Tasks
-
-- [ ] Implement `CombatSystem` — target acquisition, range checking, attack timing
-- [ ] Implement `DamageCalculator` — apply damage formula with armor/shields
-- [ ] Implement `ProjectileSystem` — spawn projectiles, movement, collision
-- [ ] Implement projectile types (instant, linear, homing, AoE)
-- [ ] Implement unit death handling (remove entity, spawn explosion effect, award XP)
-- [ ] Implement `AbilitySystem` — hero abilities with cooldowns
-- [ ] Implement ability types (buff, damage, heal, summon, area denial)
-- [ ] Implement aggro/targeting AI (closest, lowest HP, priority target)
-- [ ] Implement squad combat behavior (focus fire, spread, kite)
-- [ ] Define `balance.json` with damage/armor/speed tables
-- [ ] Write damage calculation tests
-- [ ] Write targeting priority tests
-
-### Acceptance Criteria
-
-- Units auto-attack enemies in range
-- Projectiles travel and deal damage
-- Hero abilities activate with cooldowns
-- Units die and are removed cleanly
-- Squad focus fire works correctly
+**Completed.** `CombatSystem`, `DamageCalculator` (armor/shield formula), `ProjectileSystem` (instant/linear/homing/AoE), unit death handling, `AbilitySystem` with cooldowns, targeting AI, squad combat behaviors, `balance.json`.
 
 ---
 
-## 10. Phase 6 — UI & HUD
+## 10. Phase 6 — UI & HUD ✅
 
-**Goal**: Full menu system and in-game HUD, mobile-responsive.
-
-### Screen Flow
-
-```
-Main Menu
-├── New Game → Mission Select → Loading → Gameplay
-├── Continue → Loading → Gameplay
-├── Ship Designer → (design ships/bases)
-├── Settings → (controls, audio, display)
-└── Quit
-
-Gameplay HUD
-├── Resource Bar (top)
-├── Minimap (bottom-left)
-├── Unit Info Panel (bottom-center)
-├── Ability Bar (bottom-right, hero abilities)
-├── Build Menu (context, on base selection)
-└── Pause Menu (overlay)
-```
-
-### Tasks
-
-- [ ] Implement `UIManager` (screen stack, input routing, render order)
-- [ ] Implement UI widget base class (position, size, anchor, visibility)
-- [ ] Implement `Button` widget (text, icon, click handler, hover state)
-- [ ] Implement `Panel` widget (background, children layout)
-- [ ] Implement `MainMenuScreen` (New Game, Continue, Ship Designer, Settings, Quit)
-- [ ] Implement `GameplayHUD` — resource bar, minimap, unit info, ability bar
-- [ ] Implement `ResourceBar` widget — shows all 4 resources with income rate
-- [ ] Implement `Minimap` widget — renders fog-of-war map with unit dots
-- [ ] Implement `UnitInfoPanel` — shows selected unit(s) stats
-- [ ] Implement `PauseScreen` overlay
-- [ ] Implement `MissionSelectScreen` — list missions, preview, start
-- [ ] Implement `ShipDesignerScreen` — visual ship/base customization
-- [ ] Implement UI scaling for different resolutions
-- [ ] Implement UI anchoring system (corners, center, stretch)
-- [ ] Write UI layout tests
-
-### Acceptance Criteria
-
-- All screens navigable with keyboard and touch
-- HUD displays correct real-time data
-- UI scales properly from 720p to 4K
-- Touch targets minimum 44px for mobile
+**Completed.** `UIManager`, widget hierarchy (`Button`, `Panel`), screens (`MainMenuScreen`, `GameplayHUD`, `ResourceBar`, `Minimap`, `UnitInfoPanel`, `PauseScreen`, `MissionSelectScreen`, `ShipDesignerScreen`), UI scaling and anchoring.
 
 ---
 
@@ -574,7 +275,7 @@ Gameplay HUD
 
 ### Tasks
 
-- [ ] Implement `MissionLoader` — parse mission JSON into runtime state
+- [x] Implement `MissionLoader` — parse mission JSON into runtime state
 - [ ] Implement `MissionState` — tracks current objectives, progress, completion
 - [ ] Implement `ObjectiveSystem` — evaluates objective conditions each frame
 - [ ] Implement objective types (destroy target, escort, survive time, collect, reach area)
@@ -978,7 +679,7 @@ If unsure what to work on, follow this priority:
 - [x] Write UI tests
 
 ### Phase 7 — Mission System
-- [ ] Implement `MissionLoader`
+- [x] Implement `MissionLoader`
 - [ ] Implement `MissionState`
 - [ ] Implement `ObjectiveSystem`
 - [ ] Implement objective types
