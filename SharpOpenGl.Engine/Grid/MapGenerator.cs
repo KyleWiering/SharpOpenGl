@@ -103,10 +103,11 @@ public sealed class MapGenerator
         int w = grid.Width, h = grid.Height;
         int pad = Math.Min(3, Math.Min(w, h));
 
-        ClearRect(grid, 0,     0,     pad, pad);
-        ClearRect(grid, w-pad, 0,     w-1, pad);
-        ClearRect(grid, 0,     h-pad, pad, h-1);
-        ClearRect(grid, w-pad, h-pad, w-1, h-1);
+        // Each corner clears exactly pad×pad cells (pad-1 is the inclusive upper bound).
+        ClearRect(grid, 0,       0,       pad-1, pad-1);
+        ClearRect(grid, w-pad,   0,       w-1,   pad-1);
+        ClearRect(grid, 0,       h-pad,   pad-1, h-1);
+        ClearRect(grid, w-pad,   h-pad,   w-1,   h-1);
     }
 
     private static void ClearRect(GridSystem grid, int x0, int y0, int x1, int y1)

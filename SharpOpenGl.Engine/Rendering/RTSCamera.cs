@@ -65,7 +65,8 @@ public sealed class RTSCamera
     {
         get
         {
-            float tiltRad = MathHelper.DegreesToRadians(TiltDegrees);
+            float tiltRad = MathHelper.DegreesToRadians(
+                Math.Clamp(TiltDegrees, 5f, 85f)); // guard against tan(0) / tan(90°)
             float backOffset = Height / MathF.Tan(tiltRad);
             return new Vector3(FocusPoint.X, Height, FocusPoint.Y + backOffset);
         }
