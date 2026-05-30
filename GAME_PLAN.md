@@ -259,16 +259,16 @@ World = container for all entities, components, and systems
 
 ### Tasks
 
-- [ ] Implement `Entity` (lightweight ID + generation counter)
-- [ ] Implement `ComponentPool<T>` (sparse set or dictionary per type)
-- [ ] Implement `World` (entity creation/destruction, system registration)
-- [ ] Implement base `GameSystem` class with `Update(float deltaTime)`
-- [ ] Create `TransformComponent` (Position, Rotation, Scale in 3D)
-- [ ] Create `RenderComponent` (MeshId, Color, Visible flag)
-- [ ] Implement `RenderSystem` that draws all entities with RenderComponent
-- [ ] Implement `SceneManager` (load/unload scenes, transition handling)
-- [ ] Implement game state machine (Menu → Loading → Playing → Paused)
-- [ ] Write unit tests for ECS operations
+- [x] Implement `Entity` (lightweight ID + generation counter)
+- [x] Implement `ComponentPool<T>` (sparse set or dictionary per type)
+- [x] Implement `World` (entity creation/destruction, system registration)
+- [x] Implement base `GameSystem` class with `Update(float deltaTime)`
+- [x] Create `TransformComponent` (Position, Rotation, Scale in 3D)
+- [x] Create `RenderComponent` (MeshId, Color, Visible flag)
+- [x] Implement `RenderSystem` that draws all entities with RenderComponent
+- [x] Implement `SceneManager` (load/unload scenes, transition handling)
+- [x] Implement game state machine (Menu → Loading → Playing → Paused)
+- [x] Write unit tests for ECS operations
 
 ### Acceptance Criteria
 
@@ -894,16 +894,16 @@ If unsure what to work on, follow this priority:
 - [x] Document WebGL2 parity plan
 
 ### Phase 1 — Core Game Systems (ECS)
-- [ ] Implement `Entity` ID system
-- [ ] Implement `ComponentPool<T>`
-- [ ] Implement `World` container
-- [ ] Implement `GameSystem` base class
-- [ ] Create `TransformComponent`
-- [ ] Create `RenderComponent`
-- [ ] Implement `RenderSystem`
-- [ ] Implement `SceneManager`
-- [ ] Implement game state machine
-- [ ] Write ECS unit tests
+- [x] Implement `Entity` ID system
+- [x] Implement `ComponentPool<T>`
+- [x] Implement `World` container
+- [x] Implement `GameSystem` base class
+- [x] Create `TransformComponent`
+- [x] Create `RenderComponent`
+- [x] Implement `RenderSystem`
+- [x] Implement `SceneManager`
+- [x] Implement game state machine
+- [x] Write ECS unit tests
 
 ### Phase 2 — Entities & Units
 - [ ] Define `HeroComponent`
