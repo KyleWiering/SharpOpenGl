@@ -4,7 +4,11 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Rendering;
+using SharpOpenGl.Engine.Scenes;
+using SharpOpenGl.Engine.UI;
+using SharpOpenGl.Engine.UI.Screens;
 using SharpOpenGl.Environment;
 using StbImageWriteSharp;
 using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
@@ -12,7 +16,7 @@ using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
 namespace SharpOpenGl;
 
 /// <summary>
-/// Main RTS game window. Renders ships on a space grid with selection and move commands.
+/// Main RTS game window. Manages scene transitions between main menu and gameplay.
 /// </summary>
 public class EngineWindow : GameWindow
 {
@@ -29,16 +33,27 @@ public class EngineWindow : GameWindow
     private int _uniformModel;
     private int _uniformColor;
 
-    // ECS
-    private World _world = null!;
-    private MovementSystem _movementSystem = null!;
+    // Scene & UI management
+    private EventBus _eventBus = null!;
+    private SceneManager _sceneManager = null!;
+    private UIManager _uiManager = null!;
+    private GLUIRenderer _uiRenderer = null!;
 
-    // Ship meshes
+    // Scene name constants
+    private const string SceneMainMenu = "MainMenu";
+    private const string SceneGameplay = "Gameplay";
+
+    // ECS (initialized when gameplay starts)
+    private World? _world;
+    private MovementSystem? _movementSystem;
+
+    // Ship meshes (initialized when gameplay starts)
     private int _heroVao, _heroVbo, _heroVertCount;
     private int _fighterVao, _fighterVbo, _fighterVertCount;
     private int _selectionVao, _selectionVbo, _selectionVertCount;
     private int _moveTargetVao, _moveTargetVbo, _moveTargetVertCount;
     private int _gridVao, _gridVbo, _gridVertCount;
+    private bool _gameplayMeshesLoaded;
 
     // Game entities
     private Entity _heroEntity;
@@ -47,6 +62,9 @@ public class EngineWindow : GameWindow
     // Move target indicator
     private Vector3? _moveTargetPosition;
     private float _moveTargetTimer;
+
+    // Input state for Escape key debounce
+    private bool _escapeWasDown;
 
     public EngineWindow(GameWindowSettings gameSettings, NativeWindowSettings nativeSettings,
         bool screenshotMode = false, string screenshotPath = "screenshot.png")
@@ -87,26 +105,100 @@ public class EngineWindow : GameWindow
             TiltAngle = 35f,
         };
 
-        // Build meshes
+        // UI Renderer
+        _uiRenderer = new GLUIRenderer();
+        _uiRenderer.Initialize(Size.X, Size.Y);
+
+        // Event bus & managers
+        _eventBus = new EventBus();
+        _sceneManager = new SceneManager(_eventBus);
+        _uiManager = new UIManager(_eventBus);
+
+        // Register scenes
+        _sceneManager.Register(SceneMainMenu, () => new MainMenuScene(this));
+        _sceneManager.Register(SceneGameplay, () => new GameplayScene(this));
+
+        // Start at main menu (or skip to gameplay in screenshot mode)
+        if (_screenshotMode)
+        {
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+        }
+        else
+        {
+            _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
+        }
+
+        Console.WriteLine("SharpOpenGL RTS Engine initialized.");
+    }
+
+    // ── Scene transitions ─────────────────────────────────────────────────────
+
+    internal void ShowMainMenu()
+    {
+        _uiManager.Clear();
+        var menu = new MainMenuScreen();
+        menu.NewGameRequested += StartNewGame;
+        menu.QuitRequested += () => Close();
+        _uiManager.Push(menu);
+    }
+
+    internal void StartNewGame()
+    {
+        _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+    }
+
+    internal void StartGameplay()
+    {
+        _uiManager.Clear();
+        var hud = new GameplayHUD();
+        hud.PauseRequested += ShowPauseMenu;
+        _uiManager.Push(hud);
+
+        if (!_gameplayMeshesLoaded)
+        {
+            LoadGameplayMeshes();
+        }
+        InitializeWorld();
+        Console.WriteLine("Game started! WASD=pan, Scroll=zoom, LClick=select, RClick=move, Esc=pause");
+    }
+
+    private void ShowPauseMenu()
+    {
+        if (_sceneManager.State != GameState.Playing) return;
+
+        var pause = new PauseScreen();
+        pause.ResumeRequested += () =>
+        {
+            _uiManager.Pop();
+        };
+        pause.QuitToMenuRequested += () =>
+        {
+            CleanupGameplay();
+            _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
+        };
+        _uiManager.Push(pause);
+    }
+
+    private void LoadGameplayMeshes()
+    {
         (_heroVao, _heroVbo, _heroVertCount) =
-            ShipMeshBuilder.BuildShipMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f); // Cyan hero
+            ShipMeshBuilder.BuildShipMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f);
         (_fighterVao, _fighterVbo, _fighterVertCount) =
-            ShipMeshBuilder.BuildShipMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f); // Green fighters
+            ShipMeshBuilder.BuildShipMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f);
         (_selectionVao, _selectionVbo, _selectionVertCount) =
             ShipMeshBuilder.BuildSelectionRing(new Vector3(0f, 1f, 0f), 3f);
         (_moveTargetVao, _moveTargetVbo, _moveTargetVertCount) =
             ShipMeshBuilder.BuildMoveTarget(new Vector3(0f, 1f, 0.5f), 2f);
         (_gridVao, _gridVbo, _gridVertCount) =
             MeshBuilder.BuildGrid(20, 20, 10f, new Vector3(0.15f, 0.15f, 0.25f));
-
-        // Initialize ECS
-        InitializeWorld();
-
-        Console.WriteLine("SharpOpenGL RTS Engine initialized. WASD=pan, Scroll=zoom, LClick=select, RClick=move");
+        _gameplayMeshesLoaded = true;
     }
 
     private void InitializeWorld()
     {
+        _world?.Dispose();
+        _fighterEntities.Clear();
+
         _world = new World();
         _movementSystem = new MovementSystem();
         _world.AddSystem(_movementSystem);
@@ -174,12 +266,25 @@ public class EngineWindow : GameWindow
         }
     }
 
+    private void CleanupGameplay()
+    {
+        _world?.Dispose();
+        _world = null;
+        _movementSystem = null;
+        _fighterEntities.Clear();
+        _moveTargetPosition = null;
+        _moveTargetTimer = 0f;
+    }
+
+    // ── Rendering ─────────────────────────────────────────────────────────────
+
     protected override void OnRenderFrame(FrameEventArgs args)
     {
         base.OnRenderFrame(args);
 
         GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
+        // Always render the starfield background
         var projection = Matrix4.CreatePerspectiveFieldOfView(
             MathHelper.DegreesToRadians(45.0f),
             (float)Size.X / Size.Y,
@@ -192,10 +297,39 @@ public class EngineWindow : GameWindow
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
         GL.UniformMatrix4(_uniformView, false, ref view);
 
-        // Render starfield background
         _environment.Render(_shaderProgram, _uniformModel, _uniformColor);
 
-        // Render grid (offset so it's centered)
+        // Render gameplay 3D content only when playing
+        if (_sceneManager.State == GameState.Playing && _world != null)
+        {
+            RenderGameplay(projection, view);
+        }
+
+        // Render UI on top
+        _uiRenderer.Begin();
+        _uiManager.Draw(_uiRenderer);
+        _uiRenderer.End();
+
+        GL.BindVertexArray(0);
+        SwapBuffers();
+
+        _frameCount++;
+
+        if (_screenshotMode && _frameCount >= 5)
+        {
+            CaptureScreenshot(_screenshotPath);
+            Console.WriteLine($"Screenshot saved to: {_screenshotPath}");
+            Close();
+        }
+    }
+
+    private void RenderGameplay(Matrix4 projection, Matrix4 view)
+    {
+        GL.UseProgram(_shaderProgram);
+        GL.UniformMatrix4(_uniformProjection, false, ref projection);
+        GL.UniformMatrix4(_uniformView, false, ref view);
+
+        // Render grid
         var gridModel = Matrix4.CreateTranslation(-100f, -0.5f, -100f);
         GL.UniformMatrix4(_uniformModel, false, ref gridModel);
         GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
@@ -203,7 +337,7 @@ public class EngineWindow : GameWindow
         GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
 
         // Render all ships
-        foreach (var (entity, render) in _world.Query<RenderComponent>())
+        foreach (var (entity, render) in _world!.Query<RenderComponent>())
         {
             if (!render.Visible) continue;
             var transform = _world.GetComponent<TransformComponent>(entity);
@@ -211,13 +345,13 @@ public class EngineWindow : GameWindow
 
             Matrix4 model = transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
-            GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0)); // Use vertex colors
+            GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
 
             GL.BindVertexArray(render.MeshId);
             GL.DrawArrays((PrimitiveType)render.PrimitiveType, 0, render.VertexCount);
         }
 
-        // Render selection rings on selected entities
+        // Render selection rings
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
             if (!sel.IsSelected) continue;
@@ -242,19 +376,9 @@ public class EngineWindow : GameWindow
             GL.BindVertexArray(_moveTargetVao);
             GL.DrawArrays(PrimitiveType.Lines, 0, _moveTargetVertCount);
         }
-
-        GL.BindVertexArray(0);
-        SwapBuffers();
-
-        _frameCount++;
-
-        if (_screenshotMode && _frameCount >= 5)
-        {
-            CaptureScreenshot(_screenshotPath);
-            Console.WriteLine($"Screenshot saved to: {_screenshotPath}");
-            Close();
-        }
     }
+
+    // ── Update ────────────────────────────────────────────────────────────────
 
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
@@ -265,38 +389,83 @@ public class EngineWindow : GameWindow
 
         float dt = (float)args.Time;
 
-        // Camera panning with WASD
-        float panX = 0f, panZ = 0f;
-        if (KeyboardState.IsKeyDown(Keys.W) || KeyboardState.IsKeyDown(Keys.Up))
-            panZ = -1f;
-        if (KeyboardState.IsKeyDown(Keys.S) || KeyboardState.IsKeyDown(Keys.Down))
-            panZ = 1f;
-        if (KeyboardState.IsKeyDown(Keys.A) || KeyboardState.IsKeyDown(Keys.Left))
-            panX = -1f;
-        if (KeyboardState.IsKeyDown(Keys.D) || KeyboardState.IsKeyDown(Keys.Right))
-            panX = 1f;
-        _rtsCamera.Pan(panX, panZ, dt);
+        // Handle Escape key with debounce
+        bool escapeDown = KeyboardState.IsKeyDown(Keys.Escape);
+        if (escapeDown && !_escapeWasDown)
+        {
+            HandleEscapePressed();
+        }
+        _escapeWasDown = escapeDown;
 
-        // Update ECS world
-        _world.Update(dt);
+        // Update scene
+        _sceneManager.Update(dt);
 
-        // Fade move target indicator
-        if (_moveTargetTimer > 0f)
-            _moveTargetTimer -= dt;
+        // Update UI
+        _uiManager.Update(dt);
 
-        if (KeyboardState.IsKeyDown(Keys.Escape))
-            Close();
+        // Gameplay-specific updates
+        if (_sceneManager.State == GameState.Playing && _world != null)
+        {
+            // Camera panning with WASD
+            float panX = 0f, panZ = 0f;
+            if (KeyboardState.IsKeyDown(Keys.W) || KeyboardState.IsKeyDown(Keys.Up))
+                panZ = -1f;
+            if (KeyboardState.IsKeyDown(Keys.S) || KeyboardState.IsKeyDown(Keys.Down))
+                panZ = 1f;
+            if (KeyboardState.IsKeyDown(Keys.A) || KeyboardState.IsKeyDown(Keys.Left))
+                panX = -1f;
+            if (KeyboardState.IsKeyDown(Keys.D) || KeyboardState.IsKeyDown(Keys.Right))
+                panX = 1f;
+            _rtsCamera.Pan(panX, panZ, dt);
+
+            // Update ECS world
+            _world.Update(dt);
+
+            // Fade move target indicator
+            if (_moveTargetTimer > 0f)
+                _moveTargetTimer -= dt;
+        }
     }
+
+    private void HandleEscapePressed()
+    {
+        switch (_sceneManager.State)
+        {
+            case GameState.MainMenu:
+                Close();
+                break;
+            case GameState.Playing:
+                // Check if pause menu is already showing
+                if (_uiManager.Current is PauseScreen)
+                    _uiManager.Pop(); // Resume
+                else
+                    ShowPauseMenu();
+                break;
+        }
+    }
+
+    // ── Input ─────────────────────────────────────────────────────────────────
 
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
-        _rtsCamera.Zoom(e.OffsetY);
+        if (_sceneManager.State == GameState.Playing)
+            _rtsCamera.Zoom(e.OffsetY);
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         base.OnMouseDown(e);
+
+        // Route click to UI first
+        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
+        var viewportSize = new Vector2(Size.X, Size.Y);
+        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
+            return;
+
+        // If UI didn't consume, handle gameplay input
+        if (_sceneManager.State != GameState.Playing || _world == null)
+            return;
 
         Vector3? worldPos = ScreenToWorld(MousePosition);
         if (worldPos == null) return;
@@ -313,6 +482,8 @@ public class EngineWindow : GameWindow
 
     private void HandleSelection(Vector3 worldPos)
     {
+        if (_world == null) return;
+
         bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) ||
                          KeyboardState.IsKeyDown(Keys.RightShift);
 
@@ -334,7 +505,6 @@ public class EngineWindow : GameWindow
 
         if (!shiftHeld)
         {
-            // Deselect all
             foreach (var (_, sel) in _world.Query<SelectionComponent>())
                 sel.IsSelected = false;
         }
@@ -349,7 +519,8 @@ public class EngineWindow : GameWindow
 
     private void HandleMoveCommand(Vector3 worldPos)
     {
-        // Move all selected units to the target
+        if (_world == null) return;
+
         var selectedEntities = new List<Entity>();
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
@@ -359,7 +530,6 @@ public class EngineWindow : GameWindow
 
         if (selectedEntities.Count == 0) return;
 
-        // Formation: spread units around the target point
         for (int i = 0; i < selectedEntities.Count; i++)
         {
             var movement = _world.GetComponent<MovementComponent>(selectedEntities[i]);
@@ -376,7 +546,6 @@ public class EngineWindow : GameWindow
             movement.PathTarget = worldPos + offset;
         }
 
-        // Show move target indicator
         _moveTargetPosition = worldPos;
         _moveTargetTimer = 2f;
     }
@@ -397,9 +566,6 @@ public class EngineWindow : GameWindow
 
         var view = _rtsCamera.GetViewMatrix();
 
-        // Unproject from NDC to world space.
-        // In OpenTK row-vector convention: clipPos = worldPos * view * projection
-        // To reverse: worldPos = clipPos * inv(projection) * inv(view)
         var invProj = Matrix4.Invert(projection);
         var invView = Matrix4.Invert(view);
 
@@ -414,7 +580,6 @@ public class EngineWindow : GameWindow
 
         Vector3 dir = far - near;
 
-        // Intersect with Y=0 plane
         if (MathF.Abs(dir.Y) < 0.0001f)
             return null;
 
@@ -428,20 +593,26 @@ public class EngineWindow : GameWindow
     {
         base.OnResize(e);
         GL.Viewport(0, 0, e.Width, e.Height);
+        _uiRenderer?.UpdateViewport(e.Width, e.Height);
     }
 
     protected override void OnUnload()
     {
         base.OnUnload();
-        _world.Dispose();
+        CleanupGameplay();
         _environment.Dispose();
         _shaderManager.Dispose();
+        _uiRenderer.Dispose();
+        _sceneManager.Dispose();
 
-        MeshBuilder.DeleteMesh(_heroVao, _heroVbo);
-        MeshBuilder.DeleteMesh(_fighterVao, _fighterVbo);
-        MeshBuilder.DeleteMesh(_selectionVao, _selectionVbo);
-        MeshBuilder.DeleteMesh(_moveTargetVao, _moveTargetVbo);
-        MeshBuilder.DeleteMesh(_gridVao, _gridVbo);
+        if (_gameplayMeshesLoaded)
+        {
+            MeshBuilder.DeleteMesh(_heroVao, _heroVbo);
+            MeshBuilder.DeleteMesh(_fighterVao, _fighterVbo);
+            MeshBuilder.DeleteMesh(_selectionVao, _selectionVbo);
+            MeshBuilder.DeleteMesh(_moveTargetVao, _moveTargetVbo);
+            MeshBuilder.DeleteMesh(_gridVao, _gridVbo);
+        }
     }
 
     private void CaptureScreenshot(string path)
@@ -499,5 +670,31 @@ void main()
     outputColor = vec4(fragColor, 1.0);
 }
 ";
+}
+
+// ── Scene implementations ─────────────────────────────────────────────────
+
+/// <summary>Main menu scene - shows the menu UI.</summary>
+internal sealed class MainMenuScene : IScene
+{
+    private readonly EngineWindow _window;
+
+    public MainMenuScene(EngineWindow window) => _window = window;
+
+    public void Load() => _window.ShowMainMenu();
+    public void Update(float deltaTime) { }
+    public void Unload() { }
+}
+
+/// <summary>Gameplay scene - RTS gameplay with ships and commands.</summary>
+internal sealed class GameplayScene : IScene
+{
+    private readonly EngineWindow _window;
+
+    public GameplayScene(EngineWindow window) => _window = window;
+
+    public void Load() => _window.StartGameplay();
+    public void Update(float deltaTime) { }
+    public void Unload() { }
 }
 
