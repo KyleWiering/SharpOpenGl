@@ -6,9 +6,15 @@
  * player fighters, worker drones, enemy units, laser combat, and full HUD.
  *
  * Controls: WASD / Arrow Keys — pan | Scroll — zoom | Click — select unit
+ *           Touch drag — pan   | Pinch — zoom        | Tap — select unit
  */
 
 'use strict';
+
+// ── Shared constants ──────────────────────────────────────────────────────────
+const FOV_HALF_DEG        = 26;   // half-FOV angle in degrees used for visible-area math
+const PINCH_ZOOM_SENSITIVITY = 2.5; // pinch-pixel → scroll-unit conversion factor
+const TOUCH_MOVE_THRESHOLD   = 8;   // pixels of movement before a touch is considered a drag
 
 // ============================================================
 // Matrix Math Utilities
@@ -421,13 +427,19 @@ function updateWorker(w, dt) {
 }
 
 // ============================================================
-// Input Handler — WASD pan, scroll zoom, click select
+// Input Handler — WASD pan, scroll zoom, click select, touch controls
 // ============================================================
 class RTSInputHandler {
     constructor(canvas) {
         this.keys = {};
         this.scrollDelta = 0;
         this.clickWorld = null;
+
+        // Touch state
+        this._touches = {};          // active touches keyed by identifier
+        this._panDelta = { dx: 0, dz: 0 };  // accumulated touch pan (world units)
+        this._lastPinchDist = null;  // previous pinch distance in px
+
         document.addEventListener('keydown', e => { this.keys[e.code]=true; });
         document.addEventListener('keyup',   e => { this.keys[e.code]=false; });
         canvas.addEventListener('wheel', e => {
@@ -437,9 +449,97 @@ class RTSInputHandler {
         canvas.addEventListener('click', e => {
             this.clickWorld = { cx: e.clientX, cy: e.clientY };
         });
+
+        // ── Touch events ──────────────────────────────────────
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            for (const t of e.changedTouches) {
+                this._touches[t.identifier] = { x: t.clientX, y: t.clientY,
+                                                 startX: t.clientX, startY: t.clientY,
+                                                 moved: false };
+            }
+            if (e.touches.length === 2) this._lastPinchDist = null;
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            const ids = Object.keys(this._touches);
+
+            if (e.touches.length === 2) {
+                // ── Pinch-to-zoom ──────────────────────────────
+                const t0 = e.touches[0], t1 = e.touches[1];
+                const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+                if (this._lastPinchDist !== null) {
+                    this.scrollDelta += (this._lastPinchDist - dist) * PINCH_ZOOM_SENSITIVITY;
+                }
+                this._lastPinchDist = dist;
+                // Update stored positions so single-finger pan doesn't jump after pinch
+                for (const t of e.changedTouches) {
+                    if (this._touches[t.identifier]) {
+                        this._touches[t.identifier].x = t.clientX;
+                        this._touches[t.identifier].y = t.clientY;
+                        this._touches[t.identifier].moved = true;
+                    }
+                }
+            } else if (e.touches.length === 1) {
+                // ── Single-finger pan ──────────────────────────
+                this._lastPinchDist = null;
+                const t = e.touches[0];
+                const prev = this._touches[t.identifier];
+                if (prev) {
+                    const dx = t.clientX - prev.x;
+                    const dy = t.clientY - prev.y;
+                    this._panDelta.dx -= dx;
+                    this._panDelta.dz -= dy;
+                    prev.x = t.clientX;
+                    prev.y = t.clientY;
+                    if (Math.abs(t.clientX - prev.startX) > TOUCH_MOVE_THRESHOLD ||
+                        Math.abs(t.clientY - prev.startY) > TOUCH_MOVE_THRESHOLD) {
+                        prev.moved = true;
+                    }
+                }
+            }
+        }, { passive: false });
+
+        canvas.addEventListener('touchend', e => {
+            e.preventDefault();
+            for (const t of e.changedTouches) {
+                const prev = this._touches[t.identifier];
+                if (prev && !prev.moved) {
+                    // Tap — treat as a click to select a unit
+                    this.clickWorld = { cx: prev.startX, cy: prev.startY };
+                }
+                delete this._touches[t.identifier];
+            }
+            if (e.touches.length < 2) this._lastPinchDist = null;
+        }, { passive: false });
+
+        canvas.addEventListener('touchcancel', e => {
+            for (const t of e.changedTouches) delete this._touches[t.identifier];
+            this._lastPinchDist = null;
+        }, { passive: false });
     }
+
     consumeScroll() { const v=this.scrollDelta; this.scrollDelta=0; return v; }
     consumeClick()  { const v=this.clickWorld;  this.clickWorld=null; return v; }
+
+    /**
+     * Consume accumulated touch-pan delta and convert from screen-pixel space
+     * to world-unit space.  Must be called every frame with the current camera.
+     * @param {RTSCamera} camera
+     */
+    consumeTouchPan(camera) {
+        if (this._panDelta.dx === 0 && this._panDelta.dz === 0) return;
+        const canvas = document.getElementById('glcanvas');
+        const aspect = canvas.width / canvas.height;
+        const visH = 2 * camera.height * Math.tan(FOV_HALF_DEG * Math.PI / 180);
+        const visW = visH * aspect;
+        const wx = (this._panDelta.dx / canvas.width)  * visW;
+        const wz = (this._panDelta.dz / canvas.height) * visH;
+        camera.pan(wx, wz);
+        this._panDelta.dx = 0;
+        this._panDelta.dz = 0;
+    }
 }
 
 // ============================================================
@@ -490,7 +590,7 @@ function renderMinimap(mmCanvas, camera) {
 
     // Camera viewport
     const aspect = window.innerWidth / window.innerHeight;
-    const visH = 2 * camera.height * Math.tan(26 * Math.PI / 180);
+    const visH = 2 * camera.height * Math.tan(FOV_HALF_DEG * Math.PI / 180);
     const visW = visH * aspect;
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 1;
@@ -744,7 +844,7 @@ void main(){ outColor = vec4(vCol,1.0); }`;
     function pickUnit(cx, cy) {
         const aspect = canvas.width / canvas.height;
         // Approximate: camera looks straight down; screen → world with linear map
-        const visH = 2 * camera.height * Math.tan(26 * Math.PI / 180);
+        const visH = 2 * camera.height * Math.tan(FOV_HALF_DEG * Math.PI / 180);
         const visW = visH * aspect;
         const ndcX = (cx / canvas.width)  * 2 - 1;
         const ndcY = 1 - (cy / canvas.height) * 2;
@@ -777,6 +877,7 @@ void main(){ outColor = vec4(vCol,1.0); }`;
         if (input.keys['KeyS']     || input.keys['ArrowDown'])  camera.pan(0,   PAN);
         if (input.keys['KeyA']     || input.keys['ArrowLeft'])  camera.pan(-PAN, 0);
         if (input.keys['KeyD']     || input.keys['ArrowRight']) camera.pan( PAN, 0);
+        input.consumeTouchPan(camera);
         camera.zoom(input.consumeScroll());
         const clk = input.consumeClick();
         if (clk) selectedId = pickUnit(clk.cx, clk.cy);

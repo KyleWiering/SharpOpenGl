@@ -76,6 +76,13 @@
             font-family: monospace;
             font-size: 11px;
         }
+        /* Hide keyboard hints on touch-primary devices, show touch hints */
+        .hint-keyboard { display: inline; }
+        .hint-touch    { display: none; }
+        @media (pointer: coarse) {
+            .hint-keyboard { display: none; }
+            .hint-touch    { display: inline; }
+        }
 
         /* ── Unit info panel ── */
         #unit-info {
@@ -169,9 +176,12 @@
 
     <div id="controls">
         <h3>Controls</h3>
-        <div><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> / Arrows — Pan</div>
-        <div><span class="key">Scroll</span> — Zoom</div>
-        <div><span class="key">Click</span> — Select unit</div>
+        <div class="hint-keyboard"><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> / Arrows — Pan</div>
+        <div class="hint-keyboard"><span class="key">Scroll</span> — Zoom</div>
+        <div class="hint-keyboard"><span class="key">Click</span> — Select unit</div>
+        <div class="hint-touch">Drag — Pan</div>
+        <div class="hint-touch">Pinch — Zoom</div>
+        <div class="hint-touch">Tap — Select unit</div>
     </div>
 
     <div id="unit-info">
