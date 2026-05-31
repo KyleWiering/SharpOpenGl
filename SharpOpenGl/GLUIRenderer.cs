@@ -106,10 +106,10 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
 
     public void DrawText(string text, Vector2 position, float fontSize, Vector4 color)
     {
-        float charWidth = fontSize * 0.55f;
+        float charWidth = fontSize * 0.6f;
         float charHeight = fontSize;
-        float spacing = charWidth * 0.15f;
-        float lineThickness = MathF.Max(1f, fontSize * 0.12f);
+        float spacing = charWidth * 0.2f;
+        float lineThickness = MathF.Max(1.5f, fontSize * 0.14f);
 
         for (int i = 0; i < text.Length; i++)
         {
@@ -175,6 +175,23 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                 case Seg.Dot:
                     DrawRect(new Vector2(x + w * 0.4f, y + h - t * 2f), new Vector2(t * 1.5f, t * 1.5f), color);
                     break;
+                case Seg.DiagTopRightToBottomLeft:
+                    // Approximate diagonal with 3 small rects
+                    DrawRect(new Vector2(x + w * 0.66f, y + h * 0.1f), new Vector2(t, h * 0.25f), color);
+                    DrawRect(new Vector2(x + w * 0.33f, y + h * 0.35f), new Vector2(t, h * 0.25f), color);
+                    DrawRect(new Vector2(x, y + h * 0.6f), new Vector2(t, h * 0.25f), color);
+                    break;
+                case Seg.DiagTopLeftToBottomRight:
+                    DrawRect(new Vector2(x, y + h * 0.1f), new Vector2(t, h * 0.25f), color);
+                    DrawRect(new Vector2(x + w * 0.33f, y + h * 0.35f), new Vector2(t, h * 0.25f), color);
+                    DrawRect(new Vector2(x + w * 0.66f, y + h * 0.6f), new Vector2(t, h * 0.25f), color);
+                    break;
+                case Seg.TopHalfLeft:
+                    DrawRect(new Vector2(x, y), new Vector2(w * 0.5f, t), color);
+                    break;
+                case Seg.BottomHalfRight:
+                    DrawRect(new Vector2(x + w * 0.5f, y + h - t), new Vector2(w * 0.5f, t), color);
+                    break;
             }
         }
     }
@@ -184,7 +201,9 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         Top, Bottom, Middle,
         TopLeft, TopRight, BottomLeft, BottomRight,
         LeftFull, RightFull, CenterVert,
-        TopHalfRight, BottomHalfLeft, Dot
+        TopHalfRight, BottomHalfLeft, Dot,
+        DiagTopRightToBottomLeft, DiagTopLeftToBottomRight,
+        TopHalfLeft, BottomHalfRight
     }
 
     private static Seg[] GetCharSegments(char c) => c switch
@@ -229,6 +248,14 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         ':' => [Seg.Top, Seg.Bottom],
         '-' => [Seg.Middle],
         '+' => [Seg.Middle, Seg.CenterVert],
+        '/' => [Seg.TopRight, Seg.BottomLeft],
+        '(' => [Seg.Top, Seg.TopLeft, Seg.BottomLeft, Seg.Bottom],
+        ')' => [Seg.Top, Seg.TopRight, Seg.BottomRight, Seg.Bottom],
+        '=' => [Seg.Middle, Seg.Bottom],
+        '_' => [Seg.Bottom],
+        '>' => [Seg.TopLeft, Seg.Middle, Seg.BottomLeft],
+        '<' => [Seg.TopRight, Seg.Middle, Seg.BottomRight],
+        '#' => [Seg.Middle, Seg.CenterVert, Seg.Top, Seg.Bottom],
         _ => [Seg.Middle], // fallback: dash for unknown chars
     };
 

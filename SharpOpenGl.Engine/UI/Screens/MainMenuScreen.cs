@@ -17,6 +17,9 @@ public sealed class MainMenuScreen : UIScreen
     /// <summary>Fired when the "New Game" button is clicked.</summary>
     public event Action? NewGameRequested;
 
+    /// <summary>Fired when the "Multiplayer" button is clicked.</summary>
+    public event Action? MultiplayerRequested;
+
     /// <summary>Fired when the "Continue" button is clicked.</summary>
     public event Action? ContinueRequested;
 
@@ -63,13 +66,14 @@ public sealed class MainMenuScreen : UIScreen
         float btnW = 320f;
         float btnH = 60f;
         float gap = 16f;
-        float totalH = 5 * btnH + 4 * gap;
+        float totalH = 6 * btnH + 5 * gap;
         float startY = (1080f - totalH) / 2f;
 
-        string[] labels = ["New Game", "Continue", "Ship Designer", "Settings", "Quit"];
+        string[] labels = ["New Game", "Multiplayer", "Continue", "Ship Designer", "Settings", "Quit"];
         Action?[] handlers =
         [
             () => NewGameRequested?.Invoke(),
+            () => MultiplayerRequested?.Invoke(),
             () => ContinueRequested?.Invoke(),
             () => ShipDesignerRequested?.Invoke(),
             () => SettingsRequested?.Invoke(),
