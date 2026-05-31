@@ -106,24 +106,131 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
 
     public void DrawText(string text, Vector2 position, float fontSize, Vector4 color)
     {
-        // Simple block-character text rendering using quads
-        float charWidth = fontSize * 0.6f;
+        float charWidth = fontSize * 0.55f;
         float charHeight = fontSize;
-        float spacing = charWidth * 0.1f;
+        float spacing = charWidth * 0.15f;
+        float lineThickness = MathF.Max(1f, fontSize * 0.12f);
 
         for (int i = 0; i < text.Length; i++)
         {
-            if (text[i] == ' ')
-                continue;
+            char c = text[i];
+            if (c == ' ') continue;
 
             float x = position.X + i * (charWidth + spacing);
             float y = position.Y;
 
-            // Draw a small filled rect for each character
-            DrawRect(new Vector2(x + charWidth * 0.1f, y + charHeight * 0.1f),
-                new Vector2(charWidth * 0.8f, charHeight * 0.8f), color);
+            DrawGlyph(c, x, y, charWidth, charHeight, lineThickness, color);
         }
     }
+
+    /// <summary>Draws a single character glyph using segment-based line rectangles.</summary>
+    private void DrawGlyph(char c, float x, float y, float w, float h, float t, Vector4 color)
+    {
+        // 7-segment style layout:
+        // Segments: top, topLeft, topRight, middle, bottomLeft, bottomRight, bottom
+        // Plus diagonals and extras for non-digit characters
+        float halfH = h * 0.5f;
+
+        var segments = GetCharSegments(char.ToUpper(c));
+        foreach (var seg in segments)
+        {
+            switch (seg)
+            {
+                case Seg.Top:
+                    DrawRect(new Vector2(x, y), new Vector2(w, t), color);
+                    break;
+                case Seg.Bottom:
+                    DrawRect(new Vector2(x, y + h - t), new Vector2(w, t), color);
+                    break;
+                case Seg.Middle:
+                    DrawRect(new Vector2(x, y + halfH - t * 0.5f), new Vector2(w, t), color);
+                    break;
+                case Seg.TopLeft:
+                    DrawRect(new Vector2(x, y), new Vector2(t, halfH), color);
+                    break;
+                case Seg.TopRight:
+                    DrawRect(new Vector2(x + w - t, y), new Vector2(t, halfH), color);
+                    break;
+                case Seg.BottomLeft:
+                    DrawRect(new Vector2(x, y + halfH), new Vector2(t, halfH), color);
+                    break;
+                case Seg.BottomRight:
+                    DrawRect(new Vector2(x + w - t, y + halfH), new Vector2(t, halfH), color);
+                    break;
+                case Seg.LeftFull:
+                    DrawRect(new Vector2(x, y), new Vector2(t, h), color);
+                    break;
+                case Seg.RightFull:
+                    DrawRect(new Vector2(x + w - t, y), new Vector2(t, h), color);
+                    break;
+                case Seg.CenterVert:
+                    DrawRect(new Vector2(x + w * 0.5f - t * 0.5f, y), new Vector2(t, h), color);
+                    break;
+                case Seg.TopHalfRight:
+                    DrawRect(new Vector2(x + w * 0.5f, y), new Vector2(w * 0.5f, t), color);
+                    break;
+                case Seg.BottomHalfLeft:
+                    DrawRect(new Vector2(x, y + h - t), new Vector2(w * 0.5f, t), color);
+                    break;
+                case Seg.Dot:
+                    DrawRect(new Vector2(x + w * 0.4f, y + h - t * 2f), new Vector2(t * 1.5f, t * 1.5f), color);
+                    break;
+            }
+        }
+    }
+
+    private enum Seg
+    {
+        Top, Bottom, Middle,
+        TopLeft, TopRight, BottomLeft, BottomRight,
+        LeftFull, RightFull, CenterVert,
+        TopHalfRight, BottomHalfLeft, Dot
+    }
+
+    private static Seg[] GetCharSegments(char c) => c switch
+    {
+        'A' => [Seg.Top, Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.BottomRight],
+        'B' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.LeftFull, Seg.TopRight, Seg.BottomRight],
+        'C' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.BottomLeft],
+        'D' => [Seg.Top, Seg.Bottom, Seg.TopRight, Seg.BottomRight, Seg.LeftFull],
+        'E' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.BottomLeft],
+        'F' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.BottomLeft],
+        'G' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.BottomLeft, Seg.BottomRight, Seg.Middle],
+        'H' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.BottomRight],
+        'I' => [Seg.Top, Seg.Bottom, Seg.CenterVert],
+        'J' => [Seg.Top, Seg.TopRight, Seg.BottomRight, Seg.Bottom, Seg.BottomLeft],
+        'K' => [Seg.LeftFull, Seg.Middle, Seg.TopRight, Seg.BottomRight],
+        'L' => [Seg.TopLeft, Seg.BottomLeft, Seg.Bottom],
+        'M' => [Seg.Top, Seg.LeftFull, Seg.RightFull, Seg.CenterVert],
+        'N' => [Seg.Top, Seg.Bottom, Seg.LeftFull, Seg.RightFull],
+        'O' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
+        'P' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft],
+        'Q' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
+        'R' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
+        'S' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.BottomRight],
+        'T' => [Seg.Top, Seg.CenterVert],
+        'U' => [Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
+        'V' => [Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight, Seg.Bottom],
+        'W' => [Seg.Bottom, Seg.LeftFull, Seg.RightFull, Seg.CenterVert],
+        'X' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.BottomRight],
+        'Y' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.CenterVert],
+        'Z' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopRight, Seg.BottomLeft],
+        '0' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
+        '1' => [Seg.TopRight, Seg.BottomRight],
+        '2' => [Seg.Top, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.Bottom],
+        '3' => [Seg.Top, Seg.Middle, Seg.Bottom, Seg.TopRight, Seg.BottomRight],
+        '4' => [Seg.TopLeft, Seg.Middle, Seg.TopRight, Seg.BottomRight],
+        '5' => [Seg.Top, Seg.TopLeft, Seg.Middle, Seg.BottomRight, Seg.Bottom],
+        '6' => [Seg.Top, Seg.TopLeft, Seg.Middle, Seg.BottomLeft, Seg.BottomRight, Seg.Bottom],
+        '7' => [Seg.Top, Seg.TopRight, Seg.BottomRight],
+        '8' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
+        '9' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomRight],
+        '.' => [Seg.Dot],
+        ':' => [Seg.Top, Seg.Bottom],
+        '-' => [Seg.Middle],
+        '+' => [Seg.Middle, Seg.CenterVert],
+        _ => [Seg.Middle], // fallback: dash for unknown chars
+    };
 
     public void Dispose()
     {

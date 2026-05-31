@@ -1,0 +1,22 @@
+{
+  "id": "carrier_command",
+  "displayName": "Sovereign Carrier",
+  "category": "carrier",
+  "mesh": "meshes/carrier_command.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 1500, "shields": 600, "armor": 80 },
+    "movement": { "speed": 25, "acceleration": 15, "turnRate": 60 },
+    "weapons": [
+      { "slot": 0, "type": "flak", "damage": 20, "range": 250, "fireRate": 8.0 },
+      { "slot": 1, "type": "missile", "damage": 80, "range": 500, "fireRate": 1.0 }
+    ],
+    "hangar": {
+      "capacity": 12,
+      "launchRate": 2.0,
+      "squadTypes": ["fighter_basic", "bomber_heavy"]
+    }
+  },
+  "cost": { "energy": 500, "minerals": 700, "data": 100, "crew": 20 },
+  "buildTime": 120
+}

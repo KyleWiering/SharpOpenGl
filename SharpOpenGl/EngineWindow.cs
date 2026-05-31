@@ -50,6 +50,10 @@ public class EngineWindow : GameWindow
     // Ship meshes (initialized when gameplay starts)
     private int _heroVao, _heroVbo, _heroVertCount;
     private int _fighterVao, _fighterVbo, _fighterVertCount;
+    private int _bomberVao, _bomberVbo, _bomberVertCount;
+    private int _destroyerVao, _destroyerVbo, _destroyerVertCount;
+    private int _carrierVao, _carrierVbo, _carrierVertCount;
+    private int _engineTrailVao, _engineTrailVbo, _engineTrailVertCount;
     private int _selectionVao, _selectionVbo, _selectionVertCount;
     private int _moveTargetVao, _moveTargetVbo, _moveTargetVertCount;
     private int _gridVao, _gridVbo, _gridVertCount;
@@ -185,6 +189,14 @@ public class EngineWindow : GameWindow
             ShipMeshBuilder.BuildShipMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f);
         (_fighterVao, _fighterVbo, _fighterVertCount) =
             ShipMeshBuilder.BuildShipMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f);
+        (_bomberVao, _bomberVbo, _bomberVertCount) =
+            ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.5f, 0.2f), 2.5f);
+        (_destroyerVao, _destroyerVbo, _destroyerVertCount) =
+            ShipMeshBuilder.BuildDestroyerMesh(new Vector3(0.7f, 0.2f, 0.9f), 3.5f);
+        (_carrierVao, _carrierVbo, _carrierVertCount) =
+            ShipMeshBuilder.BuildCarrierMesh(new Vector3(0.6f, 0.6f, 0.8f), 4f);
+        (_engineTrailVao, _engineTrailVbo, _engineTrailVertCount) =
+            ShipMeshBuilder.BuildEngineTrail(new Vector3(1.0f, 0.6f, 0.1f), 2.5f);
         (_selectionVao, _selectionVbo, _selectionVertCount) =
             ShipMeshBuilder.BuildSelectionRing(new Vector3(0f, 1f, 0f), 3f);
         (_moveTargetVao, _moveTargetVbo, _moveTargetVertCount) =
@@ -232,7 +244,7 @@ public class EngineWindow : GameWindow
 
         // Spawn a squad of fighters
         var rng = new Random(123);
-        for (int i = 0; i < 5; i++)
+        for (int i = 0; i < 3; i++)
         {
             float x = (rng.NextSingle() - 0.5f) * 40f;
             float z = (rng.NextSingle() - 0.5f) * 40f;
@@ -263,6 +275,100 @@ public class EngineWindow : GameWindow
                 PrimitiveType = (int)PrimitiveType.Triangles,
             });
             _fighterEntities.Add(fighter);
+        }
+
+        // Spawn bombers
+        for (int i = 0; i < 2; i++)
+        {
+            float x = 15f + (rng.NextSingle() - 0.5f) * 20f;
+            float z = (rng.NextSingle() - 0.5f) * 30f;
+
+            var bomber = _world.CreateEntity();
+            _world.AddComponent(bomber, new TransformComponent
+            {
+                Position = new Vector3(x, 0f, z),
+                Scale = Vector3.One,
+            });
+            _world.AddComponent(bomber, new MovementComponent
+            {
+                Speed = 20f,
+                Acceleration = 30f,
+                TurnRate = 140f,
+            });
+            _world.AddComponent(bomber, new SelectionComponent
+            {
+                IsSelected = false,
+                SelectionRadius = 3.5f,
+            });
+            _world.AddComponent(bomber, new RenderComponent
+            {
+                MeshId = _bomberVao,
+                VertexCount = _bomberVertCount,
+                Color = new Vector4(0.9f, 0.5f, 0.2f, 1f),
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Triangles,
+            });
+            _fighterEntities.Add(bomber);
+        }
+
+        // Spawn a destroyer
+        {
+            var destroyer = _world.CreateEntity();
+            _world.AddComponent(destroyer, new TransformComponent
+            {
+                Position = new Vector3(-20f, 0f, 10f),
+                Scale = Vector3.One,
+            });
+            _world.AddComponent(destroyer, new MovementComponent
+            {
+                Speed = 18f,
+                Acceleration = 25f,
+                TurnRate = 100f,
+            });
+            _world.AddComponent(destroyer, new SelectionComponent
+            {
+                IsSelected = false,
+                SelectionRadius = 5f,
+            });
+            _world.AddComponent(destroyer, new RenderComponent
+            {
+                MeshId = _destroyerVao,
+                VertexCount = _destroyerVertCount,
+                Color = new Vector4(0.7f, 0.2f, 0.9f, 1f),
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Triangles,
+            });
+            _fighterEntities.Add(destroyer);
+        }
+
+        // Spawn a carrier
+        {
+            var carrier = _world.CreateEntity();
+            _world.AddComponent(carrier, new TransformComponent
+            {
+                Position = new Vector3(-10f, 0f, -25f),
+                Scale = Vector3.One,
+            });
+            _world.AddComponent(carrier, new MovementComponent
+            {
+                Speed = 12f,
+                Acceleration = 15f,
+                TurnRate = 60f,
+            });
+            _world.AddComponent(carrier, new SelectionComponent
+            {
+                IsSelected = false,
+                SelectionRadius = 6f,
+            });
+            _world.AddComponent(carrier, new RenderComponent
+            {
+                MeshId = _carrierVao,
+                VertexCount = _carrierVertCount,
+                Color = new Vector4(0.6f, 0.6f, 0.8f, 1f),
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Triangles,
+            });
+            _fighterEntities.Add(carrier);
         }
     }
 
@@ -336,12 +442,27 @@ public class EngineWindow : GameWindow
         GL.BindVertexArray(_gridVao);
         GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
 
-        // Render all ships
+        // Render all ships with engine trails
         foreach (var (entity, render) in _world!.Query<RenderComponent>())
         {
             if (!render.Visible) continue;
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
+
+            // Render engine trail behind moving ships
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null && movement.Velocity.LengthSquared > 1f)
+            {
+                float speed = movement.Velocity.Length;
+                float trailScale = MathHelper.Clamp(speed / movement.Speed, 0.3f, 1.0f);
+                Matrix4 trailModel = Matrix4.CreateScale(trailScale) * transform.GetModelMatrix();
+                // Offset trail behind the ship
+                trailModel *= Matrix4.CreateTranslation(0f, 0f, -0.5f);
+                GL.UniformMatrix4(_uniformModel, false, ref trailModel);
+                GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
+                GL.BindVertexArray(_engineTrailVao);
+                GL.DrawArrays(PrimitiveType.Triangles, 0, _engineTrailVertCount);
+            }
 
             Matrix4 model = transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
@@ -609,6 +730,10 @@ public class EngineWindow : GameWindow
         {
             MeshBuilder.DeleteMesh(_heroVao, _heroVbo);
             MeshBuilder.DeleteMesh(_fighterVao, _fighterVbo);
+            MeshBuilder.DeleteMesh(_bomberVao, _bomberVbo);
+            MeshBuilder.DeleteMesh(_destroyerVao, _destroyerVbo);
+            MeshBuilder.DeleteMesh(_carrierVao, _carrierVbo);
+            MeshBuilder.DeleteMesh(_engineTrailVao, _engineTrailVbo);
             MeshBuilder.DeleteMesh(_selectionVao, _selectionVbo);
             MeshBuilder.DeleteMesh(_moveTargetVao, _moveTargetVbo);
             MeshBuilder.DeleteMesh(_gridVao, _gridVbo);
