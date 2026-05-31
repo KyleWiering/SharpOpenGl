@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Audio;
 
 namespace SharpOpenGl.Engine.Events;
 
@@ -68,3 +69,20 @@ public record DialogEvent(string Speaker, string Text);
 
 /// <summary>Fired when the player requests a mission restart.</summary>
 public record MissionReplayRequestedEvent(string MissionId);
+
+// ── Audio events ───────────────────────────────────────────────────────────
+
+/// <summary>
+/// Fired when a sound effect should play at a world-space position.
+/// Listeners (e.g. <see cref="IAudioManager"/>) convert this to an AL call.
+/// </summary>
+public record SoundRequestedEvent(AudioEventType EventType, Vector3 WorldPosition);
+
+/// <summary>Fired to request a music track by logical ID.</summary>
+public record MusicRequestedEvent(string TrackId, bool Loop = true, float CrossfadeSeconds = 1.0f);
+
+/// <summary>Fired to request music fade-out and stop.</summary>
+public record MusicStopRequestedEvent(float FadeOutSeconds = 1.0f);
+
+/// <summary>Fired when the player changes a volume setting.</summary>
+public record VolumeChangedEvent(string Channel, float NewValue);

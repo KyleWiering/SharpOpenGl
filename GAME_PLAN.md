@@ -423,20 +423,20 @@ SharpOpenGl/
 
 ---
 
-## 14. Phase 10 — Audio
+## 14. Phase 10 — Audio ✅
 
-**Goal**: Sound effects and music system (can be deferred, but architecture should be in place).
+**Completed.** `IAudioManager` interface, `AudioSettings` (clamped volume properties, effective-gain helpers), `AudioEventType` enum (13 event types), `NullAudioManager` (no-op, safe for tests/headless), `OpenAlAudioManager` (pooled AL sources, positional playback, looping music with crossfade, lazy placeholder-buffer generation), `PlaceholderSoundGenerator` (PCM tone/sweep/noise generators), audio events in `EventBus` (`SoundRequestedEvent`, `MusicRequestedEvent`, `MusicStopRequestedEvent`, `VolumeChangedEvent`), and `WebAudioManager` JS class for the browser build.
 
 ### Tasks
 
-- [ ] Design audio system interface (`IAudioManager`)
-- [ ] Implement WebAudio backend for browser
-- [ ] Implement OpenAL backend for desktop (or NAudio)
-- [ ] Implement sound effect playback (positional, pooled)
-- [ ] Implement music playback (looping, crossfade)
-- [ ] Define audio events in event bus (weapon fire, explosion, UI click)
-- [ ] Create placeholder sound effects (procedural beeps/boops)
-- [ ] Implement volume controls in settings
+- [x] Design audio system interface (`IAudioManager`)
+- [x] Implement WebAudio backend for browser
+- [x] Implement OpenAL backend for desktop (or NAudio)
+- [x] Implement sound effect playback (positional, pooled)
+- [x] Implement music playback (looping, crossfade)
+- [x] Define audio events in event bus (weapon fire, explosion, UI click)
+- [x] Create placeholder sound effects (procedural beeps/boops)
+- [x] Implement volume controls in settings
 
 ### Acceptance Criteria
 
@@ -710,14 +710,14 @@ If unsure what to work on, follow this priority:
 - [x] Document control schemes
 
 ### Phase 10 — Audio
-- [ ] Design `IAudioManager` interface
-- [ ] Implement WebAudio backend
-- [ ] Implement desktop audio backend
-- [ ] Implement sound effects
-- [ ] Implement music playback
-- [ ] Define audio events
-- [ ] Create placeholder sounds
-- [ ] Implement volume controls
+- [x] Design `IAudioManager` interface
+- [x] Implement WebAudio backend
+- [x] Implement desktop audio backend
+- [x] Implement sound effects
+- [x] Implement music playback
+- [x] Define audio events
+- [x] Create placeholder sounds
+- [x] Implement volume controls
 
 ### Phase 11 — Multiplayer Foundation
 - [ ] Design network protocol
@@ -763,4 +763,4 @@ If unsure what to work on, follow this priority:
 ---
 
 *Last Updated: 2026-05-31*
-*Status: Phase 9 (Mobile & Input) Complete — Ready for Phase 10 (Audio)*
+*Status: Phase 10 (Audio) Complete — Ready for Phase 11 (Multiplayer Foundation)*

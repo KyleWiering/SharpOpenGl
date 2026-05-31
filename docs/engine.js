@@ -418,3 +418,226 @@ void main() {
     requestAnimationFrame(frame);
     console.log('SharpOpenGL WebGL2 Engine initialized.');
 })();
+
+// ============================================================
+// WebAudio Manager (Phase 10 — Audio)
+// Mirrors the C# IAudioManager interface for the browser build.
+// ============================================================
+
+/**
+ * @typedef {'WeaponFire'|'WeaponLaunch'|'Explosion'|'ShieldHit'|
+ *           'UnitMoveAck'|'UnitAttackAck'|'ResourceCollected'|
+ *           'UIClick'|'UIHover'|'MissionComplete'|'MissionFail'|
+ *           'BuildingPlaced'|'EngineIdle'} AudioEventType
+ */
+
+/**
+ * Procedural placeholder sound generator using the Web Audio API.
+ * Mirrors PlaceholderSoundGenerator.cs logic.
+ */
+class WebAudioPlaceholderGenerator {
+    /**
+     * @param {AudioContext} ctx
+     */
+    constructor(ctx) {
+        this._ctx = ctx;
+    }
+
+    /** Generate a sine-wave tone buffer. */
+    tone(frequency, duration, attack = 0.01, release = 0.05) {
+        const sr = this._ctx.sampleRate;
+        const buf = this._ctx.createBuffer(1, Math.floor(sr * duration), sr);
+        const data = buf.getChannelData(0);
+        const attackSamples  = Math.floor(sr * attack);
+        const releaseSamples = Math.floor(sr * release);
+        for (let i = 0; i < data.length; i++) {
+            const t = i / sr;
+            let env;
+            if (i < attackSamples)             env = i / attackSamples;
+            else if (i >= data.length - releaseSamples) env = (data.length - i) / releaseSamples;
+            else                               env = 1;
+            data[i] = Math.sin(2 * Math.PI * frequency * t) * env * 0.7;
+        }
+        return buf;
+    }
+
+    /** Generate a frequency-swept tone (laser effect). */
+    sweep(startHz, endHz, duration, release = 0.03) {
+        const sr = this._ctx.sampleRate;
+        const buf = this._ctx.createBuffer(1, Math.floor(sr * duration), sr);
+        const data = buf.getChannelData(0);
+        const releaseSamples = Math.floor(sr * release);
+        let phase = 0;
+        for (let i = 0; i < data.length; i++) {
+            const t    = i / data.length;
+            const freq = startHz + (endHz - startHz) * t;
+            phase += 2 * Math.PI * freq / sr;
+            const env = i >= data.length - releaseSamples ? (data.length - i) / releaseSamples : 1;
+            data[i] = Math.sin(phase) * env * 0.6;
+        }
+        return buf;
+    }
+
+    /** Generate white noise (explosion / static). */
+    noise(duration, release = 0.15) {
+        const sr = this._ctx.sampleRate;
+        const buf = this._ctx.createBuffer(1, Math.floor(sr * duration), sr);
+        const data = buf.getChannelData(0);
+        const releaseSamples = Math.floor(sr * release);
+        for (let i = 0; i < data.length; i++) {
+            const env = i >= data.length - releaseSamples ? (data.length - i) / releaseSamples : 1;
+            data[i] = (Math.random() * 2 - 1) * env * 0.5;
+        }
+        return buf;
+    }
+
+    /** @param {AudioEventType} type @returns {AudioBuffer} */
+    getPlaceholder(type) {
+        switch (type) {
+            case 'WeaponFire':        return this.sweep(800, 200, 0.12);
+            case 'WeaponLaunch':      return this.sweep(400, 150, 0.18);
+            case 'Explosion':         return this.noise(0.45, 0.20);
+            case 'ShieldHit':         return this.sweep(1200, 600, 0.08);
+            case 'UnitMoveAck':       return this.tone(660, 0.05);
+            case 'UnitAttackAck':     return this.tone(440, 0.05);
+            case 'ResourceCollected': return this.sweep(400, 800, 0.10);
+            case 'UIClick':           return this.tone(1000, 0.04, 0.005, 0.02);
+            case 'UIHover':           return this.tone(800, 0.03, 0.005, 0.015);
+            case 'MissionComplete':   return this.tone(523, 0.6, 0.02, 0.3);
+            case 'MissionFail':       return this.sweep(400, 100, 0.8, 0.4);
+            case 'BuildingPlaced':    return this.tone(330, 0.08);
+            case 'EngineIdle':        return this.noise(0.5, 0.05);
+            default:                  return this.tone(440, 0.05);
+        }
+    }
+}
+
+/**
+ * WebAudio-backed audio manager for the browser build.
+ * Mirrors the C# IAudioManager interface.
+ *
+ * Usage:
+ *   const audio = new WebAudioManager();
+ *   audio.playSound('UIClick');
+ *   audio.setMasterVolume(0.8);
+ */
+class WebAudioManager {
+    constructor() {
+        /** @type {AudioContext|null} */
+        this._ctx = null;
+        /** @type {GainNode|null} */
+        this._masterGain = null;
+        /** @type {GainNode|null} */
+        this._sfxGain = null;
+        /** @type {GainNode|null} */
+        this._musicGain = null;
+        /** @type {AudioBufferSourceNode|null} */
+        this._musicSource = null;
+        /** @type {Map<AudioEventType, AudioBuffer>} */
+        this._buffers = new Map();
+        /** @type {WebAudioPlaceholderGenerator|null} */
+        this._gen = null;
+
+        this.settings = {
+            masterVolume: 1.0,
+            sfxVolume:    1.0,
+            musicVolume:  0.7,
+        };
+    }
+
+    /** Lazily initialise AudioContext on first user interaction (browser policy). */
+    _ensureContext() {
+        if (this._ctx) return;
+        this._ctx = new (window.AudioContext || window.webkitAudioContext)();
+        this._masterGain = this._ctx.createGain();
+        this._sfxGain    = this._ctx.createGain();
+        this._musicGain  = this._ctx.createGain();
+        this._sfxGain.connect(this._masterGain);
+        this._musicGain.connect(this._masterGain);
+        this._masterGain.connect(this._ctx.destination);
+        this._applyGains();
+        this._gen = new WebAudioPlaceholderGenerator(this._ctx);
+    }
+
+    _applyGains() {
+        if (!this._masterGain) return;
+        this._masterGain.gain.value = this.settings.masterVolume;
+        this._sfxGain.gain.value    = this.settings.sfxVolume;
+        this._musicGain.gain.value  = this.settings.musicVolume;
+    }
+
+    /**
+     * Play a one-shot sound effect.
+     * @param {AudioEventType} eventType
+     * @param {{x:number,y:number,z:number}} [position] world position (for panning)
+     */
+    playSound(eventType, position = { x: 0, y: 0, z: 0 }) {
+        this._ensureContext();
+        if (!this._buffers.has(eventType))
+            this._buffers.set(eventType, this._gen.getPlaceholder(eventType));
+        const src = this._ctx.createBufferSource();
+        src.buffer = this._buffers.get(eventType);
+        src.connect(this._sfxGain);
+        src.start();
+    }
+
+    /**
+     * Start background music.
+     * @param {string} trackId  (placeholder: ignored, plays a tone)
+     * @param {boolean} [loop]
+     * @param {number} [crossfadeSeconds]
+     */
+    playMusic(trackId, loop = true, crossfadeSeconds = 1.0) {
+        this._ensureContext();
+        this.stopMusic(crossfadeSeconds);
+        const buf = this._gen.tone(110, 4.0, 0.5, 0.5);
+        this._musicSource = this._ctx.createBufferSource();
+        this._musicSource.buffer = buf;
+        this._musicSource.loop   = loop;
+        this._musicSource.connect(this._musicGain);
+        this._musicSource.start();
+    }
+
+    /**
+     * Stop background music.
+     * @param {number} [fadeOutSeconds]
+     */
+    stopMusic(fadeOutSeconds = 1.0) {
+        if (!this._musicSource) return;
+        const gain = this._musicGain.gain;
+        gain.setValueAtTime(gain.value, this._ctx.currentTime);
+        gain.linearRampToValueAtTime(0, this._ctx.currentTime + fadeOutSeconds);
+        const src = this._musicSource;
+        setTimeout(() => { try { src.stop(); } catch(_) {} }, fadeOutSeconds * 1000 + 50);
+        this._musicSource = null;
+    }
+
+    /** @param {number} volume 0–1 */
+    setMasterVolume(volume) {
+        this.settings.masterVolume = Math.max(0, Math.min(1, volume));
+        this._applyGains();
+    }
+
+    /** @param {number} volume 0–1 */
+    setSfxVolume(volume) {
+        this.settings.sfxVolume = Math.max(0, Math.min(1, volume));
+        this._applyGains();
+    }
+
+    /** @param {number} volume 0–1 */
+    setMusicVolume(volume) {
+        this.settings.musicVolume = Math.max(0, Math.min(1, volume));
+        this._applyGains();
+    }
+
+    /** Resume suspended context (call after user gesture). */
+    resume() {
+        if (this._ctx && this._ctx.state === 'suspended')
+            this._ctx.resume();
+    }
+}
+
+// Expose globally for the browser build
+if (typeof window !== 'undefined') {
+    window.WebAudioManager = WebAudioManager;
+}
