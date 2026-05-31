@@ -39,6 +39,10 @@ public class EngineWindow : GameWindow
     private UIManager _uiManager = null!;
     private GLUIRenderer _uiRenderer = null!;
 
+    // Scene name constants
+    private const string SceneMainMenu = "MainMenu";
+    private const string SceneGameplay = "Gameplay";
+
     // ECS (initialized when gameplay starts)
     private World? _world;
     private MovementSystem? _movementSystem;
@@ -111,17 +115,17 @@ public class EngineWindow : GameWindow
         _uiManager = new UIManager(_eventBus);
 
         // Register scenes
-        _sceneManager.Register("MainMenu", () => new MainMenuScene(this));
-        _sceneManager.Register("Gameplay", () => new GameplayScene(this));
+        _sceneManager.Register(SceneMainMenu, () => new MainMenuScene(this));
+        _sceneManager.Register(SceneGameplay, () => new GameplayScene(this));
 
         // Start at main menu (or skip to gameplay in screenshot mode)
         if (_screenshotMode)
         {
-            _sceneManager.TransitionTo("Gameplay", GameState.Playing);
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
         }
         else
         {
-            _sceneManager.TransitionTo("MainMenu", GameState.MainMenu);
+            _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
         }
 
         Console.WriteLine("SharpOpenGL RTS Engine initialized.");
@@ -140,7 +144,7 @@ public class EngineWindow : GameWindow
 
     internal void StartNewGame()
     {
-        _sceneManager.TransitionTo("Gameplay", GameState.Playing);
+        _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
     }
 
     internal void StartGameplay()
@@ -170,7 +174,7 @@ public class EngineWindow : GameWindow
         pause.QuitToMenuRequested += () =>
         {
             CleanupGameplay();
-            _sceneManager.TransitionTo("MainMenu", GameState.MainMenu);
+            _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
         };
         _uiManager.Push(pause);
     }

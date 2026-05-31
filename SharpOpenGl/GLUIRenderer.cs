@@ -159,15 +159,33 @@ void main()
         int vs = GL.CreateShader(ShaderType.VertexShader);
         GL.ShaderSource(vs, vertSrc);
         GL.CompileShader(vs);
+        GL.GetShader(vs, ShaderParameter.CompileStatus, out int vsOk);
+        if (vsOk == 0)
+        {
+            string info = GL.GetShaderInfoLog(vs);
+            Console.WriteLine($"[UIRenderer] Vertex shader compile failed: {info}");
+        }
 
         int fs = GL.CreateShader(ShaderType.FragmentShader);
         GL.ShaderSource(fs, fragSrc);
         GL.CompileShader(fs);
+        GL.GetShader(fs, ShaderParameter.CompileStatus, out int fsOk);
+        if (fsOk == 0)
+        {
+            string info = GL.GetShaderInfoLog(fs);
+            Console.WriteLine($"[UIRenderer] Fragment shader compile failed: {info}");
+        }
 
         int program = GL.CreateProgram();
         GL.AttachShader(program, vs);
         GL.AttachShader(program, fs);
         GL.LinkProgram(program);
+        GL.GetProgram(program, GetProgramParameterName.LinkStatus, out int linkOk);
+        if (linkOk == 0)
+        {
+            string info = GL.GetProgramInfoLog(program);
+            Console.WriteLine($"[UIRenderer] Program link failed: {info}");
+        }
 
         GL.DeleteShader(vs);
         GL.DeleteShader(fs);
