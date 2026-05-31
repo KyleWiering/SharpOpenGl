@@ -114,13 +114,14 @@ public sealed class ParticleEmitter
             float ry = (float)(_rng.NextDouble() * 2 - 1) * VelocitySpread;
             float rz = (float)(_rng.NextDouble() * 2 - 1) * VelocitySpread;
 
-            _pool[i].Position = Origin;
-            _pool[i].Velocity = BaseVelocity + new Vector3(rx, ry, rz);
-            _pool[i].Color    = StartColor;
-            _pool[i].EndColor = EndColor;
-            _pool[i].Age      = 0f;
-            _pool[i].MaxAge   = ParticleLifetime;
-            _pool[i].IsAlive  = true;
+            _pool[i].Position   = Origin;
+            _pool[i].Velocity   = BaseVelocity + new Vector3(rx, ry, rz);
+            _pool[i].StartColor = StartColor;
+            _pool[i].Color      = StartColor;
+            _pool[i].EndColor   = EndColor;
+            _pool[i].Age        = 0f;
+            _pool[i].MaxAge     = ParticleLifetime;
+            _pool[i].IsAlive    = true;
             return;
         }
         // Pool exhausted — no slot available

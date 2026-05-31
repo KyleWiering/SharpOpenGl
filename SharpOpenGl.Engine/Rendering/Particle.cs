@@ -14,6 +14,9 @@ public sealed class Particle
     /// <summary>Velocity (units per second).</summary>
     public Vector3 Velocity { get; set; }
 
+    /// <summary>Colour at spawn time; interpolated toward <see cref="EndColor"/> over lifetime.</summary>
+    public Vector4 StartColor { get; set; } = Vector4.One;
+
     /// <summary>Current RGBA colour (channels 0–1).</summary>
     public Vector4 Color { get; set; } = Vector4.One;
 
@@ -38,7 +41,7 @@ public sealed class Particle
         if (!IsAlive) return;
         Age      += dt;
         Position += Velocity * dt;
-        Color     = Vector4.Lerp(Color, EndColor, LifeRatio);
+        Color     = Vector4.Lerp(StartColor, EndColor, LifeRatio);
         if (Age >= MaxAge)
             IsAlive = false;
     }
