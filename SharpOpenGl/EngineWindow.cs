@@ -4,6 +4,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.Scenes;
@@ -46,6 +47,16 @@ public class EngineWindow : GameWindow
     // ECS (initialized when gameplay starts)
     private World? _world;
     private MovementSystem? _movementSystem;
+    private AIPlayerSystem? _aiSystem;
+
+    // Economy
+    private ResourceManager? _resourceManager;
+
+    // Board size constants (100x original: was 20×20 cells @ 10f = 200 units, now 200×200 @ 10f = 2000 units)
+    private const int GridColumns = 200;
+    private const int GridRows = 200;
+    private const float GridCellSize = 10f;
+    private const float MapWorldSize = GridColumns * GridCellSize; // 2000 units
 
     // Ship meshes (initialized when gameplay starts)
     private int _heroVao, _heroVbo, _heroVertCount;
@@ -57,11 +68,14 @@ public class EngineWindow : GameWindow
     private int _selectionVao, _selectionVbo, _selectionVertCount;
     private int _moveTargetVao, _moveTargetVbo, _moveTargetVertCount;
     private int _gridVao, _gridVbo, _gridVertCount;
+    private int _resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount;
     private bool _gameplayMeshesLoaded;
 
     // Game entities
     private Entity _heroEntity;
     private readonly List<Entity> _fighterEntities = new();
+    private readonly List<Entity> _resourceNodeEntities = new();
+    private readonly List<Entity> _aiEntities = new();
 
     // Move target indicator
     private Vector3? _moveTargetPosition;
@@ -101,12 +115,16 @@ public class EngineWindow : GameWindow
         _environment = new EnvironmentController();
         _environment.Initialize();
 
-        // RTS Camera
+        // RTS Camera (adjusted for larger map)
         _rtsCamera = new RTSCameraController
         {
             Target = new Vector3(0f, 0f, 0f),
-            Height = 80f,
+            Height = 200f,
             TiltAngle = 35f,
+            PanSpeed = 300f,
+            ZoomSpeed = 40f,
+            MinHeight = 40f,
+            MaxHeight = 1500f,
         };
 
         // UI Renderer
@@ -141,9 +159,86 @@ public class EngineWindow : GameWindow
     {
         _uiManager.Clear();
         var menu = new MainMenuScreen();
-        menu.NewGameRequested += StartNewGame;
+        menu.NewGameRequested += ShowMissionSelect;
+        menu.MultiplayerRequested += ShowMultiplayerSetup;
         menu.QuitRequested += () => Close();
         _uiManager.Push(menu);
+    }
+
+    /// <summary>Show mission selection screen with available scenarios.</summary>
+    internal void ShowMissionSelect()
+    {
+        var missionSelect = new MissionSelectScreen();
+
+        // Load available missions from GameData/Missions
+        var missions = LoadMissionEntries();
+        missionSelect.SetMissions(missions);
+
+        missionSelect.MissionStartRequested += missionId =>
+        {
+            Console.WriteLine($"[Mission] Starting mission: {missionId}");
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+        };
+        missionSelect.BackRequested += () =>
+        {
+            _uiManager.Pop();
+        };
+        _uiManager.Push(missionSelect);
+    }
+
+    private IEnumerable<MissionEntry> LoadMissionEntries()
+    {
+        string missionsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GameData", "Missions");
+        // Try relative path from working directory if not found
+        if (!Directory.Exists(missionsPath))
+            missionsPath = Path.Combine(Directory.GetCurrentDirectory(), "GameData", "Missions");
+
+        if (!Directory.Exists(missionsPath))
+        {
+            Console.WriteLine("[Mission] No missions directory found, using defaults");
+            return new[]
+            {
+                new MissionEntry { Id = "tutorial_01", Title = "Tutorial - First Steps", Description = "Learn the basics of fleet command." },
+                new MissionEntry { Id = "example_scenario", Title = "First Contact", Description = "Encounter unknown hostiles in Sector Alpha." },
+                new MissionEntry { Id = "mission_02", Title = "Resource Rush", Description = "Secure critical resource nodes before the enemy." },
+                new MissionEntry { Id = "mission_03", Title = "Defensive Stand", Description = "Hold your position against waves of enemies." },
+                new MissionEntry { Id = "mission_04", Title = "Deep Strike", Description = "Strike behind enemy lines and destroy their base." },
+                new MissionEntry { Id = "mission_05", Title = "Final Assault", Description = "Launch the decisive attack on the enemy homeworld." },
+            };
+        }
+
+        var entries = new List<MissionEntry>();
+        foreach (string file in Directory.GetFiles(missionsPath, "*.json"))
+        {
+            string filename = Path.GetFileNameWithoutExtension(file);
+            if (filename.StartsWith('_')) continue;
+
+            // Read display name from JSON if possible
+            string title = filename.Replace('_', ' ');
+            if (title.Length > 0)
+                title = char.ToUpper(title[0]) + title[1..];
+
+            entries.Add(new MissionEntry
+            {
+                Id = filename,
+                Title = title,
+                Description = $"Mission: {title}",
+            });
+        }
+        return entries;
+    }
+
+    /// <summary>Show multiplayer setup screen with AI player option (issue #6).</summary>
+    internal void ShowMultiplayerSetup()
+    {
+        var mpScreen = new MultiplayerSetupScreen();
+        mpScreen.StartRequested += includeAI =>
+        {
+            Console.WriteLine($"[Multiplayer] Starting match, AI={includeAI}");
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+        };
+        mpScreen.BackRequested += () => _uiManager.Pop();
+        _uiManager.Push(mpScreen);
     }
 
     internal void StartNewGame()
@@ -202,7 +297,10 @@ public class EngineWindow : GameWindow
         (_moveTargetVao, _moveTargetVbo, _moveTargetVertCount) =
             ShipMeshBuilder.BuildMoveTarget(new Vector3(0f, 1f, 0.5f), 2f);
         (_gridVao, _gridVbo, _gridVertCount) =
-            MeshBuilder.BuildGrid(20, 20, 10f, new Vector3(0.15f, 0.15f, 0.25f));
+            MeshBuilder.BuildGrid(GridColumns, GridRows, GridCellSize, new Vector3(0.15f, 0.15f, 0.25f));
+        // Resource node marker (diamond shape using wireframe cube)
+        (_resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount) =
+            MeshBuilder.BuildWireframeCube(new Vector3(0.9f, 0.8f, 0.2f));
         _gameplayMeshesLoaded = true;
     }
 
@@ -210,10 +308,24 @@ public class EngineWindow : GameWindow
     {
         _world?.Dispose();
         _fighterEntities.Clear();
+        _resourceNodeEntities.Clear();
+        _aiEntities.Clear();
 
         _world = new World();
         _movementSystem = new MovementSystem();
+        _aiSystem = new AIPlayerSystem(MapWorldSize);
         _world.AddSystem(_movementSystem);
+        _world.AddSystem(_aiSystem);
+
+        // Initialize economy (issue #4: resources visible on HUD)
+        _resourceManager = new ResourceManager(_eventBus);
+        var playerRes = _resourceManager.AddPlayer(1);
+        playerRes.SetStartingAmount(ResourceType.Energy, 500f);
+        playerRes.SetStartingAmount(ResourceType.Minerals, 300f);
+        playerRes.SetStartingAmount(ResourceType.Data, 100f);
+        playerRes.SetStartingAmount(ResourceType.Crew, 50f);
+        playerRes.AddIncome(ResourceType.Energy, 5f);
+        playerRes.AddIncome(ResourceType.Minerals, 3f);
 
         // Spawn hero ship at center
         _heroEntity = _world.CreateEntity();
@@ -224,14 +336,14 @@ public class EngineWindow : GameWindow
         });
         _world.AddComponent(_heroEntity, new MovementComponent
         {
-            Speed = 25f,
-            Acceleration = 40f,
+            Speed = 80f,
+            Acceleration = 120f,
             TurnRate = 180f,
         });
         _world.AddComponent(_heroEntity, new SelectionComponent
         {
             IsSelected = true,
-            SelectionRadius = 4f,
+            SelectionRadius = 8f,
         });
         _world.AddComponent(_heroEntity, new RenderComponent
         {
@@ -242,12 +354,12 @@ public class EngineWindow : GameWindow
             PrimitiveType = (int)PrimitiveType.Triangles,
         });
 
-        // Spawn a squad of fighters
+        // Spawn a squad of fighters (spread across larger map)
         var rng = new Random(123);
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 5; i++)
         {
-            float x = (rng.NextSingle() - 0.5f) * 40f;
-            float z = (rng.NextSingle() - 0.5f) * 40f;
+            float x = (rng.NextSingle() - 0.5f) * 400f;
+            float z = (rng.NextSingle() - 0.5f) * 400f;
 
             var fighter = _world.CreateEntity();
             _world.AddComponent(fighter, new TransformComponent
@@ -257,14 +369,14 @@ public class EngineWindow : GameWindow
             });
             _world.AddComponent(fighter, new MovementComponent
             {
-                Speed = 35f,
-                Acceleration = 50f,
+                Speed = 100f,
+                Acceleration = 150f,
                 TurnRate = 220f,
             });
             _world.AddComponent(fighter, new SelectionComponent
             {
                 IsSelected = false,
-                SelectionRadius = 2.5f,
+                SelectionRadius = 6f,
             });
             _world.AddComponent(fighter, new RenderComponent
             {
@@ -278,10 +390,10 @@ public class EngineWindow : GameWindow
         }
 
         // Spawn bombers
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 3; i++)
         {
-            float x = 15f + (rng.NextSingle() - 0.5f) * 20f;
-            float z = (rng.NextSingle() - 0.5f) * 30f;
+            float x = 150f + (rng.NextSingle() - 0.5f) * 200f;
+            float z = (rng.NextSingle() - 0.5f) * 300f;
 
             var bomber = _world.CreateEntity();
             _world.AddComponent(bomber, new TransformComponent
@@ -291,14 +403,14 @@ public class EngineWindow : GameWindow
             });
             _world.AddComponent(bomber, new MovementComponent
             {
-                Speed = 20f,
-                Acceleration = 30f,
+                Speed = 60f,
+                Acceleration = 90f,
                 TurnRate = 140f,
             });
             _world.AddComponent(bomber, new SelectionComponent
             {
                 IsSelected = false,
-                SelectionRadius = 3.5f,
+                SelectionRadius = 7f,
             });
             _world.AddComponent(bomber, new RenderComponent
             {
@@ -316,19 +428,19 @@ public class EngineWindow : GameWindow
             var destroyer = _world.CreateEntity();
             _world.AddComponent(destroyer, new TransformComponent
             {
-                Position = new Vector3(-20f, 0f, 10f),
+                Position = new Vector3(-200f, 0f, 100f),
                 Scale = Vector3.One,
             });
             _world.AddComponent(destroyer, new MovementComponent
             {
-                Speed = 18f,
-                Acceleration = 25f,
+                Speed = 50f,
+                Acceleration = 70f,
                 TurnRate = 100f,
             });
             _world.AddComponent(destroyer, new SelectionComponent
             {
                 IsSelected = false,
-                SelectionRadius = 5f,
+                SelectionRadius = 10f,
             });
             _world.AddComponent(destroyer, new RenderComponent
             {
@@ -346,19 +458,19 @@ public class EngineWindow : GameWindow
             var carrier = _world.CreateEntity();
             _world.AddComponent(carrier, new TransformComponent
             {
-                Position = new Vector3(-10f, 0f, -25f),
+                Position = new Vector3(-100f, 0f, -250f),
                 Scale = Vector3.One,
             });
             _world.AddComponent(carrier, new MovementComponent
             {
-                Speed = 12f,
-                Acceleration = 15f,
+                Speed = 35f,
+                Acceleration = 45f,
                 TurnRate = 60f,
             });
             _world.AddComponent(carrier, new SelectionComponent
             {
                 IsSelected = false,
-                SelectionRadius = 6f,
+                SelectionRadius = 12f,
             });
             _world.AddComponent(carrier, new RenderComponent
             {
@@ -370,6 +482,104 @@ public class EngineWindow : GameWindow
             });
             _fighterEntities.Add(carrier);
         }
+
+        // Issue #5: Spawn AI-controlled enemy ships (computer player in every scenario)
+        SpawnAIPlayer(rng);
+
+        // Issue #7: Spawn visible resource nodes
+        SpawnResourceNodes(rng);
+
+        // Issue #1: Give hero an initial move target so ships visibly move immediately
+        var heroMovement = _world.GetComponent<MovementComponent>(_heroEntity);
+        if (heroMovement != null)
+            heroMovement.PathTarget = new Vector3(50f, 0f, 50f);
+    }
+
+    private void SpawnAIPlayer(Random rng)
+    {
+        if (_world == null) return;
+
+        // Spawn AI fleet on opposite side of map
+        float aiBaseX = 600f;
+        float aiBaseZ = 600f;
+
+        for (int i = 0; i < 4; i++)
+        {
+            float x = aiBaseX + (rng.NextSingle() - 0.5f) * 200f;
+            float z = aiBaseZ + (rng.NextSingle() - 0.5f) * 200f;
+
+            var aiShip = _world.CreateEntity();
+            _world.AddComponent(aiShip, new TransformComponent
+            {
+                Position = new Vector3(x, 0f, z),
+                Scale = Vector3.One,
+            });
+            _world.AddComponent(aiShip, new MovementComponent
+            {
+                Speed = 70f,
+                Acceleration = 100f,
+                TurnRate = 200f,
+            });
+            _world.AddComponent(aiShip, new RenderComponent
+            {
+                MeshId = _fighterVao,
+                VertexCount = _fighterVertCount,
+                Color = new Vector4(1.0f, 0.2f, 0.2f, 1f), // Red for enemy
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Triangles,
+            });
+            _world.AddComponent(aiShip, new AIControlledComponent
+            {
+                PlayerId = 2,
+                Aggressiveness = 0.5f,
+            });
+            _aiEntities.Add(aiShip);
+        }
+    }
+
+    private void SpawnResourceNodes(Random rng)
+    {
+        if (_world == null) return;
+
+        // Scatter resource nodes across the map
+        var resourceTypes = new[] { ResourceType.Energy, ResourceType.Minerals, ResourceType.Data, ResourceType.Crew };
+        var nodeColors = new Dictionary<ResourceType, Vector4>
+        {
+            [ResourceType.Energy] = new Vector4(0.9f, 0.8f, 0.2f, 1f),
+            [ResourceType.Minerals] = new Vector4(0.4f, 0.8f, 1.0f, 1f),
+            [ResourceType.Data] = new Vector4(0.6f, 1.0f, 0.6f, 1f),
+            [ResourceType.Crew] = new Vector4(1.0f, 0.6f, 0.4f, 1f),
+        };
+
+        for (int i = 0; i < 16; i++)
+        {
+            float x = (rng.NextSingle() - 0.5f) * MapWorldSize * 0.8f;
+            float z = (rng.NextSingle() - 0.5f) * MapWorldSize * 0.8f;
+            var resType = resourceTypes[i % 4];
+
+            var node = _world.CreateEntity();
+            _world.AddComponent(node, new TransformComponent
+            {
+                Position = new Vector3(x, 0f, z),
+                Scale = new Vector3(8f, 8f, 8f),
+            });
+            _world.AddComponent(node, new RenderComponent
+            {
+                MeshId = _resourceNodeVao,
+                VertexCount = _resourceNodeVertCount,
+                Color = nodeColors[resType],
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Lines,
+            });
+            _world.AddComponent(node, new ResourceNodeComponent
+            {
+                ResourceType = resType,
+                Amount = 5000f,
+                MaxAmount = 5000f,
+                HarvestRate = 10f,
+            });
+            _resourceNodeEntities.Add(node);
+        }
     }
 
     private void CleanupGameplay()
@@ -377,7 +587,11 @@ public class EngineWindow : GameWindow
         _world?.Dispose();
         _world = null;
         _movementSystem = null;
+        _aiSystem = null;
+        _resourceManager = null;
         _fighterEntities.Clear();
+        _resourceNodeEntities.Clear();
+        _aiEntities.Clear();
         _moveTargetPosition = null;
         _moveTargetTimer = 0f;
     }
@@ -435,8 +649,9 @@ public class EngineWindow : GameWindow
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
         GL.UniformMatrix4(_uniformView, false, ref view);
 
-        // Render grid
-        var gridModel = Matrix4.CreateTranslation(-100f, -0.5f, -100f);
+        // Render grid (centered on origin for larger map)
+        float halfGrid = MapWorldSize * 0.5f;
+        var gridModel = Matrix4.CreateTranslation(-halfGrid, -0.5f, -halfGrid);
         GL.UniformMatrix4(_uniformModel, false, ref gridModel);
         GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
         GL.BindVertexArray(_gridVao);
@@ -467,7 +682,10 @@ public class EngineWindow : GameWindow
 
             Matrix4 model = transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
-            GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
+            // Use entity color override for resource nodes and AI ships
+            bool useOverride = _world.HasComponent<ResourceNodeComponent>(entity) ||
+                               _world.HasComponent<AIControlledComponent>(entity);
+            GL.Uniform4(_uniformColor, useOverride ? render.Color : new Vector4(0, 0, 0, 0));
 
             GL.BindVertexArray(render.MeshId);
             GL.DrawArrays((PrimitiveType)render.PrimitiveType, 0, render.VertexCount);
@@ -519,6 +737,15 @@ public class EngineWindow : GameWindow
         }
         _escapeWasDown = escapeDown;
 
+        // Ctrl+A to select all friendly ships (issue #8)
+        if (_sceneManager.State == GameState.Playing && _world != null &&
+            (KeyboardState.IsKeyDown(Keys.LeftControl) || KeyboardState.IsKeyDown(Keys.RightControl)) &&
+            KeyboardState.IsKeyDown(Keys.A))
+        {
+            foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+                sel.IsSelected = true;
+        }
+
         // Update scene
         _sceneManager.Update(dt);
 
@@ -540,8 +767,12 @@ public class EngineWindow : GameWindow
                 panX = 1f;
             _rtsCamera.Pan(panX, panZ, dt);
 
-            // Update ECS world
+            // Update ECS world (issue #1: ensures movement system runs)
             _world.Update(dt);
+
+            // Tick economy (issue #4: resources on HUD)
+            _resourceManager?.Tick(dt);
+            BindResourceHUD();
 
             // Fade move target indicator
             if (_moveTargetTimer > 0f)
@@ -618,7 +849,9 @@ public class EngineWindow : GameWindow
             if (transform == null) continue;
 
             float dist = (transform.Position - worldPos).Length;
-            if (dist < sel.SelectionRadius && dist < closestDist)
+            // Use selection radius scaled by camera height for easier picking
+            float effectiveRadius = sel.SelectionRadius * (_rtsCamera.Height / 100f + 1f);
+            if (dist < effectiveRadius && dist < closestDist)
             {
                 closestDist = dist;
                 hitEntity = entity;
@@ -661,7 +894,7 @@ public class EngineWindow : GameWindow
             if (selectedEntities.Count > 1)
             {
                 float angle = MathF.PI * 2f * i / selectedEntities.Count;
-                float radius = 4f;
+                float radius = 12f;
                 offset = new Vector3(MathF.Cos(angle) * radius, 0f, MathF.Sin(angle) * radius);
             }
 
@@ -670,6 +903,24 @@ public class EngineWindow : GameWindow
 
         _moveTargetPosition = worldPos;
         _moveTargetTimer = 2f;
+    }
+
+    /// <summary>
+    /// Bind current resource data to the HUD ResourceBar each frame.
+    /// </summary>
+    private void BindResourceHUD()
+    {
+        if (_resourceManager == null) return;
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        var displays = new List<ResourceDisplay>
+        {
+            _resourceManager.GetDisplay(1, ResourceType.Energy),
+            _resourceManager.GetDisplay(1, ResourceType.Minerals),
+            _resourceManager.GetDisplay(1, ResourceType.Data),
+            _resourceManager.GetDisplay(1, ResourceType.Crew),
+        };
+        hud.ResourceBar.Resources = displays;
     }
 
     /// <summary>
@@ -738,6 +989,7 @@ public class EngineWindow : GameWindow
             MeshBuilder.DeleteMesh(_selectionVao, _selectionVbo);
             MeshBuilder.DeleteMesh(_moveTargetVao, _moveTargetVbo);
             MeshBuilder.DeleteMesh(_gridVao, _gridVbo);
+            MeshBuilder.DeleteMesh(_resourceNodeVao, _resourceNodeVbo);
         }
     }
 
