@@ -178,7 +178,7 @@ Each ability has a cooldown shown in the HUD.
 | 01 | First Contact | Tutorial — destroy an enemy scout. |
 | 02 | Mineral Rush | Harvest 500 minerals before enemy reinforcements arrive. |
 | 03 | Rescue Op | Escort an escape pod through a pirate blockade. |
-| 04 | Station Defence | Hold the command station against three attack waves. |
+| 04 | Station Defense | Hold the command station against three attack waves. |
 | 05 | The Reckoning | Assault the enemy flagship; destroy four generators, then the dreadnought. |
 
 ### Objectives

@@ -49,6 +49,9 @@ public sealed class ProgressBar : Widget
     /// <summary>Colour used to render the label text.</summary>
     public Vector4 LabelColor { get; set; } = new Vector4(1f, 1f, 1f, 1f);
 
+    /// <summary>Horizontal padding (logical pixels) between the bar edge and the label text.</summary>
+    public float LabelPadding { get; set; } = 8f;
+
     // ── Drawing ───────────────────────────────────────────────────────────────
 
     /// <inheritdoc/>
@@ -71,7 +74,7 @@ public sealed class ProgressBar : Widget
         // Label
         if (!string.IsNullOrEmpty(Label))
         {
-            Vector2 textPos = new(position.X + 8f, position.Y + (size.Y - FontSize) / 2f);
+            Vector2 textPos = new(position.X + LabelPadding, position.Y + (size.Y - FontSize) / 2f);
             renderer.DrawText(Label, textPos, FontSize, LabelColor);
         }
     }
