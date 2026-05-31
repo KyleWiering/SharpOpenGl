@@ -5,6 +5,8 @@ namespace SharpOpenGl.Engine.Rendering;
 /// <summary>
 /// Parameters for generating a procedural spaceship hull.
 /// All length units are in world-space metres.
+/// Colours are intentionally excluded — apply them via <see cref="MaterialComponent"/>
+/// after spawning the entity; the geometry uses normals, not per-vertex colours.
 /// </summary>
 public sealed class ShipParameters
 {
@@ -22,12 +24,6 @@ public sealed class ShipParameters
 
     /// <summary>Number of engine nozzles (0–4).</summary>
     public int EngineCount { get; set; } = 2;
-
-    /// <summary>Hull primary colour.</summary>
-    public Vector3 HullColor { get; set; } = new Vector3(0.3f, 0.4f, 0.8f);
-
-    /// <summary>Engine glow colour.</summary>
-    public Vector3 EngineColor { get; set; } = new Vector3(0.3f, 0.8f, 1f);
 }
 
 /// <summary>
@@ -58,20 +54,20 @@ public static class ProceduralShipGenerator
         Vector3 bot     = new( 0f, -hw * 0.25f, 0f);
 
         // Top faces
-        AddTri(verts, bow, stbdFwd, top, p.HullColor);
-        AddTri(verts, bow, top,     portFwd, p.HullColor);
-        AddTri(verts, stbdFwd, stbdAft, top, p.HullColor);
-        AddTri(verts, portFwd, top,   portAft, p.HullColor);
-        AddTri(verts, stbdAft, stern, top, p.HullColor);
-        AddTri(verts, portAft, top,   stern, p.HullColor);
+        AddTri(verts, bow, stbdFwd, top);
+        AddTri(verts, bow, top,     portFwd);
+        AddTri(verts, stbdFwd, stbdAft, top);
+        AddTri(verts, portFwd, top,   portAft);
+        AddTri(verts, stbdAft, stern, top);
+        AddTri(verts, portAft, top,   stern);
 
         // Bottom faces (mirrored)
-        AddTri(verts, bow,     bot,     stbdFwd, p.HullColor);
-        AddTri(verts, bow,     portFwd, bot,     p.HullColor);
-        AddTri(verts, stbdFwd, bot,     stbdAft, p.HullColor);
-        AddTri(verts, portFwd, portAft, bot,     p.HullColor);
-        AddTri(verts, stbdAft, bot,     stern,   p.HullColor);
-        AddTri(verts, portAft, stern,   bot,     p.HullColor);
+        AddTri(verts, bow,     bot,     stbdFwd);
+        AddTri(verts, bow,     portFwd, bot);
+        AddTri(verts, stbdFwd, bot,     stbdAft);
+        AddTri(verts, portFwd, portAft, bot);
+        AddTri(verts, stbdAft, bot,     stern);
+        AddTri(verts, portAft, stern,   bot);
 
         // ── Wings ─────────────────────────────────────────────────────────────
         float wingAngleRad = MathHelper.DegreesToRadians(p.WingAngle);
@@ -84,15 +80,15 @@ public static class ProceduralShipGenerator
             Vector3 sbRoot  = stbdFwd;
             Vector3 sbTip   = new(sbRoot.X - wingSweep, 0f, sbRoot.Z + wingReach);
             Vector3 sbBase  = stbdAft;
-            AddTri(verts, sbRoot, sbTip, sbBase, p.HullColor);
-            AddTri(verts, sbBase, sbTip, sbRoot, p.HullColor); // underside
+            AddTri(verts, sbRoot, sbTip, sbBase);
+            AddTri(verts, sbBase, sbTip, sbRoot); // underside
 
             // Port wing (mirrored)
             Vector3 pbRoot = portFwd;
             Vector3 pbTip  = new(pbRoot.X - wingSweep, 0f, pbRoot.Z - wingReach);
             Vector3 pbBase = portAft;
-            AddTri(verts, pbRoot, pbBase, pbTip, p.HullColor);
-            AddTri(verts, pbBase, pbRoot, pbTip, p.HullColor); // underside
+            AddTri(verts, pbRoot, pbBase, pbTip);
+            AddTri(verts, pbBase, pbRoot, pbTip); // underside
         }
 
         // ── Engine nozzles ────────────────────────────────────────────────────
@@ -101,7 +97,7 @@ public static class ProceduralShipGenerator
         for (int i = 0; i < eng; i++)
         {
             Vector3 engCenter = new(stern.X - 0.05f, 0f, engOffsets[i]);
-            AddEngineNozzle(verts, engCenter, 0.08f, p.EngineColor);
+            AddEngineNozzle(verts, engCenter, 0.08f);
         }
 
         return new ObjMeshData(verts.ToArray(), "<procedural>", "procedural_ship");
@@ -120,19 +116,19 @@ public static class ProceduralShipGenerator
         };
 
     private static void AddTri(
-        List<float> verts, Vector3 a, Vector3 b, Vector3 c, Vector3 color)
+        List<float> verts, Vector3 a, Vector3 b, Vector3 c)
     {
         Vector3 edge1  = b - a;
         Vector3 edge2  = c - a;
         Vector3 normal = Vector3.Normalize(Vector3.Cross(edge1, edge2));
 
-        Emit(verts, a, normal, color);
-        Emit(verts, b, normal, color);
-        Emit(verts, c, normal, color);
+        Emit(verts, a, normal);
+        Emit(verts, b, normal);
+        Emit(verts, c, normal);
     }
 
     private static void AddEngineNozzle(
-        List<float> verts, Vector3 center, float radius, Vector3 color)
+        List<float> verts, Vector3 center, float radius)
     {
         const int segments = 6;
         for (int i = 0; i < segments; i++)
@@ -141,11 +137,11 @@ public static class ProceduralShipGenerator
             float a1 = MathHelper.TwoPi * (i + 1) / segments;
             Vector3 p0 = center + new Vector3(0f, MathF.Sin(a0) * radius, MathF.Cos(a0) * radius);
             Vector3 p1 = center + new Vector3(0f, MathF.Sin(a1) * radius, MathF.Cos(a1) * radius);
-            AddTri(verts, center, p0, p1, color);
+            AddTri(verts, center, p0, p1);
         }
     }
 
-    private static void Emit(List<float> verts, Vector3 pos, Vector3 normal, Vector3 _)
+    private static void Emit(List<float> verts, Vector3 pos, Vector3 normal)
     {
         verts.Add(pos.X);    verts.Add(pos.Y);    verts.Add(pos.Z);
         verts.Add(normal.X); verts.Add(normal.Y); verts.Add(normal.Z);

@@ -87,8 +87,9 @@ ship hull from numeric parameters — no art required for prototyping.
 | `WingAngle` | Wing sweep angle (degrees, positive = swept back) | 30° |
 | `WingLength` | Wing tip extension from fuselage edge | 0.5 |
 | `EngineCount` | Number of nozzles (0–4) | 2 |
-| `HullColor` | Hull vertex colour (RGB) | blue |
-| `EngineColor` | Nozzle vertex colour | cyan |
+
+Colours are **not** embedded in the vertex data — the geometry uses normals (pos3 + normal3 layout).
+Apply hull/engine colours after spawning via `MaterialComponent` on the entity.
 
 The result is the same `ObjMeshData` format as a loaded `.obj` file.
 

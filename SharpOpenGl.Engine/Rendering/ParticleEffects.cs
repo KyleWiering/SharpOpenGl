@@ -1,5 +1,4 @@
 using OpenTK.Mathematics;
-using SharpOpenGl.Engine.Rendering;
 
 namespace SharpOpenGl.Engine.Rendering;
 
