@@ -1,0 +1,34 @@
+# default_projectile.obj — small diamond shape for projectile/bullet placeholder.
+# Used when a projectile mesh key cannot be resolved.
+
+# Vertices
+v  0.15  0.0  0.0
+v  0.0   0.05 0.0
+v  0.0  -0.05 0.0
+v  0.0   0.0  0.05
+v  0.0   0.0 -0.05
+v -0.15  0.0  0.0
+
+# Normals (approximate per-face normals)
+vn  1.0  1.0  0.0
+vn  1.0 -1.0  0.0
+vn  1.0  0.0  1.0
+vn  1.0  0.0 -1.0
+vn -1.0  1.0  0.0
+vn -1.0 -1.0  0.0
+vn -1.0  0.0  1.0
+vn -1.0  0.0 -1.0
+
+# Front pyramid (tip → body)
+f 1//1 2//1 4//1
+f 1//2 3//2 2//2
+f 1//3 4//3 3//3
+f 1//4 2//4 5//4
+f 1//4 5//4 3//4
+
+# Rear pyramid (body → tail)
+f 6//5 4//5 2//5
+f 6//6 2//6 3//6
+f 6//7 3//7 4//7
+f 6//8 5//8 2//8
+f 6//8 3//8 5//8

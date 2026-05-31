@@ -354,7 +354,7 @@ SharpOpenGl/
 
 ---
 
-## 12. Phase 8 — Visual Design Pipeline
+## 12. Phase 8 — Visual Design Pipeline ✅
 
 **Goal**: Enable custom ship/base/unit visual design with a workflow that supports iterative art.
 
@@ -369,19 +369,19 @@ SharpOpenGl/
 
 ### Tasks
 
-- [ ] Implement `.obj` mesh loader (vertices, normals, basic materials)
-- [ ] Implement procedural ship generator (hull from parameters: length, width, wing angle)
-- [ ] Implement material system (diffuse color, emissive color, opacity)
-- [ ] Implement particle system (emitter, lifetime, velocity, color over time)
-- [ ] Implement engine trail particles
-- [ ] Implement explosion effect
-- [ ] Implement shield bubble effect (translucent sphere)
-- [ ] Implement weapon fire visuals (laser line, missile trail)
-- [ ] Implement `ShipDesignerScreen` rendering (rotate model, change colors)
-- [ ] Implement mesh LOD system (detailed close, simple far, icon strategic)
-- [ ] Implement sprite/billboard fallback for very far zoom
-- [ ] Create default meshes: default_ship, default_base, default_projectile
-- [ ] Document visual design workflow in `docs/VISUAL_DESIGN.md`
+- [x] Implement `.obj` mesh loader (vertices, normals, basic materials)
+- [x] Implement procedural ship generator (hull from parameters: length, width, wing angle)
+- [x] Implement material system (diffuse color, emissive color, opacity)
+- [x] Implement particle system (emitter, lifetime, velocity, color over time)
+- [x] Implement engine trail particles
+- [x] Implement explosion effect
+- [x] Implement shield bubble effect (translucent sphere)
+- [x] Implement weapon fire visuals (laser line, missile trail)
+- [x] Implement `ShipDesignerScreen` rendering (rotate model, change colors)
+- [x] Implement mesh LOD system (detailed close, simple far, icon strategic)
+- [x] Implement sprite/billboard fallback for very far zoom
+- [x] Create default meshes: default_ship, default_base, default_projectile
+- [x] Document visual design workflow in `docs/VISUAL_DESIGN.md`
 
 ### Acceptance Criteria
 
@@ -694,19 +694,19 @@ If unsure what to work on, follow this priority:
 - [x] Write mission tests
 
 ### Phase 8 — Visual Design
-- [ ] Implement `.obj` mesh loader
-- [ ] Implement procedural ship generator
-- [ ] Implement material system
-- [ ] Implement particle system
-- [ ] Implement engine trails
-- [ ] Implement explosions
-- [ ] Implement shield effects
-- [ ] Implement weapon visuals
-- [ ] Implement ship designer rendering
-- [ ] Implement LOD system
-- [ ] Implement sprite fallback
-- [ ] Create default meshes
-- [ ] Document visual workflow
+- [x] Implement `.obj` mesh loader
+- [x] Implement procedural ship generator
+- [x] Implement material system
+- [x] Implement particle system
+- [x] Implement engine trails
+- [x] Implement explosions
+- [x] Implement shield effects
+- [x] Implement weapon visuals
+- [x] Implement ship designer rendering
+- [x] Implement LOD system
+- [x] Implement sprite fallback
+- [x] Create default meshes
+- [x] Document visual workflow
 
 ### Phase 9 — Mobile & Input
 - [ ] Implement `TouchInput`
