@@ -455,9 +455,10 @@ public class EngineWindow : GameWindow
             {
                 float speed = movement.Velocity.Length;
                 float trailScale = MathHelper.Clamp(speed / movement.Speed, 0.3f, 1.0f);
-                Matrix4 trailModel = Matrix4.CreateScale(trailScale) * transform.GetModelMatrix();
-                // Offset trail behind the ship
-                trailModel *= Matrix4.CreateTranslation(0f, 0f, -0.5f);
+                // Trail sits behind the ship in its local space, then transforms to world
+                Matrix4 trailModel = Matrix4.CreateScale(trailScale) *
+                                     Matrix4.CreateTranslation(0f, 0f, -0.5f) *
+                                     transform.GetModelMatrix();
                 GL.UniformMatrix4(_uniformModel, false, ref trailModel);
                 GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
                 GL.BindVertexArray(_engineTrailVao);
