@@ -18,4 +18,10 @@
     <ProjectReference Include="..\SharpOpenGl.Engine\SharpOpenGl.Engine.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\GameData\**\*" Link="GameData\%(RecursiveDir)%(Filename)%(Extension)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

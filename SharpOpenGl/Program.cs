@@ -26,7 +26,7 @@ class Program
         var nativeWindowSettings = new NativeWindowSettings
         {
             ClientSize = new Vector2i(1024, 768),
-            Title = "SharpOpenGL Engine",
+            Title = "SharpOpenGL - Space RTS",
             Flags = screenshotMode
                 ? ContextFlags.Offscreen
                 : ContextFlags.Default,
