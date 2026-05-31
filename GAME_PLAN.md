@@ -260,9 +260,9 @@ SharpOpenGl/
 
 ---
 
-## 11. Phase 7 — Mission System
+## 11. Phase 7 — Mission System ✅
 
-**Goal**: Designable missions loaded from data files with objectives, triggers, and scripted events.
+**Completed.** `MissionState` (phase tracking, objective progress, trigger progress, entity tag registry), `ObjectiveSystem` (destroy_target, survive_time, reach_area, collect, condition), `TriggerSystem` (timer, area_enter, kill_count, resource_threshold; scripted actions: spawn_units, dialog, camera_pan), `MissionController` (start, rewards, replay), `BriefingScreen` UI.
 
 ### Mission Structure
 
@@ -680,18 +680,18 @@ If unsure what to work on, follow this priority:
 
 ### Phase 7 — Mission System
 - [x] Implement `MissionLoader`
-- [ ] Implement `MissionState`
-- [ ] Implement `ObjectiveSystem`
-- [ ] Implement objective types
-- [ ] Implement `TriggerSystem`
-- [ ] Implement trigger types
-- [ ] Implement scripted events
-- [ ] Implement briefing screen integration
-- [ ] Implement rewards distribution
-- [ ] Implement mission replay
-- [ ] Create tutorial mission JSON
-- [ ] Create mission template
-- [ ] Write mission tests
+- [x] Implement `MissionState`
+- [x] Implement `ObjectiveSystem`
+- [x] Implement objective types
+- [x] Implement `TriggerSystem`
+- [x] Implement trigger types
+- [x] Implement scripted events
+- [x] Implement briefing screen integration
+- [x] Implement rewards distribution
+- [x] Implement mission replay
+- [x] Create tutorial mission JSON
+- [x] Create mission template
+- [x] Write mission tests
 
 ### Phase 8 — Visual Design
 - [ ] Implement `.obj` mesh loader

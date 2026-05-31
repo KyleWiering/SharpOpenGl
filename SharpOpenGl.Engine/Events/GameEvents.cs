@@ -48,3 +48,23 @@ public record AbilityActivatedEvent(uint CasterId, int Slot, string AbilityId);
 
 /// <summary>Fired when an entity dies during combat (HP drops to zero).</summary>
 public record UnitDiedEvent(uint VictimId, uint KillerId, int XpAwarded);
+
+// ── Mission events ─────────────────────────────────────────────────────────
+
+/// <summary>Fired when a mission transitions to the InProgress phase.</summary>
+public record MissionStartedEvent(string MissionId);
+
+/// <summary>Fired when all primary objectives are complete (victory).</summary>
+public record MissionVictoryEvent(string MissionId);
+
+/// <summary>Fired when a defeat condition is met.</summary>
+public record MissionDefeatEvent(string MissionId, string Reason);
+
+/// <summary>Fired when a trigger fires its actions.</summary>
+public record TriggerFiredEvent(string MissionId, string TriggerId);
+
+/// <summary>Fired by scripted events to display in-game dialog.</summary>
+public record DialogEvent(string Speaker, string Text);
+
+/// <summary>Fired when the player requests a mission restart.</summary>
+public record MissionReplayRequestedEvent(string MissionId);
