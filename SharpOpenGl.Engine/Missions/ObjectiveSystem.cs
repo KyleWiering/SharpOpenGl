@@ -117,11 +117,11 @@ public sealed class ObjectiveSystem : GameSystem
             float.TryParse(parts[2], System.Globalization.NumberStyles.Float,
                 System.Globalization.CultureInfo.InvariantCulture, out radius);
 
-        var centre = new Vector3(cx, cy, 0f);
+        var center = new Vector3(cx, cy, 0f);
 
         foreach (var (_, tf) in world.Query<TransformComponent>())
         {
-            if (Vector3.Distance(tf.Position, centre) <= radius)
+            if (Vector3.Distance(tf.Position, center) <= radius)
                 return true;
         }
         return false;

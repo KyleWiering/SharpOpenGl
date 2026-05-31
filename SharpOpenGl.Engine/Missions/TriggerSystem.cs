@@ -95,12 +95,12 @@ public sealed class TriggerSystem : GameSystem
     {
         if (cond.Position == null || cond.Position.Length < 2) return false;
 
-        var centre = new Vector3(cond.Position[0], cond.Position[1], 0f);
+        var center = new Vector3(cond.Position[0], cond.Position[1], 0f);
         float radius = cond.Radius > 0f ? cond.Radius : 5f;
 
         foreach (var (_, tf) in world.Query<TransformComponent>())
         {
-            if (Vector3.Distance(tf.Position, centre) <= radius)
+            if (Vector3.Distance(tf.Position, center) <= radius)
                 return true;
         }
         return false;
