@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   # ── Tests ─────────────────────────────────────────────────────────────────
@@ -112,3 +112,53 @@ jobs:
             docs/index.html
             docs/engine.min.js
           retention-days: 30
+
+  # ── Release ─────────────────────────────────────────────────────────────────
+  release:
+    name: Create GitHub Release
+    needs: [build-desktop, build-webgl2]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Package artifacts into zips
+        run: |
+          mkdir -p release
+          for dir in artifacts/SharpOpenGl-*; do
+            name=$(basename "$dir")
+            (cd "$dir" && zip -r "../../release/${name}.zip" .)
+          done
+
+      - name: Generate version tag
+        id: version
+        run: |
+          VERSION="v1.0.0-build.${GITHUB_RUN_NUMBER}"
+          echo "tag=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Generated version: ${VERSION}"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "SharpOpenGl ${{ steps.version.outputs.tag }}"
+          body: |
+            Automated release from CI build #${{ github.run_number }}.
+
+            **Commit:** ${{ github.sha }}
+            **Branch:** ${{ github.ref_name }}
+
+            ## Downloads
+            - **Windows x64** — `SharpOpenGl-win-x64.zip`
+            - **Linux x64** — `SharpOpenGl-linux-x64.zip`
+            - **macOS x64** — `SharpOpenGl-osx-x64.zip`
+            - **macOS ARM64** — `SharpOpenGl-osx-arm64.zip`
+            - **WebGL2** — `SharpOpenGl-WebGL2.zip`
+          files: release/*.zip
+          generate_release_notes: true
