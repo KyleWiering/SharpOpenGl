@@ -1,0 +1,21 @@
+{
+  "id": "bomber_heavy",
+  "displayName": "Thunderhawk Bomber",
+  "category": "bomber",
+  "mesh": "meshes/bomber_heavy.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 300, "shields": 100, "armor": 40 },
+    "movement": { "speed": 50, "acceleration": 30, "turnRate": 140 },
+    "weapons": [
+      { "slot": 0, "type": "torpedo", "damage": 200, "range": 400, "fireRate": 0.3 },
+      { "slot": 1, "type": "bomb", "damage": 350, "range": 100, "fireRate": 0.2 }
+    ],
+    "squadMember": {
+      "formationSlot": -1,
+      "formationOffset": [0, 0, 0]
+    }
+  },
+  "cost": { "energy": 150, "minerals": 200, "data": 25, "crew": 3 },
+  "buildTime": 35
+}
