@@ -61,7 +61,7 @@
         "radius": 10.0
       },
       "actions": [
-        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic"], "position": [35, 35] },
+        { "type": "spawn_units", "units": ["scout_light", "scout_light"], "position": [35, 35] },
         { "type": "dialog", "speaker": "Sensors", "text": "Enemy contacts detected! Engaging!" }
       ],
       "oneShot": true
