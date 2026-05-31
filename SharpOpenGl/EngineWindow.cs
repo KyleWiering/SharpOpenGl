@@ -215,7 +215,8 @@ public class EngineWindow : GameWindow
 
             // Read display name from JSON if possible
             string title = filename.Replace('_', ' ');
-            title = char.ToUpper(title[0]) + title[1..];
+            if (title.Length > 0)
+                title = char.ToUpper(title[0]) + title[1..];
 
             entries.Add(new MissionEntry
             {
