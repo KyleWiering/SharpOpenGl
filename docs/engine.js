@@ -56,8 +56,8 @@ function vec3Normalize(v){
 // ============================================================
 class RTSCamera {
     constructor() {
-        this.cx = 180;   // world X centre
-        this.cz = 180;   // world Z centre (south = +Z)
+        this.cx = 180;   // world X center
+        this.cz = 180;   // world Z center (south = +Z)
         this.height = 260; // camera Y altitude (zoom)
         this.minH = 60; this.maxH = 520;
     }
@@ -204,6 +204,8 @@ const RES_DOM = {
 // ============================================================
 // Game State
 // ============================================================
+const RESPAWN_DELAY_SECONDS = 12;
+
 let _uid = 0;
 function mkUnit(name, type, wx, wz, maxHp, shields, speed, range, dmg, fireRate, team, scale) {
     return {
@@ -363,7 +365,7 @@ function updateGame(dt) {
     for (const u of UNITS) {
         if (!u.alive) {
             u._respawn = (u._respawn||0) + dt;
-            if (u._respawn > 12) {
+            if (u._respawn > RESPAWN_DELAY_SECONDS) {
                 u._respawn = 0;
                 u.alive = true;
                 u.hp = u.maxHp;
@@ -528,7 +530,7 @@ function updateHUD(dt) {
             (sel.maxShields>0 ? `  | Shield: ${sel.shields.toFixed(0)}/${sel.maxShields}` : '');
         document.getElementById('ui-extra').textContent =
             sel.type==='worker'
-                ? `Cargo: ${sel.cargo.toFixed(1)}/${sel.cargoMax}  ${sel.returning?'→ Base':'→ Node'}`
+                ? `Cargo: ${sel.cargo.toFixed(1)}/${sel.cargoMax}  ${sel.returning ? '→ Base' : '→ Node'}`
                 : `Range: ${sel.range}  Dmg: ${sel.dmg}  Speed: ${sel.speed}`;
     } else {
         uip.style.display = 'none';
@@ -748,11 +750,11 @@ void main(){ outColor = vec4(vCol,1.0); }`;
         const ndcY = 1 - (cy / canvas.height) * 2;
         const wx = camera.cx + ndcX * visW * 0.5;
         const wz = camera.cz - ndcY * visH * 0.5;
-        let best = null, bD = 300;
+        let best = null, bestDist = 300;
         for (const u of UNITS) {
             if (!u.alive) continue;
             const d = Math.sqrt(dist2(wx, wz, u.wx, u.wz));
-            if (d < bD) { bD = d; best = u; }
+            if (d < bestDist) { bestDist = d; best = u; }
         }
         return best ? best.id : -1;
     }
@@ -808,7 +810,7 @@ void main(){ outColor = vec4(vCol,1.0); }`;
         requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
-    console.log('SharpOpenGL Space RTS WebGL2 preview initialised.');
+    console.log('SharpOpenGL Space RTS WebGL2 preview initialized.');
 })();
 
 // ============================================================
