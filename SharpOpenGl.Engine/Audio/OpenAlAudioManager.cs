@@ -29,8 +29,9 @@ public sealed class OpenAlAudioManager : IAudioManager
     private int   _musicSource;
     private int   _musicBuffer;
     private bool  _musicPlaying;
-    private float _musicFade;      // current gain factor for crossfade
-    private float _musicFadeSpeed; // units per second (negative = fade-out)
+    private float _musicFade;        // current gain factor for crossfade
+    private float _musicFadeSpeed;   // units per second (negative = fade-out)
+    private bool? _pendingMusicLoop; // loop flag for the track queued after fade-out
 
     /// <inheritdoc/>
     public AudioSettings Settings { get; } = new AudioSettings();
@@ -85,11 +86,11 @@ public sealed class OpenAlAudioManager : IAudioManager
     {
         if (!_initialized) return;
 
-        // Stop any current music with a quick fade-out then start new track.
-        // For placeholder, we generate a low-frequency tone as the "music" track.
         if (_musicPlaying)
         {
-            _musicFadeSpeed = crossfadeSeconds > 0f ? -1f / crossfadeSeconds : float.NegativeInfinity;
+            // Fade out the current track; store loop flag so Update starts the new one.
+            _musicFadeSpeed  = crossfadeSeconds > 0f ? -1f / crossfadeSeconds : float.NegativeInfinity;
+            _pendingMusicLoop = loop;
             return;
         }
 
@@ -118,6 +119,13 @@ public sealed class OpenAlAudioManager : IAudioManager
             {
                 AL.SourceStop(_musicSource);
                 _musicPlaying = false;
+
+                // Start a queued track if one was requested during fade-out.
+                if (_pendingMusicLoop.HasValue)
+                {
+                    StartMusicTrack(_pendingMusicLoop.Value);
+                    _pendingMusicLoop = null;
+                }
             }
         }
     }
@@ -210,7 +218,7 @@ public sealed class OpenAlAudioManager : IAudioManager
 
     private void StartMusicTrack(bool loop)
     {
-        // Use a long low-frequency sweep as placeholder music
+        // Use a long low-frequency tone as placeholder music
         short[] pcm  = PlaceholderSoundGenerator.GenerateTone(110f, 4.0f, 0.5f, 0.5f);
         byte[]  bytes = new byte[pcm.Length * 2];
         Buffer.BlockCopy(pcm, 0, bytes, 0, bytes.Length);
