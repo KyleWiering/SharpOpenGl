@@ -1,0 +1,75 @@
+{
+  "id": "mission_02",
+  "displayName": "Mineral Rush",
+  "description": "Secure the asteroid belt and harvest minerals before the enemy fleet arrives.",
+  "map": "sector_beta",
+  "briefing": {
+    "text": "Commander, a rich mineral belt has been detected in Sector Beta. Establish a mining operation and extract 500 minerals before the enemy reinforcements arrive in 3 minutes.",
+    "objectivesPreview": ["Collect 500 minerals", "Survive until extraction"]
+  },
+  "startConditions": {
+    "playerSpawn": [3, 3],
+    "startingUnits": ["hero_default", "fighter_basic", "fighter_basic"],
+    "startingResources": { "energy": 800, "minerals": 50, "data": 0, "crew": 15 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "collect_minerals",
+        "type": "collect",
+        "resourceType": "minerals",
+        "amount": 500,
+        "description": "Collect 500 minerals from the asteroid belt"
+      },
+      {
+        "id": "survive_extraction",
+        "type": "survive_time",
+        "seconds": 180,
+        "description": "Hold the asteroid belt for 3 minutes"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "no_unit_loss",
+        "type": "condition",
+        "condition": "squad.allAlive",
+        "description": "Complete without losing any fighters"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "enemy_wave_1",
+      "condition": { "type": "timer", "seconds": 90 },
+      "actions": [
+        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic", "fighter_basic"], "position": [60, 60] },
+        { "type": "dialog", "speaker": "AI", "text": "Enemy patrol inbound — defend the mining site!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "enemy_wave_2",
+      "condition": { "type": "timer", "seconds": 150 },
+      "actions": [
+        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic", "fighter_basic", "fighter_basic"], "position": [65, 55] },
+        { "type": "dialog", "speaker": "AI", "text": "Reinforcements detected — hold the line!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "halfway_reminder",
+      "condition": { "type": "timer", "seconds": 60 },
+      "actions": [
+        { "type": "dialog", "speaker": "AI", "text": "Mining operation at 33 %. Keep the harvesters safe." }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": { "energy": 300, "minerals": 200, "data": 75, "crew": 0 },
+    "xp": 200,
+    "unlocks": ["bomber_basic"]
+  }
+}

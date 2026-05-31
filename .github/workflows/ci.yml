@@ -1,0 +1,114 @@
+name: CI — Test, Build & Package
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Tests ─────────────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build (Debug)
+        run: dotnet build --configuration Debug --no-restore
+
+      - name: Run tests
+        run: dotnet test --configuration Debug --no-build --verbosity normal
+
+  # ── Desktop builds ────────────────────────────────────────────────────────
+  build-desktop:
+    name: Desktop Builds
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            name: Windows x64
+          - rid: linux-x64
+            name: Linux x64
+          - rid: osx-x64
+            name: macOS x64
+          - rid: osx-arm64
+            name: macOS ARM64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Publish (${{ matrix.name }})
+        run: |
+          dotnet publish SharpOpenGl/SharpOpenGl.csproj \
+            --configuration Release \
+            --runtime ${{ matrix.rid }} \
+            --self-contained true \
+            --output dist/${{ matrix.rid }} \
+            /p:PublishSingleFile=true
+
+      - name: Upload artifact (${{ matrix.name }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: SharpOpenGl-${{ matrix.rid }}
+          path: dist/${{ matrix.rid }}
+          retention-days: 30
+
+  # ── WebGL2 production build ───────────────────────────────────────────────
+  build-webgl2:
+    name: WebGL2 Minification
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install terser
+        run: npm install -g terser
+
+      - name: Minify engine.js
+        run: |
+          terser docs/engine.js \
+            --compress --mangle \
+            --output docs/engine.min.js
+          echo "Original: $(wc -c < docs/engine.js) bytes"
+          echo "Minified: $(wc -c < docs/engine.min.js) bytes"
+
+      - name: Upload WebGL2 artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SharpOpenGl-WebGL2
+          path: |
+            docs/index.html
+            docs/engine.min.js
+          retention-days: 30

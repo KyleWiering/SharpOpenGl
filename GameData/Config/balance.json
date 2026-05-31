@@ -39,6 +39,46 @@
       "armor": 50,
       "speed": 120,
       "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 5 }
+    },
+    "bomber_basic": {
+      "maxHP": 120,
+      "shields": 0,
+      "armor": 5,
+      "speed": 60,
+      "weaponDamage": 60,
+      "weaponRange": 150,
+      "weaponFireRate": 0.5,
+      "cost": { "energy": 80, "minerals": 120, "data": 10, "crew": 2 }
+    },
+    "gunship_basic": {
+      "maxHP": 250,
+      "shields": 50,
+      "armor": 25,
+      "speed": 70,
+      "weaponDamage": 30,
+      "weaponRange": 250,
+      "weaponFireRate": 1.5,
+      "cost": { "energy": 120, "minerals": 200, "data": 20, "crew": 3 }
+    },
+    "capital_ship_basic": {
+      "maxHP": 2000,
+      "shields": 1000,
+      "armor": 150,
+      "speed": 30,
+      "weaponDamage": 200,
+      "weaponRange": 400,
+      "weaponFireRate": 0.25,
+      "cost": { "energy": 500, "minerals": 800, "data": 200, "crew": 20 }
+    },
+    "fighter_advanced": {
+      "maxHP": 150,
+      "shields": 30,
+      "armor": 15,
+      "speed": 100,
+      "weaponDamage": 25,
+      "weaponRange": 250,
+      "weaponFireRate": 2.5,
+      "cost": { "energy": 75, "minerals": 100, "data": 25, "crew": 1 }
     }
   },
   "buildingStats": {

@@ -1,0 +1,83 @@
+{
+  "id": "mission_04",
+  "displayName": "Station Defence",
+  "description": "Defend the command station against three waves of increasingly powerful attackers.",
+  "map": "sector_delta",
+  "briefing": {
+    "text": "Commander, Command Station Delta is under siege. Three attack waves are inbound. Use the station's defensive turrets and your fleet to hold the line. The station cannot fall.",
+    "objectivesPreview": ["Survive all three attack waves", "Keep the command station above 50 % health", "Destroy all enemy capital ships"]
+  },
+  "startConditions": {
+    "playerSpawn": [10, 10],
+    "startingUnits": ["hero_default", "fighter_basic", "fighter_basic", "fighter_basic", "fighter_basic"],
+    "startingResources": { "energy": 1200, "minerals": 500, "data": 100, "crew": 25 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "survive_waves",
+        "type": "survive_time",
+        "seconds": 240,
+        "description": "Survive all three attack waves (4 minutes)"
+      },
+      {
+        "id": "destroy_capitals",
+        "type": "destroy_target",
+        "target": "enemy_capital_1",
+        "description": "Destroy the enemy capital ship"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "station_health",
+        "type": "condition",
+        "condition": "command_station.health > command_station.maxHealth * 0.5",
+        "description": "Keep the command station above 50 % health"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "wave_1",
+      "condition": { "type": "timer", "seconds": 10 },
+      "actions": [
+        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic", "fighter_basic", "fighter_basic"], "position": [80, 80] },
+        { "type": "dialog", "speaker": "AI", "text": "Wave 1 incoming — scramble all fighters!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "wave_2",
+      "condition": { "type": "timer", "seconds": 90 },
+      "actions": [
+        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic", "bomber_basic", "bomber_basic"], "position": [82, 78] },
+        { "type": "dialog", "speaker": "AI", "text": "Wave 2 detected — bombers in the mix!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "wave_3",
+      "condition": { "type": "timer", "seconds": 180 },
+      "actions": [
+        { "type": "spawn_units", "units": ["enemy_capital_1", "fighter_basic", "fighter_basic", "fighter_basic"], "position": [85, 75] },
+        { "type": "dialog", "speaker": "AI", "text": "Wave 3 — capital ship detected! All units intercept!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "halfway_cheer",
+      "condition": { "type": "timer", "seconds": 120 },
+      "actions": [
+        { "type": "dialog", "speaker": "Station Commander", "text": "Halfway through! The station is holding. Keep it up!" }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": { "energy": 500, "minerals": 300, "data": 200, "crew": 10 },
+    "xp": 500,
+    "unlocks": ["capital_ship_basic"]
+  }
+}

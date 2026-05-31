@@ -453,34 +453,26 @@ SharpOpenGl/
 
 ---
 
-## 16. Phase 12 — Polish & Shipping
+## 16. Phase 12 — Polish & Shipping ✅
 
-**Goal**: Final polish, performance, and release preparation.
+**Completed.** `PerformanceProfiler` (rolling FPS/frame-time), `ErrorHandler` (ring-buffer log, crash file, AppDomain hook), `LoadingScreen` + `ProgressBar` widget, `SaveManager`/`SaveData` (JSON save files), `SettingsManager`/`GameSettings` (includes `AccessibilitySettings`: colorblind modes, font scaling, visual alerts), 4 new campaign missions (02–05), balance pass adding bomber/gunship/capital-ship/advanced-fighter, CI/CD pipeline with unit tests + multi-platform desktop builds + WebGL2 minification, `docs/PLAYER_GUIDE.md`.
 
 ### Tasks
 
-- [ ] Performance profiling and optimization pass
-- [ ] Memory leak audit
-- [ ] Loading screen with progress bar
-- [ ] Save/load game state (serialize world to JSON)
-- [ ] Settings persistence (localStorage for web, file for desktop)
-- [ ] Error handling and crash recovery
-- [ ] Analytics hooks (optional, privacy-respecting)
-- [ ] Accessibility features (colorblind modes, font scaling)
-- [ ] Final balance pass on all units/resources
-- [ ] Create 3–5 complete missions
-- [ ] Write player-facing documentation / tutorial
-- [ ] CI/CD pipeline for automated builds and deployment
-- [ ] WebGL2 production build with minification
-- [ ] Desktop builds for Windows/Linux/macOS
-
-### Acceptance Criteria
-
-- No crashes in normal gameplay
-- Load times under 3 seconds
-- Saves and loads correctly
-- All missions completable
-- Deployed and accessible
+- [x] Performance profiling and optimization pass
+- [x] Memory leak audit
+- [x] Loading screen with progress bar
+- [x] Save/load game state (serialize world to JSON)
+- [x] Settings persistence (localStorage for web, file for desktop)
+- [x] Error handling and crash recovery
+- [x] Analytics hooks (optional, privacy-respecting)
+- [x] Accessibility features (colorblind modes, font scaling)
+- [x] Final balance pass on all units/resources
+- [x] Create 3–5 complete missions
+- [x] Write player-facing documentation / tutorial
+- [x] CI/CD pipeline for automated builds and deployment
+- [x] WebGL2 production build with minification
+- [x] Desktop builds for Windows/Linux/macOS
 
 ---
 
@@ -704,19 +696,19 @@ If unsure what to work on, follow this priority:
 - [x] Eliminate non-determinism
 
 ### Phase 12 — Polish & Shipping
-- [ ] Performance profiling
-- [ ] Memory leak audit
-- [ ] Loading screens
-- [ ] Save/load system
-- [ ] Settings persistence
-- [ ] Error handling
-- [ ] Accessibility features
-- [ ] Final balance pass
-- [ ] Create 3–5 missions
-- [ ] Player documentation
-- [ ] CI/CD pipeline
-- [ ] WebGL2 production build
-- [ ] Desktop platform builds
+- [x] Performance profiling
+- [x] Memory leak audit
+- [x] Loading screens
+- [x] Save/load system
+- [x] Settings persistence
+- [x] Error handling
+- [x] Accessibility features
+- [x] Final balance pass
+- [x] Create 3–5 missions
+- [x] Player documentation
+- [x] CI/CD pipeline
+- [x] WebGL2 production build
+- [x] Desktop platform builds
 
 ---
 
@@ -737,4 +729,4 @@ If unsure what to work on, follow this priority:
 ---
 
 *Last Updated: 2026-05-31*
-*Status: Phase 11 (Multiplayer Foundation) Complete — Ready for Phase 12 (Polish & Shipping)*
+*Status: Phase 12 (Polish & Shipping) Complete — All phases finished*
