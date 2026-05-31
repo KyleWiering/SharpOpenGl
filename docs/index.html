@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SharpOpenGL Engine - WebGL Demo</title>
+    <title>SharpOpenGL — Space RTS Preview</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -13,67 +13,180 @@
             overflow: hidden;
             height: 100vh;
         }
-        #canvas-container {
-            position: relative;
-            width: 100%;
-            height: 100vh;
-        }
-        canvas {
+
+        #glcanvas {
             display: block;
+            position: absolute;
+            inset: 0;
             width: 100%;
             height: 100%;
         }
-        #overlay {
+
+        /* ── Resource bar ── */
+        #resource-bar {
             position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 12px 16px;
-            border-radius: 8px;
+            top: 0; left: 0; right: 0;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding: 6px 16px;
+            background: rgba(0, 0, 0, 0.75);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
             font-size: 13px;
-            line-height: 1.6;
             pointer-events: none;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
         }
-        #overlay h2 {
-            font-size: 16px;
-            margin-bottom: 6px;
+        #resource-bar .title {
+            font-weight: bold;
             color: #4fc3f7;
+            font-size: 14px;
+            margin-right: 8px;
+            white-space: nowrap;
         }
-        #overlay .key { 
+        .res { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+        .res .icon { font-size: 15px; }
+        .res .label { color: #aaa; font-size: 11px; }
+        .res .val { font-weight: bold; font-family: monospace; min-width: 46px; }
+        .res-energy   .val { color: #ffd600; }
+        .res-minerals .val { color: #00e5ff; }
+        .res-data     .val { color: #e040fb; }
+        .res-crew     .val { color: #69f0ae; }
+        #game-time { margin-left: auto; color: #aaa; font-size: 12px; font-family: monospace; }
+
+        /* ── Controls overlay ── */
+        #controls {
+            position: absolute;
+            top: 44px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.75;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.08);
+            z-index: 10;
+        }
+        #controls h3 { color: #4fc3f7; font-size: 13px; margin-bottom: 4px; }
+        .key {
             display: inline-block;
             background: rgba(255,255,255,0.15);
-            padding: 1px 6px;
+            padding: 0 5px;
             border-radius: 3px;
             font-family: monospace;
-            font-size: 12px;
+            font-size: 11px;
         }
+
+        /* ── Unit info panel ── */
+        #unit-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            min-width: 200px;
+            background: rgba(0, 0, 0, 0.75);
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 12px;
+            line-height: 1.65;
+            border: 1px solid rgba(255,255,255,0.08);
+            z-index: 10;
+            display: none;
+        }
+        #unit-info h4 { color: #4fc3f7; margin-bottom: 4px; }
+        #unit-info .hp-bar-wrap { background: rgba(255,255,255,0.1); height: 6px; border-radius: 3px; margin: 4px 0; }
+        #unit-info .hp-bar { height: 6px; border-radius: 3px; background: #4caf50; transition: width 0.3s; }
+
+        /* ── Minimap ── */
+        #minimap {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 4px;
+            z-index: 10;
+            background: #020208;
+        }
+
+        /* ── FPS ── */
         #fps {
             position: absolute;
-            top: 10px;
+            top: 44px;
             right: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 13px;
+            background: rgba(0, 0, 0, 0.65);
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
             font-family: monospace;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255,255,255,0.08);
+            z-index: 10;
+        }
+
+        /* ── Notification ── */
+        #notif {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            pointer-events: none;
+            z-index: 20;
+            display: none;
+            border: 1px solid rgba(79,195,247,0.5);
+            color: #4fc3f7;
         }
     </style>
 </head>
 <body>
-    <div id="canvas-container">
-        <canvas id="glcanvas"></canvas>
-        <div id="overlay">
-            <h2>SharpOpenGL Engine</h2>
-            <div><span class="key">W</span>/<span class="key">S</span> Move forward/back</div>
-            <div><span class="key">Q</span>/<span class="key">E</span> Strafe left/right</div>
-            <div><span class="key">Z</span>/<span class="key">X</span> Move up/down</div>
-            <div><span class="key">A</span>/<span class="key">D</span> Rotate left/right</div>
-            <div style="margin-top:6px; color:#aaa; font-size:11px;">Click canvas to capture input</div>
+    <canvas id="glcanvas"></canvas>
+
+    <div id="resource-bar">
+        <span class="title">⚔ Space RTS — Sector Alpha</span>
+        <div class="res res-energy">
+            <span class="icon">⚡</span>
+            <span class="label">Plasma Cores</span>
+            <span class="val" id="val-energy">500</span>
         </div>
-        <div id="fps">FPS: --</div>
+        <div class="res res-minerals">
+            <span class="icon">⛏</span>
+            <span class="label">Astrium Ore</span>
+            <span class="val" id="val-minerals">300</span>
+        </div>
+        <div class="res res-data">
+            <span class="icon">💾</span>
+            <span class="label">Quantum Frags</span>
+            <span class="val" id="val-data">0</span>
+        </div>
+        <div class="res res-crew">
+            <span class="icon">👤</span>
+            <span class="label">Personnel</span>
+            <span class="val" id="val-crew">10</span>
+        </div>
+        <span id="game-time">T+0:00</span>
     </div>
+
+    <div id="controls">
+        <h3>Controls</h3>
+        <div><span class="key">W</span><span class="key">A</span><span class="key">S</span><span class="key">D</span> / Arrows — Pan</div>
+        <div><span class="key">Scroll</span> — Zoom</div>
+        <div><span class="key">Click</span> — Select unit</div>
+    </div>
+
+    <div id="unit-info">
+        <h4 id="ui-name">—</h4>
+        <div id="ui-type" style="color:#aaa;font-size:11px;"></div>
+        <div class="hp-bar-wrap"><div class="hp-bar" id="ui-hp-bar" style="width:100%"></div></div>
+        <div id="ui-hp-text" style="font-size:11px;color:#ccc;"></div>
+        <div id="ui-extra" style="margin-top:4px;font-size:11px;color:#aaa;"></div>
+    </div>
+
+    <canvas id="minimap" width="160" height="160"></canvas>
+
+    <div id="fps">FPS: --</div>
+    <div id="notif"></div>
+
     <script src="engine.js"></script>
 </body>
 </html>
