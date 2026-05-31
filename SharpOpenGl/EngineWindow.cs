@@ -3,6 +3,7 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Environment;
 using StbImageWriteSharp;
@@ -11,14 +12,12 @@ using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
 namespace SharpOpenGl;
 
 /// <summary>
-/// Main game window using OpenTK 4.x GameWindow.
-/// Shader compilation is delegated to <see cref="ShaderManager"/> from SharpOpenGl.Engine.
+/// Main RTS game window. Renders ships on a space grid with selection and move commands.
 /// </summary>
 public class EngineWindow : GameWindow
 {
-    private Camera _camera;
-    private InputHandler _inputHandler;
-    private EnvironmentController _environment;
+    private RTSCameraController _rtsCamera = null!;
+    private EnvironmentController _environment = null!;
     private int _frameCount;
     private readonly bool _screenshotMode;
     private readonly string _screenshotPath;
@@ -30,7 +29,24 @@ public class EngineWindow : GameWindow
     private int _uniformModel;
     private int _uniformColor;
 
-    private const float MovementSpeed = 50f;
+    // ECS
+    private World _world = null!;
+    private MovementSystem _movementSystem = null!;
+
+    // Ship meshes
+    private int _heroVao, _heroVbo, _heroVertCount;
+    private int _fighterVao, _fighterVbo, _fighterVertCount;
+    private int _selectionVao, _selectionVbo, _selectionVertCount;
+    private int _moveTargetVao, _moveTargetVbo, _moveTargetVertCount;
+    private int _gridVao, _gridVbo, _gridVertCount;
+
+    // Game entities
+    private Entity _heroEntity;
+    private readonly List<Entity> _fighterEntities = new();
+
+    // Move target indicator
+    private Vector3? _moveTargetPosition;
+    private float _moveTargetTimer;
 
     public EngineWindow(GameWindowSettings gameSettings, NativeWindowSettings nativeSettings,
         bool screenshotMode = false, string screenshotPath = "screenshot.png")
@@ -38,9 +54,6 @@ public class EngineWindow : GameWindow
     {
         _screenshotMode = screenshotMode;
         _screenshotPath = screenshotPath;
-        _camera = new Camera();
-        _inputHandler = new InputHandler();
-        _environment = new EnvironmentController();
         _frameCount = 0;
     }
 
@@ -52,6 +65,8 @@ public class EngineWindow : GameWindow
         GL.Enable(EnableCap.DepthTest);
         GL.DepthFunc(DepthFunction.Less);
         GL.Enable(EnableCap.ProgramPointSize);
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
         _shaderManager = new ShaderManager();
         _shaderProgram = _shaderManager.CreateProgram(VertexShaderSource, FragmentShaderSource);
@@ -60,9 +75,103 @@ public class EngineWindow : GameWindow
         _uniformModel = ShaderManager.GetUniform(_shaderProgram, "model");
         _uniformColor = ShaderManager.GetUniform(_shaderProgram, "overrideColor");
 
+        // Environment (starfield background)
+        _environment = new EnvironmentController();
         _environment.Initialize();
 
-        Console.WriteLine("SharpOpenGL Engine initialized.");
+        // RTS Camera
+        _rtsCamera = new RTSCameraController
+        {
+            Target = new Vector3(0f, 0f, 0f),
+            Height = 80f,
+            TiltAngle = 35f,
+        };
+
+        // Build meshes
+        (_heroVao, _heroVbo, _heroVertCount) =
+            ShipMeshBuilder.BuildShipMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f); // Cyan hero
+        (_fighterVao, _fighterVbo, _fighterVertCount) =
+            ShipMeshBuilder.BuildShipMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f); // Green fighters
+        (_selectionVao, _selectionVbo, _selectionVertCount) =
+            ShipMeshBuilder.BuildSelectionRing(new Vector3(0f, 1f, 0f), 3f);
+        (_moveTargetVao, _moveTargetVbo, _moveTargetVertCount) =
+            ShipMeshBuilder.BuildMoveTarget(new Vector3(0f, 1f, 0.5f), 2f);
+        (_gridVao, _gridVbo, _gridVertCount) =
+            MeshBuilder.BuildGrid(20, 20, 10f, new Vector3(0.15f, 0.15f, 0.25f));
+
+        // Initialize ECS
+        InitializeWorld();
+
+        Console.WriteLine("SharpOpenGL RTS Engine initialized. WASD=pan, Scroll=zoom, LClick=select, RClick=move");
+    }
+
+    private void InitializeWorld()
+    {
+        _world = new World();
+        _movementSystem = new MovementSystem();
+        _world.AddSystem(_movementSystem);
+
+        // Spawn hero ship at center
+        _heroEntity = _world.CreateEntity();
+        _world.AddComponent(_heroEntity, new TransformComponent
+        {
+            Position = new Vector3(0f, 0f, 0f),
+            Scale = Vector3.One
+        });
+        _world.AddComponent(_heroEntity, new MovementComponent
+        {
+            Speed = 25f,
+            Acceleration = 40f,
+            TurnRate = 180f,
+        });
+        _world.AddComponent(_heroEntity, new SelectionComponent
+        {
+            IsSelected = true,
+            SelectionRadius = 4f,
+        });
+        _world.AddComponent(_heroEntity, new RenderComponent
+        {
+            MeshId = _heroVao,
+            VertexCount = _heroVertCount,
+            Color = new Vector4(0.2f, 0.8f, 1.0f, 1f),
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Triangles,
+        });
+
+        // Spawn a squad of fighters
+        var rng = new Random(123);
+        for (int i = 0; i < 5; i++)
+        {
+            float x = (rng.NextSingle() - 0.5f) * 40f;
+            float z = (rng.NextSingle() - 0.5f) * 40f;
+
+            var fighter = _world.CreateEntity();
+            _world.AddComponent(fighter, new TransformComponent
+            {
+                Position = new Vector3(x, 0f, z),
+                Scale = Vector3.One,
+            });
+            _world.AddComponent(fighter, new MovementComponent
+            {
+                Speed = 35f,
+                Acceleration = 50f,
+                TurnRate = 220f,
+            });
+            _world.AddComponent(fighter, new SelectionComponent
+            {
+                IsSelected = false,
+                SelectionRadius = 2.5f,
+            });
+            _world.AddComponent(fighter, new RenderComponent
+            {
+                MeshId = _fighterVao,
+                VertexCount = _fighterVertCount,
+                Color = new Vector4(0.4f, 1.0f, 0.4f, 1f),
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Triangles,
+            });
+            _fighterEntities.Add(fighter);
+        }
     }
 
     protected override void OnRenderFrame(FrameEventArgs args)
@@ -77,14 +186,64 @@ public class EngineWindow : GameWindow
             0.1f,
             10000.0f);
 
-        var view = _camera.GetViewMatrix();
+        var view = _rtsCamera.GetViewMatrix();
 
         GL.UseProgram(_shaderProgram);
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
         GL.UniformMatrix4(_uniformView, false, ref view);
 
+        // Render starfield background
         _environment.Render(_shaderProgram, _uniformModel, _uniformColor);
 
+        // Render grid (offset so it's centered)
+        var gridModel = Matrix4.CreateTranslation(-100f, -0.5f, -100f);
+        GL.UniformMatrix4(_uniformModel, false, ref gridModel);
+        GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
+        GL.BindVertexArray(_gridVao);
+        GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
+
+        // Render all ships
+        foreach (var (entity, render) in _world.Query<RenderComponent>())
+        {
+            if (!render.Visible) continue;
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            Matrix4 model = transform.GetModelMatrix();
+            GL.UniformMatrix4(_uniformModel, false, ref model);
+            GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0)); // Use vertex colors
+
+            GL.BindVertexArray(render.MeshId);
+            GL.DrawArrays((PrimitiveType)render.PrimitiveType, 0, render.VertexCount);
+        }
+
+        // Render selection rings on selected entities
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            var ringModel = Matrix4.CreateTranslation(transform.Position);
+            GL.UniformMatrix4(_uniformModel, false, ref ringModel);
+            GL.Uniform4(_uniformColor, new Vector4(0, 1, 0, 1));
+            GL.BindVertexArray(_selectionVao);
+            GL.DrawArrays(PrimitiveType.Lines, 0, _selectionVertCount);
+        }
+
+        // Render move target indicator
+        if (_moveTargetPosition.HasValue && _moveTargetTimer > 0f)
+        {
+            float pulse = 0.5f + 0.5f * MathF.Sin(_moveTargetTimer * 8f);
+            var targetModel = Matrix4.CreateScale(pulse * 0.5f + 0.5f) *
+                              Matrix4.CreateTranslation(_moveTargetPosition.Value);
+            GL.UniformMatrix4(_uniformModel, false, ref targetModel);
+            GL.Uniform4(_uniformColor, new Vector4(0, 1, 0.5f, 1));
+            GL.BindVertexArray(_moveTargetVao);
+            GL.DrawArrays(PrimitiveType.Lines, 0, _moveTargetVertCount);
+        }
+
+        GL.BindVertexArray(0);
         SwapBuffers();
 
         _frameCount++;
@@ -104,17 +263,165 @@ public class EngineWindow : GameWindow
         if (!IsFocused && !_screenshotMode)
             return;
 
-        _inputHandler.Update(KeyboardState);
-        _camera.MoveXAxis(_inputHandler.AxisMovement.X * (float)args.Time * MovementSpeed);
-        _camera.MoveYAxis(_inputHandler.AxisMovement.Y * (float)args.Time * MovementSpeed);
-        _camera.MoveZAxis(_inputHandler.AxisMovement.Z * (float)args.Time * MovementSpeed);
-        _camera.RotateX(_inputHandler.AxisRotation.X * (float)args.Time);
-        _camera.RotateY(_inputHandler.AxisRotation.Y * (float)args.Time);
+        float dt = (float)args.Time;
 
-        _environment.Update(args.Time);
+        // Camera panning with WASD
+        float panX = 0f, panZ = 0f;
+        if (KeyboardState.IsKeyDown(Keys.W) || KeyboardState.IsKeyDown(Keys.Up))
+            panZ = -1f;
+        if (KeyboardState.IsKeyDown(Keys.S) || KeyboardState.IsKeyDown(Keys.Down))
+            panZ = 1f;
+        if (KeyboardState.IsKeyDown(Keys.A) || KeyboardState.IsKeyDown(Keys.Left))
+            panX = -1f;
+        if (KeyboardState.IsKeyDown(Keys.D) || KeyboardState.IsKeyDown(Keys.Right))
+            panX = 1f;
+        _rtsCamera.Pan(panX, panZ, dt);
+
+        // Update ECS world
+        _world.Update(dt);
+
+        // Fade move target indicator
+        if (_moveTargetTimer > 0f)
+            _moveTargetTimer -= dt;
 
         if (KeyboardState.IsKeyDown(Keys.Escape))
             Close();
+    }
+
+    protected override void OnMouseWheel(MouseWheelEventArgs e)
+    {
+        base.OnMouseWheel(e);
+        _rtsCamera.Zoom(e.OffsetY);
+    }
+
+    protected override void OnMouseDown(MouseButtonEventArgs e)
+    {
+        base.OnMouseDown(e);
+
+        Vector3? worldPos = ScreenToWorld(MousePosition);
+        if (worldPos == null) return;
+
+        if (e.Button == MouseButton.Left)
+        {
+            HandleSelection(worldPos.Value);
+        }
+        else if (e.Button == MouseButton.Right)
+        {
+            HandleMoveCommand(worldPos.Value);
+        }
+    }
+
+    private void HandleSelection(Vector3 worldPos)
+    {
+        bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) ||
+                         KeyboardState.IsKeyDown(Keys.RightShift);
+
+        Entity? hitEntity = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = (transform.Position - worldPos).Length;
+            if (dist < sel.SelectionRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                hitEntity = entity;
+            }
+        }
+
+        if (!shiftHeld)
+        {
+            // Deselect all
+            foreach (var (_, sel) in _world.Query<SelectionComponent>())
+                sel.IsSelected = false;
+        }
+
+        if (hitEntity.HasValue)
+        {
+            var sel = _world.GetComponent<SelectionComponent>(hitEntity.Value);
+            if (sel != null)
+                sel.IsSelected = shiftHeld ? !sel.IsSelected : true;
+        }
+    }
+
+    private void HandleMoveCommand(Vector3 worldPos)
+    {
+        // Move all selected units to the target
+        var selectedEntities = new List<Entity>();
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (sel.IsSelected)
+                selectedEntities.Add(entity);
+        }
+
+        if (selectedEntities.Count == 0) return;
+
+        // Formation: spread units around the target point
+        for (int i = 0; i < selectedEntities.Count; i++)
+        {
+            var movement = _world.GetComponent<MovementComponent>(selectedEntities[i]);
+            if (movement == null) continue;
+
+            Vector3 offset = Vector3.Zero;
+            if (selectedEntities.Count > 1)
+            {
+                float angle = MathF.PI * 2f * i / selectedEntities.Count;
+                float radius = 4f;
+                offset = new Vector3(MathF.Cos(angle) * radius, 0f, MathF.Sin(angle) * radius);
+            }
+
+            movement.PathTarget = worldPos + offset;
+        }
+
+        // Show move target indicator
+        _moveTargetPosition = worldPos;
+        _moveTargetTimer = 2f;
+    }
+
+    /// <summary>
+    /// Convert screen coordinates to world XZ plane (Y=0) position using raycasting.
+    /// </summary>
+    private Vector3? ScreenToWorld(Vector2 screenPos)
+    {
+        float ndcX = (2f * screenPos.X / Size.X) - 1f;
+        float ndcY = 1f - (2f * screenPos.Y / Size.Y);
+
+        var projection = Matrix4.CreatePerspectiveFieldOfView(
+            MathHelper.DegreesToRadians(45.0f),
+            (float)Size.X / Size.Y,
+            0.1f,
+            10000.0f);
+
+        var view = _rtsCamera.GetViewMatrix();
+
+        // Unproject from NDC to world space.
+        // In OpenTK row-vector convention: clipPos = worldPos * view * projection
+        // To reverse: worldPos = clipPos * inv(projection) * inv(view)
+        var invProj = Matrix4.Invert(projection);
+        var invView = Matrix4.Invert(view);
+
+        var nearPoint = new Vector4(ndcX, ndcY, -1f, 1f) * invProj * invView;
+        var farPoint = new Vector4(ndcX, ndcY, 1f, 1f) * invProj * invView;
+
+        if (MathF.Abs(nearPoint.W) < 0.0001f || MathF.Abs(farPoint.W) < 0.0001f)
+            return null;
+
+        Vector3 near = new Vector3(nearPoint.X, nearPoint.Y, nearPoint.Z) / nearPoint.W;
+        Vector3 far = new Vector3(farPoint.X, farPoint.Y, farPoint.Z) / farPoint.W;
+
+        Vector3 dir = far - near;
+
+        // Intersect with Y=0 plane
+        if (MathF.Abs(dir.Y) < 0.0001f)
+            return null;
+
+        float t = -near.Y / dir.Y;
+        if (t < 0f) return null;
+
+        return near + dir * t;
     }
 
     protected override void OnResize(ResizeEventArgs e)
@@ -126,8 +433,15 @@ public class EngineWindow : GameWindow
     protected override void OnUnload()
     {
         base.OnUnload();
+        _world.Dispose();
         _environment.Dispose();
         _shaderManager.Dispose();
+
+        MeshBuilder.DeleteMesh(_heroVao, _heroVbo);
+        MeshBuilder.DeleteMesh(_fighterVao, _fighterVbo);
+        MeshBuilder.DeleteMesh(_selectionVao, _selectionVbo);
+        MeshBuilder.DeleteMesh(_moveTargetVao, _moveTargetVbo);
+        MeshBuilder.DeleteMesh(_gridVao, _gridVbo);
     }
 
     private void CaptureScreenshot(string path)
@@ -138,7 +452,6 @@ public class EngineWindow : GameWindow
         byte[] pixels = new byte[width * height * 4];
         GL.ReadPixels(0, 0, width, height, PixelFormat.Rgba, PixelType.UnsignedByte, pixels);
 
-        // OpenGL reads bottom-to-top, flip vertically
         byte[] flipped = new byte[width * height * 4];
         int stride = width * 4;
         for (int y = 0; y < height; y++)
