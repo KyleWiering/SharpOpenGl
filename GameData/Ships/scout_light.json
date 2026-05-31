@@ -1,0 +1,18 @@
+{
+  "id": "scout_light",
+  "displayName": "Whisper Scout",
+  "category": "scout",
+  "mesh": "meshes/scout_light.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 60, "shields": 20, "armor": 5 },
+    "movement": { "speed": 120, "acceleration": 180, "turnRate": 270 },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 8, "range": 150, "fireRate": 3.0 }
+    ],
+    "sightRadius": 8
+  },
+  "defaultStance": "defensive",
+  "cost": { "energy": 30, "minerals": 40, "data": 10, "crew": 1 },
+  "buildTime": 8
+}

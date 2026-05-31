@@ -10,14 +10,14 @@ The codebase has accumulated scaffolding and placeholder code across many phases
 
 ### Tasks
 
-- [ ] Remove dead code, unused files, and empty placeholder classes that have no implementation
-- [ ] Consolidate duplicated logic (e.g. redundant component definitions)
-- [ ] Ensure the solution builds cleanly with `dotnet build` and all tests pass
-- [ ] Enforce the 300-line file limit — split oversized files
-- [ ] Remove or update stale comments and TODO markers
-- [ ] Verify `GameData/` JSON files are valid and match their `_template.json` schemas
-- [ ] Update `readme.md` to reflect current project state
-- [ ] Clean up `.gitignore` and remove any committed build artifacts
+- [x] Remove dead code, unused files, and empty placeholder classes that have no implementation
+- [x] Consolidate duplicated logic (e.g. redundant component definitions)
+- [x] Ensure the solution builds cleanly with `dotnet build` and all tests pass
+- [x] Enforce the 300-line file limit — split oversized files
+- [x] Remove or update stale comments and TODO markers
+- [x] Verify `GameData/` JSON files are valid and match their `_template.json` schemas
+- [x] Update `readme.md` to reflect current project state
+- [x] Clean up `.gitignore` and remove any committed build artifacts
 
 ### Acceptance Criteria
 
@@ -34,12 +34,12 @@ Players should see unexplored portions of the map rendered distinctly (darkened/
 
 ### Tasks
 
-- [ ] Verify `FogOfWar` system (`SharpOpenGl.Engine/Grid/FogOfWar.cs`) correctly tracks cell visibility states (Unexplored, Explored, Visible)
-- [ ] Implement rendering differentiation: unexplored cells are blacked out, explored-but-not-visible cells are dimmed, visible cells are fully lit
-- [ ] Tie fog state updates to ship positions — when a ship moves, reveal cells within its sight radius
-- [ ] Add a `SightRadiusComponent` to entities that can reveal the map
-- [ ] Ensure fog state persists across save/load
-- [ ] Write unit tests for fog reveal logic
+- [x] Verify `FogOfWar` system (`SharpOpenGl.Engine/Grid/FogOfWar.cs`) correctly tracks cell visibility states (Unexplored, Explored, Visible)
+- [x] Implement rendering differentiation: unexplored cells are blacked out, explored-but-not-visible cells are dimmed, visible cells are fully lit
+- [x] Tie fog state updates to ship positions — when a ship moves, reveal cells within its sight radius
+- [x] Add a `SightRadiusComponent` to entities that can reveal the map
+- [x] Ensure fog state persists across save/load
+- [x] Write unit tests for fog reveal logic
 
 ### Acceptance Criteria
 
@@ -56,12 +56,12 @@ Ships should be commandable to move to a specific map location.
 
 ### Tasks
 
-- [ ] Implement a `DestinationComponent` that holds target grid coordinates
-- [ ] Extend `MovementSystem` to consume `DestinationComponent` — move entity toward destination each frame using speed/acceleration from `MovementComponent`
-- [ ] Stop movement and remove `DestinationComponent` when entity arrives (within threshold)
-- [ ] Support click-to-move: player right-clicks a location, selected ship gets a `DestinationComponent`
-- [ ] Handle obstacle avoidance using the pathfinding system (see item 7)
-- [ ] Write unit tests for movement toward destination and arrival detection
+- [x] Implement a `DestinationComponent` that holds target grid coordinates
+- [x] Extend `MovementSystem` to consume `DestinationComponent` — move entity toward destination each frame using speed/acceleration from `MovementComponent`
+- [x] Stop movement and remove `DestinationComponent` when entity arrives (within threshold)
+- [x] Support click-to-move: player right-clicks a location, selected ship gets a `DestinationComponent`
+- [x] Handle obstacle avoidance using the pathfinding system (see item 7)
+- [x] Write unit tests for movement toward destination and arrival detection
 
 ### Acceptance Criteria
 
@@ -77,14 +77,14 @@ Procedurally generated maps with varied terrain, resource placement, and spawn p
 
 ### Tasks
 
-- [ ] Review and complete `MapGenerator` (`SharpOpenGl.Engine/Grid/MapGenerator.cs`)
-- [ ] Implement configurable generation parameters: grid size, terrain density, resource node count, spawn point count
-- [ ] Implement terrain region placement: asteroid fields, nebulae, debris — with randomized shapes and positions
-- [ ] Place resource nodes with minimum distance constraints
-- [ ] Place player spawn points far from each other
-- [ ] Generate a `MapData` JSON output that conforms to the existing map schema
-- [ ] Add a seed parameter for reproducible generation
-- [ ] Write tests verifying generated maps meet constraints (valid terrain, reachable spawns, correct resource count)
+- [x] Review and complete `MapGenerator` (`SharpOpenGl.Engine/Grid/MapGenerator.cs`)
+- [x] Implement configurable generation parameters: grid size, terrain density, resource node count, spawn point count
+- [x] Implement terrain region placement: asteroid fields, nebulae, debris — with randomized shapes and positions
+- [x] Place resource nodes with minimum distance constraints
+- [x] Place player spawn points far from each other
+- [x] Generate a `MapData` JSON output that conforms to the existing map schema
+- [x] Add a seed parameter for reproducible generation
+- [x] Write tests verifying generated maps meet constraints (valid terrain, reachable spawns, correct resource count)
 
 ### Acceptance Criteria
 
@@ -101,13 +101,13 @@ A playable example scenario that demonstrates ships, a map, objectives, and basi
 
 ### Tasks
 
-- [ ] Create `GameData/Missions/example_scenario.json` defining a small scenario
-- [ ] Scenario uses a generated or hand-crafted map (can reference `sector_alpha` or a new map)
-- [ ] Place 2–3 player ships and 2–3 enemy ships at defined spawn points
-- [ ] Define a simple objective (e.g., "Move your fleet to the waypoint" or "Destroy enemy scouts")
-- [ ] Include at least one trigger event (e.g., reinforcements spawn after 60 seconds)
-- [ ] Verify the scenario loads and runs through the `MissionLoader` → `MissionState` → `ObjectiveSystem` pipeline
-- [ ] Document how to run the example scenario in the readme
+- [x] Create `GameData/Missions/example_scenario.json` defining a small scenario
+- [x] Scenario uses a generated or hand-crafted map (can reference `sector_alpha` or a new map)
+- [x] Place 2–3 player ships and 2–3 enemy ships at defined spawn points
+- [x] Define a simple objective (e.g., "Move your fleet to the waypoint" or "Destroy enemy scouts")
+- [x] Include at least one trigger event (e.g., reinforcements spawn after 60 seconds)
+- [x] Verify the scenario loads and runs through the `MissionLoader` → `MissionState` → `ObjectiveSystem` pipeline
+- [x] Document how to run the example scenario in the readme
 
 ### Acceptance Criteria
 
@@ -124,13 +124,13 @@ A set of distinct, playable ship definitions demonstrating the data-driven ship 
 
 ### Tasks
 
-- [ ] Create `GameData/Ships/scout_light.json` — fast, low HP, large sight radius
-- [ ] Create `GameData/Ships/cruiser_heavy.json` — slow, high HP, heavy weapons
-- [ ] Create `GameData/Ships/transport_cargo.json` — medium speed, high cargo, no weapons
-- [ ] Ensure all ship JSON files conform to `_template.json` schema
-- [ ] Verify each ship loads correctly through `ShipFactory`
-- [ ] Assign distinct procedural mesh parameters or fallback meshes to each ship type
-- [ ] Write tests that load each ship definition and validate component values
+- [x] Create `GameData/Ships/scout_light.json` — fast, low HP, large sight radius
+- [x] Create `GameData/Ships/cruiser_heavy.json` — slow, high HP, heavy weapons
+- [x] Create `GameData/Ships/transport_cargo.json` — medium speed, high cargo, no weapons
+- [x] Ensure all ship JSON files conform to `_template.json` schema
+- [x] Verify each ship loads correctly through `ShipFactory`
+- [x] Assign distinct procedural mesh parameters or fallback meshes to each ship type
+- [x] Write tests that load each ship definition and validate component values
 
 ### Acceptance Criteria
 
@@ -147,13 +147,13 @@ Ships navigate around obstacles using the A* pathfinding system.
 
 ### Tasks
 
-- [ ] Verify `Pathfinding.cs` A* implementation handles all terrain types (walkable, blocked, slow)
-- [ ] Integrate pathfinding with `MovementSystem`: when a `DestinationComponent` is set, compute a path and follow waypoints
-- [ ] Implement path recalculation when obstacles change (e.g., new buildings placed)
-- [ ] Add terrain cost modifiers: nebula cells slow movement, asteroid cells are impassable
-- [ ] Implement smooth path following (interpolation between waypoints, not teleporting cell-to-cell)
-- [ ] Handle unreachable destinations gracefully (move as close as possible, notify player)
-- [ ] Write tests for pathfinding around obstacles, through varied terrain costs, and unreachable targets
+- [x] Verify `Pathfinding.cs` A* implementation handles all terrain types (walkable, blocked, slow)
+- [x] Integrate pathfinding with `MovementSystem`: when a `DestinationComponent` is set, compute a path and follow waypoints
+- [x] Implement path recalculation when obstacles change (e.g., new buildings placed)
+- [x] Add terrain cost modifiers: nebula cells slow movement, asteroid cells are impassable
+- [x] Implement smooth path following (interpolation between waypoints, not teleporting cell-to-cell)
+- [x] Handle unreachable destinations gracefully (move as close as possible, notify player)
+- [x] Write tests for pathfinding around obstacles, through varied terrain costs, and unreachable targets
 
 ### Acceptance Criteria
 
@@ -170,13 +170,13 @@ Ships should autonomously move to assigned destinations without continuous playe
 
 ### Tasks
 
-- [ ] Implement an `AutoMoveSystem` that processes entities with `DestinationComponent` each frame without player interaction
-- [ ] Support waypoint queues: ships can have multiple sequential destinations (`WaypointQueueComponent`)
-- [ ] On arrival at each waypoint, advance to the next; on final arrival, mark complete
-- [ ] Integrate with fog of war: auto-moving ships reveal cells as they travel
-- [ ] Support patrol behavior: loop through waypoints continuously
-- [ ] Add events for arrival (`ShipArrivedEvent`) so other systems can react
-- [ ] Write tests for waypoint progression, patrol looping, and arrival events
+- [x] Implement an `AutoMoveSystem` that processes entities with `DestinationComponent` each frame without player interaction
+- [x] Support waypoint queues: ships can have multiple sequential destinations (`WaypointQueueComponent`)
+- [x] On arrival at each waypoint, advance to the next; on final arrival, mark complete
+- [x] Integrate with fog of war: auto-moving ships reveal cells as they travel
+- [x] Support patrol behavior: loop through waypoints continuously
+- [x] Add events for arrival (`ShipArrivedEvent`) so other systems can react
+- [x] Write tests for waypoint progression, patrol looping, and arrival events
 
 ### Acceptance Criteria
 
@@ -193,14 +193,14 @@ A UI panel showing action buttons for the currently selected ship.
 
 ### Tasks
 
-- [ ] Create a `ShipControlBar` widget (extends `Panel`) that appears when a ship is selected
-- [ ] Display buttons for: Move, Stop, Patrol, Attack-Move, and any ship-specific abilities
-- [ ] Buttons reflect ship capabilities (e.g., transport has no Attack button)
-- [ ] Highlight active command mode (e.g., Move mode highlighted while awaiting click)
-- [ ] Support keyboard shortcuts mapped to each button
-- [ ] Integrate with existing `SelectionComponent` and `UnitInfoPanel`
-- [ ] Position control bar at bottom-center of screen, responsive to screen size
-- [ ] Write tests for button visibility logic based on ship type
+- [x] Create a `ShipControlBar` widget (extends `Panel`) that appears when a ship is selected
+- [x] Display buttons for: Move, Stop, Patrol, Attack-Move, and any ship-specific abilities
+- [x] Buttons reflect ship capabilities (e.g., transport has no Attack button)
+- [x] Highlight active command mode (e.g., Move mode highlighted while awaiting click)
+- [x] Support keyboard shortcuts mapped to each button
+- [x] Integrate with existing `SelectionComponent` and `UnitInfoPanel`
+- [x] Position control bar at bottom-center of screen, responsive to screen size
+- [x] Write tests for button visibility logic based on ship type
 
 ### Acceptance Criteria
 
@@ -218,16 +218,16 @@ Ships have a configurable combat stance that governs their automatic behavior.
 
 ### Tasks
 
-- [ ] Create a `StanceComponent` with enum values: `Neutral`, `Defensive`, `Aggressive`
-- [ ] Define stance behaviors:
+- [x] Create a `StanceComponent` with enum values: `Neutral`, `Defensive`, `Aggressive`
+- [x] Define stance behaviors:
   - **Neutral**: Ship does not auto-engage enemies; only responds to explicit player commands
   - **Defensive**: Ship auto-attacks enemies that come within a defensive radius or attack it first
   - **Aggressive**: Ship auto-acquires and pursues any enemy within its weapon range
-- [ ] Integrate stance with `CombatSystem` targeting logic
-- [ ] Add a stance toggle button to the `ShipControlBar` (cycles N → D → A)
-- [ ] Persist stance in save data
-- [ ] Default stance for new ships defined in ship JSON (`"defaultStance": "defensive"`)
-- [ ] Write tests for each stance behavior (ignore enemy, react to attack, pursue enemy)
+- [x] Integrate stance with `CombatSystem` targeting logic
+- [x] Add a stance toggle button to the `ShipControlBar` (cycles N → D → A)
+- [x] Persist stance in save data
+- [x] Default stance for new ships defined in ship JSON (`"defaultStance": "defensive"`)
+- [x] Write tests for each stance behavior (ignore enemy, react to attack, pursue enemy)
 
 ### Acceptance Criteria
 
