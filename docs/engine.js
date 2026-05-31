@@ -6,9 +6,15 @@
  * player fighters, worker drones, enemy units, laser combat, and full HUD.
  *
  * Controls: WASD / Arrow Keys — pan | Scroll — zoom | Click — select unit
+ *           Touch drag — pan   | Pinch — zoom        | Tap — select unit
  */
 
 'use strict';
+
+// ── Shared constants ──────────────────────────────────────────────────────────
+const FOV_HALF_DEG        = 26;   // half-FOV angle in degrees used for visible-area math
+const PINCH_ZOOM_SENSITIVITY = 2.5; // pinch-pixel → scroll-unit conversion factor
+const TOUCH_MOVE_THRESHOLD   = 8;   // pixels of movement before a touch is considered a drag
 
 // ============================================================
 // Matrix Math Utilities
@@ -464,7 +470,7 @@ class RTSInputHandler {
                 const t0 = e.touches[0], t1 = e.touches[1];
                 const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
                 if (this._lastPinchDist !== null) {
-                    this.scrollDelta += (this._lastPinchDist - dist) * 2.5;
+                    this.scrollDelta += (this._lastPinchDist - dist) * PINCH_ZOOM_SENSITIVITY;
                 }
                 this._lastPinchDist = dist;
                 // Update stored positions so single-finger pan doesn't jump after pinch
@@ -487,8 +493,8 @@ class RTSInputHandler {
                     this._panDelta.dz -= dy;
                     prev.x = t.clientX;
                     prev.y = t.clientY;
-                    if (Math.abs(t.clientX - prev.startX) > 8 ||
-                        Math.abs(t.clientY - prev.startY) > 8) {
+                    if (Math.abs(t.clientX - prev.startX) > TOUCH_MOVE_THRESHOLD ||
+                        Math.abs(t.clientY - prev.startY) > TOUCH_MOVE_THRESHOLD) {
                         prev.moved = true;
                     }
                 }
@@ -526,7 +532,7 @@ class RTSInputHandler {
         if (this._panDelta.dx === 0 && this._panDelta.dz === 0) return;
         const canvas = document.getElementById('glcanvas');
         const aspect = canvas.width / canvas.height;
-        const visH = 2 * camera.height * Math.tan(26 * Math.PI / 180);
+        const visH = 2 * camera.height * Math.tan(FOV_HALF_DEG * Math.PI / 180);
         const visW = visH * aspect;
         const wx = (this._panDelta.dx / canvas.width)  * visW;
         const wz = (this._panDelta.dz / canvas.height) * visH;
@@ -584,7 +590,7 @@ function renderMinimap(mmCanvas, camera) {
 
     // Camera viewport
     const aspect = window.innerWidth / window.innerHeight;
-    const visH = 2 * camera.height * Math.tan(26 * Math.PI / 180);
+    const visH = 2 * camera.height * Math.tan(FOV_HALF_DEG * Math.PI / 180);
     const visW = visH * aspect;
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 1;
@@ -838,7 +844,7 @@ void main(){ outColor = vec4(vCol,1.0); }`;
     function pickUnit(cx, cy) {
         const aspect = canvas.width / canvas.height;
         // Approximate: camera looks straight down; screen → world with linear map
-        const visH = 2 * camera.height * Math.tan(26 * Math.PI / 180);
+        const visH = 2 * camera.height * Math.tan(FOV_HALF_DEG * Math.PI / 180);
         const visW = visH * aspect;
         const ndcX = (cx / canvas.width)  * 2 - 1;
         const ndcY = 1 - (cy / canvas.height) * 2;
