@@ -28,6 +28,9 @@ public sealed class EntitySaveRecord
 
     /// <summary>Any mission-registered tag assigned to this entity (may be empty).</summary>
     public string Tag { get; set; } = string.Empty;
+
+    /// <summary>Combat stance for this entity (null if entity has no stance).</summary>
+    public string? Stance { get; set; }
 }
 
 /// <summary>
@@ -91,4 +94,7 @@ public sealed class SaveData
 
     /// <summary>IDs of triggers that have already fired.</summary>
     public List<string> FiredTriggerIds { get; set; } = new();
+
+    /// <summary>Per-player fog-of-war state for persistence. Key is "playerId:x:y" → fog state ordinal.</summary>
+    public Dictionary<string, int> FogStates { get; set; } = new();
 }
