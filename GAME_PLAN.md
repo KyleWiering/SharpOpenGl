@@ -447,35 +447,9 @@ SharpOpenGl/
 
 ---
 
-## 15. Phase 11 — Multiplayer Foundation
+## 15. Phase 11 — Multiplayer Foundation ✅
 
-**Goal**: Architecture for future multiplayer — not full implementation, but the hooks and design.
-
-### Design Decisions (for later implementation)
-
-- Client-server model (authoritative server)
-- Lock-step or state-sync (evaluate both, likely state-sync for RTS)
-- Lobby system with matchmaking
-- Spectator mode
-- Replay system (capture all inputs)
-
-### Tasks
-
-- [ ] Design network message protocol (serialized commands)
-- [ ] Implement command pattern for all game actions (move, attack, build)
-- [ ] Implement deterministic game loop (fixed timestep, no floating point drift)
-- [ ] Implement replay system (record/playback command stream)
-- [ ] Design lobby/room system architecture
-- [ ] Document multiplayer architecture in `docs/MULTIPLAYER.md`
-- [ ] Implement local "split" test (two game instances, shared command queue)
-- [ ] Identify and eliminate all sources of non-determinism
-
-### Acceptance Criteria
-
-- All game actions go through command system
-- Replay correctly reproduces a game session
-- Game loop is deterministic (same inputs → same outputs)
-- Architecture document complete for future implementers
+**Completed.** Command pattern (`IGameCommand`, `MoveCommand`, `AttackCommand`, `BuildCommand`, `StopCommand`, `UseAbilityCommand`, `CommandSerializer`, `CommandQueue`), `DeterministicClock` (fixed-timestep, drift-free), `ReplayRecorder`/`ReplayPlayer` (full session recording and playback), `NetworkMessage` protocol envelope with `NetworkMessageType`, `LobbyRoom`/`LobbyPlayer` (room lifecycle, readiness, game-start handshake), and `LocalGameSession` (two-player local split-test harness). Architecture documented in `docs/MULTIPLAYER.md`.
 
 ---
 
@@ -720,14 +694,14 @@ If unsure what to work on, follow this priority:
 - [x] Implement volume controls
 
 ### Phase 11 — Multiplayer Foundation
-- [ ] Design network protocol
-- [ ] Implement command pattern
-- [ ] Implement deterministic game loop
-- [ ] Implement replay system
-- [ ] Design lobby architecture
-- [ ] Document multiplayer architecture
-- [ ] Implement local test mode
-- [ ] Eliminate non-determinism
+- [x] Design network protocol
+- [x] Implement command pattern
+- [x] Implement deterministic game loop
+- [x] Implement replay system
+- [x] Design lobby architecture
+- [x] Document multiplayer architecture
+- [x] Implement local test mode
+- [x] Eliminate non-determinism
 
 ### Phase 12 — Polish & Shipping
 - [ ] Performance profiling
@@ -763,4 +737,4 @@ If unsure what to work on, follow this priority:
 ---
 
 *Last Updated: 2026-05-31*
-*Status: Phase 10 (Audio) Complete — Ready for Phase 11 (Multiplayer Foundation)*
+*Status: Phase 11 (Multiplayer Foundation) Complete — Ready for Phase 12 (Polish & Shipping)*
