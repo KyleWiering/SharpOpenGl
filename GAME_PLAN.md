@@ -393,7 +393,7 @@ SharpOpenGl/
 
 ---
 
-## 13. Phase 9 — Mobile & Input
+## 13. Phase 9 — Mobile & Input ✅
 
 **Goal**: Full mobile support with touch controls, responsive UI, and performance optimization.
 
@@ -411,28 +411,15 @@ SharpOpenGl/
 | Build menu | B key / click base | Tap base → build panel |
 | Camera height | Z/X keys | Slider on HUD |
 
-### Tasks
+### Delivered
 
-- [ ] Implement `TouchInput` provider (tap, double-tap, long-press, drag, pinch)
-- [ ] Implement `GestureRecognizer` (classify touch sequences into game actions)
-- [ ] Implement `VirtualJoystick` for camera movement (optional)
-- [ ] Implement touch-to-game-action mapping via `controls.json`
-- [ ] Implement adaptive UI layouts (phone portrait, phone landscape, tablet, desktop)
-- [ ] Implement minimum touch target sizes (44px)
-- [ ] Implement touch-friendly build/ability buttons (larger, spaced)
-- [ ] Implement edge-of-screen detection disabled on mobile (replaced by drag)
-- [ ] Implement performance scaling (reduce particles, LOD, draw distance on mobile)
-- [ ] Implement WebGL2 mobile optimizations (reduce shader complexity, batch draws)
-- [ ] Test on various screen sizes and aspect ratios
-- [ ] Document control schemes in `docs/CONTROLS.md`
-
-### Acceptance Criteria
-
-- Game fully playable on mobile browser via touch only
-- No accidental inputs from fat-finger touches
-- UI readable on 5" phone screens
-- Maintains 30fps on mid-range mobile devices
-- Controls feel natural and responsive
+- `TouchPoint`, `GestureType`, `GestureEvent` — core touch data types
+- `GestureRecognizer` — tap, double-tap, long-press, drag, two-finger drag, pinch
+- `TouchInput` — `IInputProvider` implementation backed by gesture recognition
+- `VirtualJoystick` — on-screen touch joystick widget
+- `AdaptiveLayout` — viewport classification (Desktop / Tablet / Phone) with minimum 44 px touch targets
+- `PerformanceProfile` + `PerformanceTier` — quality scaling (High / Medium / Low) for particles, LOD, draw distance, and shader complexity
+- `docs/CONTROLS.md` — full control scheme documentation for all platforms
 
 ---
 
@@ -709,18 +696,18 @@ If unsure what to work on, follow this priority:
 - [x] Document visual workflow
 
 ### Phase 9 — Mobile & Input
-- [ ] Implement `TouchInput`
-- [ ] Implement `GestureRecognizer`
-- [ ] Implement `VirtualJoystick`
-- [ ] Implement touch-to-action mapping
-- [ ] Implement adaptive UI layouts
-- [ ] Implement minimum touch targets
-- [ ] Implement touch-friendly buttons
-- [ ] Implement mobile camera controls
-- [ ] Implement performance scaling
-- [ ] Implement WebGL2 mobile optimizations
-- [ ] Test on multiple screen sizes
-- [ ] Document control schemes
+- [x] Implement `TouchInput`
+- [x] Implement `GestureRecognizer`
+- [x] Implement `VirtualJoystick`
+- [x] Implement touch-to-action mapping
+- [x] Implement adaptive UI layouts
+- [x] Implement minimum touch targets
+- [x] Implement touch-friendly buttons
+- [x] Implement mobile camera controls
+- [x] Implement performance scaling
+- [x] Implement WebGL2 mobile optimizations
+- [x] Test on multiple screen sizes
+- [x] Document control schemes
 
 ### Phase 10 — Audio
 - [ ] Design `IAudioManager` interface
@@ -775,5 +762,5 @@ If unsure what to work on, follow this priority:
 
 ---
 
-*Last Updated: 2026-05-30*
-*Status: Planning Complete — Ready for Phase 0 Implementation*
+*Last Updated: 2026-05-31*
+*Status: Phase 9 (Mobile & Input) Complete — Ready for Phase 10 (Audio)*
