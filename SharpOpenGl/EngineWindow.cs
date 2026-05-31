@@ -343,7 +343,7 @@ public class EngineWindow : GameWindow
         {
             var sel = _world.GetComponent<SelectionComponent>(hitEntity.Value);
             if (sel != null)
-                sel.IsSelected = !sel.IsSelected || !shiftHeld;
+                sel.IsSelected = shiftHeld ? !sel.IsSelected : true;
         }
     }
 
@@ -397,11 +397,14 @@ public class EngineWindow : GameWindow
 
         var view = _rtsCamera.GetViewMatrix();
 
-        // Unproject from NDC to world space
-        var invVP = Matrix4.Invert(view * projection);
+        // Unproject from NDC to world space.
+        // In OpenTK row-vector convention: clipPos = worldPos * view * projection
+        // To reverse: worldPos = clipPos * inv(projection) * inv(view)
+        var invProj = Matrix4.Invert(projection);
+        var invView = Matrix4.Invert(view);
 
-        var nearPoint = new Vector4(ndcX, ndcY, -1f, 1f) * invVP;
-        var farPoint = new Vector4(ndcX, ndcY, 1f, 1f) * invVP;
+        var nearPoint = new Vector4(ndcX, ndcY, -1f, 1f) * invProj * invView;
+        var farPoint = new Vector4(ndcX, ndcY, 1f, 1f) * invProj * invView;
 
         if (MathF.Abs(nearPoint.W) < 0.0001f || MathF.Abs(farPoint.W) < 0.0001f)
             return null;

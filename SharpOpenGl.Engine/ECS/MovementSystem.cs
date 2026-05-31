@@ -9,6 +9,7 @@ namespace SharpOpenGl.Engine.ECS;
 public sealed class MovementSystem : GameSystem
 {
     private const float ArrivalThreshold = 1.0f;
+    private const float DecelerationFactor = 3f;
 
     /// <inheritdoc/>
     public override void Update(World world, float deltaTime)
@@ -20,7 +21,7 @@ public sealed class MovementSystem : GameSystem
                 // Decelerate to stop
                 if (movement.Velocity.LengthSquared > 0.01f)
                 {
-                    movement.Velocity *= MathF.Max(0f, 1f - deltaTime * 3f);
+                    movement.Velocity *= MathF.Max(0f, 1f - deltaTime * DecelerationFactor);
                 }
                 else
                 {
