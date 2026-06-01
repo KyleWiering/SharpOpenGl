@@ -102,6 +102,10 @@ public class EngineWindow : GameWindow
     private bool _attackMoveMode;
     private bool _patrolMode;
 
+    // Building placement mode
+    private string? _placementBuildingId;
+    private SupplySystem? _supplySystem;
+
     public EngineWindow(GameWindowSettings gameSettings, NativeWindowSettings nativeSettings,
         bool screenshotMode = false, string screenshotPath = "screenshot.png")
         : base(gameSettings, nativeSettings)
@@ -394,6 +398,10 @@ public class EngineWindow : GameWindow
         _buildSystem = new BuildSystem(_unitFactory, id =>
             _definitions.TryGetValue(id, out var def) ? def : null);
         _world.AddSystem(_buildSystem);
+
+        // Supply system (tracks population cap)
+        _supplySystem = new SupplySystem(_resourceManager);
+        _world.AddSystem(_supplySystem);
 
         // Spawn hero ship at center
         _heroEntity = _world.CreateEntity();
@@ -1022,7 +1030,12 @@ public class EngineWindow : GameWindow
 
         if (e.Button == MouseButton.Left)
         {
-            if (_attackMoveMode)
+            if (_placementBuildingId != null)
+            {
+                HandlePlaceBuilding(worldPos.Value);
+                _placementBuildingId = null;
+            }
+            else if (_attackMoveMode)
             {
                 HandleAttackMoveCommand(worldPos.Value);
                 _attackMoveMode = false;
@@ -1042,6 +1055,7 @@ public class EngineWindow : GameWindow
             // Cancel special modes on right-click
             _attackMoveMode = false;
             _patrolMode = false;
+            _placementBuildingId = null;
             HandleMoveCommand(worldPos.Value);
         }
     }
@@ -1156,6 +1170,11 @@ public class EngineWindow : GameWindow
             // Set rally point (R key + next right-click)
             case Keys.R:
                 HandleSetRallyPoint();
+                break;
+
+            // Place building mode (N key cycles through available buildings)
+            case Keys.N:
+                EnterPlacementMode();
                 break;
         }
     }
@@ -1514,11 +1533,23 @@ public class EngineWindow : GameWindow
             int data = def.Cost?.Data ?? 0;
             int crew = def.Cost?.Crew ?? 0;
 
+            // Check supply cap
+            if (_supplySystem != null && crew > 0 &&
+                !_supplySystem.CanAffordSupply(building.PlayerId, crew))
+            {
+                Console.WriteLine($"[Build] Supply cap reached, cannot build {def.DisplayName}");
+                continue;
+            }
+
             if (!_resourceManager.TrySpendCost(building.PlayerId, energy, minerals, data, crew))
             {
                 Console.WriteLine($"[Build] Cannot afford {def.DisplayName}");
                 continue;
             }
+
+            // Track supply usage
+            if (_supplySystem != null && crew > 0)
+                _supplySystem.ConsumeSupply(building.PlayerId, crew);
 
             building.BuildQueue.Enqueue(defId);
             Console.WriteLine($"[Build] Queued {def.DisplayName} at {building.BuildingType} " +
@@ -1546,6 +1577,90 @@ public class EngineWindow : GameWindow
             building.RallyPoint = worldPos.Value;
             Console.WriteLine($"[Rally] Set rally point for {building.BuildingType}");
         }
+    }
+
+    // ── Building Placement ────────────────────────────────────────────────────
+
+    /// <summary>Available buildings the player can place.</summary>
+    private static readonly string[] PlaceableBuildings =
+        ["command_center", "shipyard"];
+
+    private int _placementIndex;
+
+    /// <summary>Enter building placement mode, cycling through available buildings.</summary>
+    private void EnterPlacementMode()
+    {
+        _placementIndex = (_placementIndex + 1) % PlaceableBuildings.Length;
+        _placementBuildingId = PlaceableBuildings[_placementIndex];
+        _attackMoveMode = false;
+        _patrolMode = false;
+        Console.WriteLine($"[Place] Click to place: {_placementBuildingId} (press N to cycle, right-click to cancel)");
+    }
+
+    /// <summary>Place a building at the given world position.</summary>
+    private void HandlePlaceBuilding(Vector3 worldPos)
+    {
+        if (_world == null || _resourceManager == null || _placementBuildingId == null) return;
+
+        if (!_definitions.TryGetValue(_placementBuildingId, out var def))
+        {
+            Console.WriteLine($"[Place] Unknown building: {_placementBuildingId}");
+            return;
+        }
+
+        // Check cost
+        int energy = def.Cost?.Energy ?? 0;
+        int minerals = def.Cost?.Minerals ?? 0;
+        int data = def.Cost?.Data ?? 0;
+        int crew = def.Cost?.Crew ?? 0;
+
+        if (!_resourceManager.TrySpendCost(1, energy, minerals, data, crew))
+        {
+            Console.WriteLine($"[Place] Cannot afford {def.DisplayName}");
+            return;
+        }
+
+        // Spawn building at position
+        var building = _world.CreateEntity();
+        _world.AddComponent(building, new TransformComponent
+        {
+            Position = worldPos,
+            Scale = new Vector3(15f, 15f, 15f),
+        });
+        _world.AddComponent(building, new RenderComponent
+        {
+            MeshId = _baseVao,
+            VertexCount = _baseVertCount,
+            Color = new Vector4(0.3f, 0.7f, 1.0f, 1f),
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Lines,
+        });
+        _world.AddComponent(building, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = 15f,
+        });
+
+        var healthDef = def.Components?.Health;
+        _world.AddComponent(building, new HealthComponent
+        {
+            MaxHP = healthDef?.MaxHP ?? 1000f,
+            CurrentHP = healthDef?.MaxHP ?? 1000f,
+            Armor = healthDef?.Armor ?? 50f,
+        });
+
+        var buildingDef = def.Components?.Building;
+        _world.AddComponent(building, new BuildingComponent
+        {
+            BuildingType = buildingDef?.BuildingType ?? _placementBuildingId,
+            ProductionRate = buildingDef?.ProductionRate ?? 1f,
+            Footprint = buildingDef?.Footprint ?? [2, 2],
+            PlayerId = 1,
+            RallyPoint = worldPos + new Vector3(30f, 0f, 0f),
+            Producible = def.Producible?.ToList() ?? new List<string>(),
+        });
+
+        Console.WriteLine($"[Place] Built {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
     }
 
     /// <summary>
