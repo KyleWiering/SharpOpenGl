@@ -10,8 +10,7 @@
     "weapons": [],
     "resourceCollector": {
       "carryCapacity": 100,
-      "harvestRate": 15,
-      "depositTarget": null
+      "harvestRate": 15
     }
   },
   "cost": { "energy": 60, "minerals": 100, "data": 0, "crew": 2 },

@@ -1108,8 +1108,8 @@ public class EngineWindow : GameWindow
                 SetSelectedStance(Stance.Defensive);
                 break;
 
-            // Ability activation (1-4 when no Ctrl held)
-            case Keys.D1 when !ctrlHeld && !IsNumberGroupRecall(e):
+            // Ability activation (1-4 without Ctrl — always abilities, not group recall)
+            case Keys.D1 when !ctrlHeld:
                 ActivateAbility(0);
                 break;
             case Keys.D2 when !ctrlHeld:
@@ -1122,7 +1122,7 @@ public class EngineWindow : GameWindow
                 ActivateAbility(3);
                 break;
 
-            // Control groups: Ctrl+1-9 to assign, 1-9 to recall
+            // Control groups: Ctrl+1-9 to assign, 5-9 to recall (1-4 are abilities)
             case Keys.D1 when ctrlHeld:
                 AssignControlGroup(1);
                 break;
@@ -1182,8 +1182,6 @@ public class EngineWindow : GameWindow
                 break;
         }
     }
-
-    private bool IsNumberGroupRecall(KeyboardKeyEventArgs e) => false;
 
     private void HandleSelection(Vector3 worldPos)
     {
@@ -1526,31 +1524,7 @@ public class EngineWindow : GameWindow
             var building = _world.GetComponent<BuildingComponent>(entity);
             if (building == null || !building.Producible.Contains(defId)) continue;
 
-            if (!_definitions.TryGetValue(defId, out var def)) continue;
-
-            int energy = def.Cost?.Energy ?? 0;
-            int minerals = def.Cost?.Minerals ?? 0;
-            int data = def.Cost?.Data ?? 0;
-            int crew = def.Cost?.Crew ?? 0;
-
-            if (_supplySystem != null && crew > 0 &&
-                !_supplySystem.CanAffordSupply(building.PlayerId, crew))
-            {
-                Console.WriteLine($"[Build] Supply cap reached");
-                return;
-            }
-
-            if (!_resourceManager.TrySpendCost(building.PlayerId, energy, minerals, data, crew))
-            {
-                Console.WriteLine($"[Build] Cannot afford {def.DisplayName}");
-                return;
-            }
-
-            if (_supplySystem != null && crew > 0)
-                _supplySystem.ConsumeSupply(building.PlayerId, crew);
-
-            building.BuildQueue.Enqueue(defId);
-            Console.WriteLine($"[Build] Queued {def.DisplayName}");
+            TryEnqueueBuild(building, defId);
             return;
         }
     }
@@ -1571,37 +1545,45 @@ public class EngineWindow : GameWindow
             if (building == null || building.Producible.Count == 0) continue;
 
             // Build the first producible item (UI will allow choosing later)
-            string defId = building.Producible[0];
-            if (!_definitions.TryGetValue(defId, out var def)) continue;
-
-            int energy = def.Cost?.Energy ?? 0;
-            int minerals = def.Cost?.Minerals ?? 0;
-            int data = def.Cost?.Data ?? 0;
-            int crew = def.Cost?.Crew ?? 0;
-
-            // Check supply cap
-            if (_supplySystem != null && crew > 0 &&
-                !_supplySystem.CanAffordSupply(building.PlayerId, crew))
-            {
-                Console.WriteLine($"[Build] Supply cap reached, cannot build {def.DisplayName}");
-                continue;
-            }
-
-            if (!_resourceManager.TrySpendCost(building.PlayerId, energy, minerals, data, crew))
-            {
-                Console.WriteLine($"[Build] Cannot afford {def.DisplayName}");
-                continue;
-            }
-
-            // Track supply usage
-            if (_supplySystem != null && crew > 0)
-                _supplySystem.ConsumeSupply(building.PlayerId, crew);
-
-            building.BuildQueue.Enqueue(defId);
-            Console.WriteLine($"[Build] Queued {def.DisplayName} at {building.BuildingType} " +
-                              $"(queue: {building.BuildQueue.Count})");
-            break; // Only queue at first selected building
+            if (TryEnqueueBuild(building, building.Producible[0]))
+                break;
         }
+    }
+
+    /// <summary>
+    /// Shared logic: check supply + resources, deduct, and enqueue a build item.
+    /// Returns true if successfully enqueued.
+    /// </summary>
+    private bool TryEnqueueBuild(BuildingComponent building, string defId)
+    {
+        if (_resourceManager == null) return false;
+        if (!_definitions.TryGetValue(defId, out var def)) return false;
+
+        int energy = def.Cost?.Energy ?? 0;
+        int minerals = def.Cost?.Minerals ?? 0;
+        int data = def.Cost?.Data ?? 0;
+        int crew = def.Cost?.Crew ?? 0;
+
+        if (_supplySystem != null && crew > 0 &&
+            !_supplySystem.CanAffordSupply(building.PlayerId, crew))
+        {
+            Console.WriteLine($"[Build] Supply cap reached, cannot build {def.DisplayName}");
+            return false;
+        }
+
+        if (!_resourceManager.TrySpendCost(building.PlayerId, energy, minerals, data, crew))
+        {
+            Console.WriteLine($"[Build] Cannot afford {def.DisplayName}");
+            return false;
+        }
+
+        if (_supplySystem != null && crew > 0)
+            _supplySystem.ConsumeSupply(building.PlayerId, crew);
+
+        building.BuildQueue.Enqueue(defId);
+        Console.WriteLine($"[Build] Queued {def.DisplayName} at {building.BuildingType} " +
+                          $"(queue: {building.BuildQueue.Count})");
+        return true;
     }
 
     /// <summary>Set rally point for selected building to current move target.</summary>
