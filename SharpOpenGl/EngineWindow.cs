@@ -88,6 +88,13 @@ public class EngineWindow : GameWindow
     // Input state for Escape key debounce
     private bool _escapeWasDown;
 
+    // Control groups (Ctrl+1-9 to assign, 1-9 to recall)
+    private readonly Dictionary<int, List<Entity>> _controlGroups = new();
+
+    // Input modes for attack-move and patrol
+    private bool _attackMoveMode;
+    private bool _patrolMode;
+
     public EngineWindow(GameWindowSettings gameSettings, NativeWindowSettings nativeSettings,
         bool screenshotMode = false, string screenshotPath = "screenshot.png")
         : base(gameSettings, nativeSettings)
@@ -926,13 +933,135 @@ public class EngineWindow : GameWindow
 
         if (e.Button == MouseButton.Left)
         {
-            HandleSelection(worldPos.Value);
+            if (_attackMoveMode)
+            {
+                HandleAttackMoveCommand(worldPos.Value);
+                _attackMoveMode = false;
+            }
+            else if (_patrolMode)
+            {
+                HandlePatrolCommand(worldPos.Value);
+                _patrolMode = false;
+            }
+            else
+            {
+                HandleSelection(worldPos.Value);
+            }
         }
         else if (e.Button == MouseButton.Right)
         {
+            // Cancel special modes on right-click
+            _attackMoveMode = false;
+            _patrolMode = false;
             HandleMoveCommand(worldPos.Value);
         }
     }
+
+    protected override void OnKeyDown(KeyboardKeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (_sceneManager.State != GameState.Playing || _world == null)
+            return;
+
+        bool ctrlHeld = KeyboardState.IsKeyDown(Keys.LeftControl) ||
+                        KeyboardState.IsKeyDown(Keys.RightControl);
+
+        switch (e.Key)
+        {
+            // Stop command (X key - since S is camera)
+            case Keys.X:
+                HandleStopCommand();
+                break;
+
+            // Attack-move mode (F key to avoid conflict with A for camera)
+            case Keys.F:
+                _attackMoveMode = true;
+                _patrolMode = false;
+                break;
+
+            // Patrol mode (P key)
+            case Keys.P:
+                _patrolMode = true;
+                _attackMoveMode = false;
+                break;
+
+            // Hold position (H key)
+            case Keys.H:
+                SetSelectedStance(Stance.Neutral);
+                break;
+
+            // Aggressive stance (G key)
+            case Keys.G:
+                SetSelectedStance(Stance.Aggressive);
+                break;
+
+            // Defensive stance (V key)
+            case Keys.V:
+                SetSelectedStance(Stance.Defensive);
+                break;
+
+            // Ability activation (1-4 when no Ctrl held)
+            case Keys.D1 when !ctrlHeld && !IsNumberGroupRecall(e):
+                ActivateAbility(0);
+                break;
+            case Keys.D2 when !ctrlHeld:
+                ActivateAbility(1);
+                break;
+            case Keys.D3 when !ctrlHeld:
+                ActivateAbility(2);
+                break;
+            case Keys.D4 when !ctrlHeld:
+                ActivateAbility(3);
+                break;
+
+            // Control groups: Ctrl+1-9 to assign, 1-9 to recall
+            case Keys.D1 when ctrlHeld:
+                AssignControlGroup(1);
+                break;
+            case Keys.D2 when ctrlHeld:
+                AssignControlGroup(2);
+                break;
+            case Keys.D3 when ctrlHeld:
+                AssignControlGroup(3);
+                break;
+            case Keys.D4 when ctrlHeld:
+                AssignControlGroup(4);
+                break;
+            case Keys.D5 when ctrlHeld:
+                AssignControlGroup(5);
+                break;
+            case Keys.D6 when ctrlHeld:
+                AssignControlGroup(6);
+                break;
+            case Keys.D7 when ctrlHeld:
+                AssignControlGroup(7);
+                break;
+            case Keys.D8 when ctrlHeld:
+                AssignControlGroup(8);
+                break;
+            case Keys.D9 when ctrlHeld:
+                AssignControlGroup(9);
+                break;
+            case Keys.D5 when !ctrlHeld:
+                RecallControlGroup(5);
+                break;
+            case Keys.D6 when !ctrlHeld:
+                RecallControlGroup(6);
+                break;
+            case Keys.D7 when !ctrlHeld:
+                RecallControlGroup(7);
+                break;
+            case Keys.D8 when !ctrlHeld:
+                RecallControlGroup(8);
+                break;
+            case Keys.D9 when !ctrlHeld:
+                RecallControlGroup(9);
+                break;
+        }
+    }
+
+    private bool IsNumberGroupRecall(KeyboardKeyEventArgs e) => false;
 
     private void HandleSelection(Vector3 worldPos)
     {
@@ -1095,6 +1224,169 @@ public class EngineWindow : GameWindow
         }
 
         return nearest;
+    }
+
+    // ── Ship Control Commands ─────────────────────────────────────────────────
+
+    /// <summary>Stop all selected ships (clear PathTarget and waypoints).</summary>
+    private void HandleStopCommand()
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null)
+            {
+                movement.PathTarget = null;
+                movement.Velocity = Vector3.Zero;
+            }
+
+            var waypoints = _world.GetComponent<WaypointQueueComponent>(entity);
+            if (waypoints != null)
+            {
+                waypoints.Waypoints.Clear();
+                waypoints.CurrentIndex = 0;
+                waypoints.Patrol = false;
+            }
+        }
+    }
+
+    /// <summary>Attack-move: move to position with aggressive auto-engage.</summary>
+    private void HandleAttackMoveCommand(Vector3 worldPos)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null)
+                movement.PathTarget = worldPos;
+
+            // Ensure entity has combat and stance components for aggressive behavior
+            var stance = _world.GetComponent<StanceComponent>(entity);
+            if (stance != null)
+                stance.CurrentStance = Stance.Aggressive;
+            else
+                _world.AddComponent(entity, new StanceComponent { CurrentStance = Stance.Aggressive });
+
+            // Ensure combat target component exists
+            if (!_world.HasComponent<CombatTargetComponent>(entity))
+                _world.AddComponent(entity, new CombatTargetComponent { Faction = 1 });
+        }
+
+        _moveTargetPosition = worldPos;
+        _moveTargetTimer = 2f;
+    }
+
+    /// <summary>Patrol: set waypoint loop between current position and target.</summary>
+    private void HandlePatrolCommand(Vector3 worldPos)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            var waypoints = _world.GetComponent<WaypointQueueComponent>(entity);
+            if (waypoints == null)
+            {
+                waypoints = new WaypointQueueComponent();
+                _world.AddComponent(entity, waypoints);
+            }
+
+            waypoints.Waypoints.Clear();
+            waypoints.Waypoints.Add(worldPos);
+            waypoints.Waypoints.Add(transform.Position);
+            waypoints.CurrentIndex = 0;
+            waypoints.Patrol = true;
+
+            // Start moving toward first waypoint
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null)
+                movement.PathTarget = worldPos;
+        }
+
+        _moveTargetPosition = worldPos;
+        _moveTargetTimer = 2f;
+    }
+
+    /// <summary>Set combat stance for all selected entities.</summary>
+    private void SetSelectedStance(Stance stance)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var stanceComp = _world.GetComponent<StanceComponent>(entity);
+            if (stanceComp != null)
+                stanceComp.CurrentStance = stance;
+            else
+                _world.AddComponent(entity, new StanceComponent { CurrentStance = stance });
+        }
+    }
+
+    /// <summary>Activate hero ability at given slot index.</summary>
+    private void ActivateAbility(int slot)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var abilities = _world.GetComponent<AbilityListComponent>(entity);
+            if (abilities == null) continue;
+
+            var ability = abilities.GetBySlot(slot);
+            ability?.Activate();
+        }
+    }
+
+    /// <summary>Assign currently selected entities to a control group.</summary>
+    private void AssignControlGroup(int group)
+    {
+        if (_world == null) return;
+
+        var entities = new List<Entity>();
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (sel.IsSelected)
+                entities.Add(entity);
+        }
+
+        _controlGroups[group] = entities;
+    }
+
+    /// <summary>Recall a control group (select those entities).</summary>
+    private void RecallControlGroup(int group)
+    {
+        if (_world == null) return;
+
+        if (!_controlGroups.TryGetValue(group, out var entities))
+            return;
+
+        // Deselect all first
+        foreach (var (_, sel) in _world.Query<SelectionComponent>())
+            sel.IsSelected = false;
+
+        // Select group members (skip dead entities)
+        foreach (var entity in entities)
+        {
+            if (!_world.IsAlive(entity)) continue;
+            var sel = _world.GetComponent<SelectionComponent>(entity);
+            if (sel != null)
+                sel.IsSelected = true;
+        }
     }
 
     /// <summary>
