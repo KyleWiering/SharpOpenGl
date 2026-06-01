@@ -69,11 +69,15 @@ public class EngineWindow : GameWindow
     private int _moveTargetVao, _moveTargetVbo, _moveTargetVertCount;
     private int _gridVao, _gridVbo, _gridVertCount;
     private int _resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount;
+    private int _minerVao, _minerVbo, _minerVertCount;
+    private int _baseVao, _baseVbo, _baseVertCount;
     private bool _gameplayMeshesLoaded;
 
     // Game entities
     private Entity _heroEntity;
+    private Entity _baseEntity;
     private readonly List<Entity> _fighterEntities = new();
+    private readonly List<Entity> _minerEntities = new();
     private readonly List<Entity> _resourceNodeEntities = new();
     private readonly List<Entity> _aiEntities = new();
 
@@ -301,6 +305,12 @@ public class EngineWindow : GameWindow
         // Resource node marker (diamond shape using wireframe cube)
         (_resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount) =
             MeshBuilder.BuildWireframeCube(new Vector3(0.9f, 0.8f, 0.2f));
+        // Miner ship (uses bomber mesh shape with different color — yellow/gold)
+        (_minerVao, _minerVbo, _minerVertCount) =
+            ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.8f, 0.2f), 2f);
+        // Base structure (wireframe cube — larger)
+        (_baseVao, _baseVbo, _baseVertCount) =
+            MeshBuilder.BuildWireframeCube(new Vector3(0.3f, 0.7f, 1.0f));
         _gameplayMeshesLoaded = true;
     }
 
@@ -326,6 +336,9 @@ public class EngineWindow : GameWindow
         playerRes.SetStartingAmount(ResourceType.Crew, 50f);
         playerRes.AddIncome(ResourceType.Energy, 5f);
         playerRes.AddIncome(ResourceType.Minerals, 3f);
+
+        // Add resource system (drives collector state machines)
+        _world.AddSystem(new ResourceSystem(_resourceManager));
 
         // Spawn hero ship at center
         _heroEntity = _world.CreateEntity();
@@ -489,6 +502,12 @@ public class EngineWindow : GameWindow
         // Issue #7: Spawn visible resource nodes
         SpawnResourceNodes(rng);
 
+        // Spawn player base (command center) near hero
+        SpawnPlayerBase();
+
+        // Spawn initial miners
+        SpawnMiners(rng);
+
         // Issue #1: Give hero an initial move target so ships visibly move immediately
         var heroMovement = _world.GetComponent<MovementComponent>(_heroEntity);
         if (heroMovement != null)
@@ -582,6 +601,87 @@ public class EngineWindow : GameWindow
         }
     }
 
+    private void SpawnPlayerBase()
+    {
+        if (_world == null) return;
+
+        _baseEntity = _world.CreateEntity();
+        _world.AddComponent(_baseEntity, new TransformComponent
+        {
+            Position = new Vector3(-30f, 0f, -30f),
+            Scale = new Vector3(15f, 15f, 15f),
+        });
+        _world.AddComponent(_baseEntity, new RenderComponent
+        {
+            MeshId = _baseVao,
+            VertexCount = _baseVertCount,
+            Color = new Vector4(0.3f, 0.7f, 1.0f, 1f),
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Lines,
+        });
+        _world.AddComponent(_baseEntity, new BuildingComponent
+        {
+            BuildingType = "command_center",
+            ProductionRate = 1f,
+            Footprint = [2, 2],
+        });
+        _world.AddComponent(_baseEntity, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = 15f,
+        });
+        _world.AddComponent(_baseEntity, new HealthComponent
+        {
+            MaxHP = 2000f,
+            CurrentHP = 2000f,
+            Armor = 100f,
+        });
+    }
+
+    private void SpawnMiners(Random rng)
+    {
+        if (_world == null) return;
+
+        for (int i = 0; i < 3; i++)
+        {
+            float x = -30f + (rng.NextSingle() - 0.5f) * 60f;
+            float z = -30f + (rng.NextSingle() - 0.5f) * 60f;
+
+            var miner = _world.CreateEntity();
+            _world.AddComponent(miner, new TransformComponent
+            {
+                Position = new Vector3(x, 0f, z),
+                Scale = Vector3.One,
+            });
+            _world.AddComponent(miner, new MovementComponent
+            {
+                Speed = 45f,
+                Acceleration = 60f,
+                TurnRate = 120f,
+            });
+            _world.AddComponent(miner, new SelectionComponent
+            {
+                IsSelected = false,
+                SelectionRadius = 6f,
+            });
+            _world.AddComponent(miner, new RenderComponent
+            {
+                MeshId = _minerVao,
+                VertexCount = _minerVertCount,
+                Color = new Vector4(0.9f, 0.8f, 0.2f, 1f),
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Triangles,
+            });
+            _world.AddComponent(miner, new ResourceCollectorComponent
+            {
+                PlayerId = 1,
+                CarryCapacity = 100f,
+                DepositTarget = _baseEntity,
+            });
+            _minerEntities.Add(miner);
+        }
+    }
+
     private void CleanupGameplay()
     {
         _world?.Dispose();
@@ -590,6 +690,7 @@ public class EngineWindow : GameWindow
         _aiSystem = null;
         _resourceManager = null;
         _fighterEntities.Clear();
+        _minerEntities.Clear();
         _resourceNodeEntities.Clear();
         _aiEntities.Clear();
         _moveTargetPosition = null;
@@ -885,9 +986,25 @@ public class EngineWindow : GameWindow
 
         if (selectedEntities.Count == 0) return;
 
+        // Check if right-click target is a resource node
+        Entity? targetNode = FindResourceNodeAt(worldPos);
+
         for (int i = 0; i < selectedEntities.Count; i++)
         {
-            var movement = _world.GetComponent<MovementComponent>(selectedEntities[i]);
+            var entity = selectedEntities[i];
+
+            // If clicking a resource node and entity is a collector, assign to mine
+            if (targetNode.HasValue)
+            {
+                var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+                if (collector != null)
+                {
+                    AssignMinerToNode(entity, collector, targetNode.Value);
+                    continue;
+                }
+            }
+
+            var movement = _world.GetComponent<MovementComponent>(entity);
             if (movement == null) continue;
 
             Vector3 offset = Vector3.Zero;
@@ -903,6 +1020,81 @@ public class EngineWindow : GameWindow
 
         _moveTargetPosition = worldPos;
         _moveTargetTimer = 2f;
+    }
+
+    /// <summary>Find a resource node entity near the given world position.</summary>
+    private Entity? FindResourceNodeAt(Vector3 worldPos)
+    {
+        if (_world == null) return null;
+
+        const float nodeClickRadius = 12f;
+        Entity? closest = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var (entity, node) in _world.Query<ResourceNodeComponent>())
+        {
+            if (node.IsDepleted) continue;
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = (transform.Position - worldPos).Length;
+            if (dist < nodeClickRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = entity;
+            }
+        }
+
+        return closest;
+    }
+
+    /// <summary>Assign a miner to harvest a resource node.</summary>
+    private void AssignMinerToNode(Entity minerEntity, ResourceCollectorComponent collector, Entity nodeEntity)
+    {
+        if (_world == null) return;
+
+        collector.AssignedNode = nodeEntity;
+        collector.State = CollectorState.MovingToNode;
+        collector.PlayerId = 1; // Player 1
+
+        // Find nearest base as deposit target (or use hero position as fallback)
+        Entity? depositTarget = FindNearestBase(minerEntity);
+        collector.DepositTarget = depositTarget ?? _heroEntity;
+
+        // Set movement toward the node
+        var nodeTransform = _world.GetComponent<TransformComponent>(nodeEntity);
+        var movement = _world.GetComponent<MovementComponent>(minerEntity);
+        if (nodeTransform != null && movement != null)
+        {
+            movement.PathTarget = nodeTransform.Position;
+        }
+    }
+
+    /// <summary>Find the nearest base/building entity for resource deposit.</summary>
+    private Entity? FindNearestBase(Entity fromEntity)
+    {
+        if (_world == null) return null;
+
+        var fromTransform = _world.GetComponent<TransformComponent>(fromEntity);
+        if (fromTransform == null) return null;
+
+        Entity? nearest = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (var (entity, building) in _world.Query<BuildingComponent>())
+        {
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = (transform.Position - fromTransform.Position).Length;
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = entity;
+            }
+        }
+
+        return nearest;
     }
 
     /// <summary>

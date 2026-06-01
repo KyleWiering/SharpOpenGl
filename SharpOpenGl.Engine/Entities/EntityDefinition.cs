@@ -63,6 +63,13 @@ public sealed class SquadMemberDefinition
     public float[]? FormationOffset { get; set; }
 }
 
+/// <summary>JSON shape for a resource collector block.</summary>
+public sealed class ResourceCollectorDefinition
+{
+    public float CarryCapacity { get; set; } = 50f;
+    public float HarvestRate   { get; set; } = 5f;
+}
+
 /// <summary>JSON shape for a building block.</summary>
 public sealed class BuildingDefinition
 {
@@ -82,6 +89,7 @@ public sealed class ComponentsDefinition
     public HeroDefinition?        Hero        { get; set; }
     public SquadMemberDefinition? SquadMember { get; set; }
     public BuildingDefinition?    Building    { get; set; }
+    public ResourceCollectorDefinition? ResourceCollector { get; set; }
 }
 
 // ── Root DTO ──────────────────────────────────────────────────────────────────

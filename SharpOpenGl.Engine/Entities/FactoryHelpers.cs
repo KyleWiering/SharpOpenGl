@@ -136,4 +136,15 @@ internal static class FactoryHelpers
 
         world.AddComponent(entity, comp);
     }
+
+    /// <summary>Apply <see cref="ResourceCollectorComponent"/> from definition.</summary>
+    internal static void ApplyResourceCollector(World world, Entity entity, ResourceCollectorDefinition? def)
+    {
+        if (def == null) return;
+
+        world.AddComponent(entity, new ResourceCollectorComponent
+        {
+            CarryCapacity = def.CarryCapacity,
+        });
+    }
 }

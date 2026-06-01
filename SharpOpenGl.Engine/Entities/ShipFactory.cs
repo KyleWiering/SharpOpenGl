@@ -62,6 +62,9 @@ public sealed class ShipFactory
             FactoryHelpers.ApplySquadMember(world, entity, def.Components.SquadMember);
         }
 
+        // Resource collector (miners)
+        FactoryHelpers.ApplyResourceCollector(world, entity, def.Components?.ResourceCollector);
+
         return entity;
     }
 }
