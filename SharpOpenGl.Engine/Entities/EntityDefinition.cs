@@ -127,5 +127,11 @@ public sealed class EntityDefinition
     /// <summary>Seconds required to build/spawn this entity.</summary>
     public float BuildTime { get; set; }
 
+    /// <summary>
+    /// List of entity definition IDs that this building can produce.
+    /// Only relevant for building-type entities (shipyard, command center).
+    /// </summary>
+    public List<string>? Producible { get; set; }
+
     // JSON comment fields are ignored automatically (AllowTrailingCommas + SkipComments).
 }

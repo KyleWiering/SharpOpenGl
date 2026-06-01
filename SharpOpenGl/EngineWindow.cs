@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -5,6 +6,7 @@ using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
+using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.Scenes;
@@ -48,9 +50,14 @@ public class EngineWindow : GameWindow
     private World? _world;
     private MovementSystem? _movementSystem;
     private AIPlayerSystem? _aiSystem;
+    private BuildSystem? _buildSystem;
 
     // Economy
     private ResourceManager? _resourceManager;
+
+    // Entity definitions registry (loaded from GameData JSON)
+    private readonly Dictionary<string, EntityDefinition> _definitions = new();
+    private UnitFactory? _unitFactory;
 
     // Board size constants (100x original: was 20×20 cells @ 10f = 200 units, now 200×200 @ 10f = 2000 units)
     private const int GridColumns = 200;
@@ -321,6 +328,40 @@ public class EngineWindow : GameWindow
         _gameplayMeshesLoaded = true;
     }
 
+    private void LoadEntityDefinitions()
+    {
+        _definitions.Clear();
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+
+        string[] searchDirs = ["GameData/Ships", "GameData/Units", "GameData/Bases"];
+        foreach (string dir in searchDirs)
+        {
+            if (!Directory.Exists(dir)) continue;
+            foreach (string file in Directory.GetFiles(dir, "*.json"))
+            {
+                if (Path.GetFileName(file).StartsWith("_")) continue;
+                try
+                {
+                    string json = File.ReadAllText(file);
+                    var def = JsonSerializer.Deserialize<EntityDefinition>(json, options);
+                    if (def != null && !string.IsNullOrEmpty(def.Id))
+                        _definitions[def.Id] = def;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[LoadDefs] Failed to load {file}: {ex.Message}");
+                }
+            }
+        }
+
+        Console.WriteLine($"[LoadDefs] Loaded {_definitions.Count} entity definitions.");
+    }
+
     private void InitializeWorld()
     {
         _world?.Dispose();
@@ -346,6 +387,13 @@ public class EngineWindow : GameWindow
 
         // Add resource system (drives collector state machines)
         _world.AddSystem(new ResourceSystem(_resourceManager));
+
+        // Load entity definitions and add build system
+        LoadEntityDefinitions();
+        _unitFactory = new UnitFactory();
+        _buildSystem = new BuildSystem(_unitFactory, id =>
+            _definitions.TryGetValue(id, out var def) ? def : null);
+        _world.AddSystem(_buildSystem);
 
         // Spawn hero ship at center
         _heroEntity = _world.CreateEntity();
@@ -612,6 +660,7 @@ public class EngineWindow : GameWindow
     {
         if (_world == null) return;
 
+        // Command Center
         _baseEntity = _world.CreateEntity();
         _world.AddComponent(_baseEntity, new TransformComponent
         {
@@ -631,6 +680,9 @@ public class EngineWindow : GameWindow
             BuildingType = "command_center",
             ProductionRate = 1f,
             Footprint = [2, 2],
+            PlayerId = 1,
+            RallyPoint = new Vector3(-30f, 0f, 0f),
+            Producible = ["drone_worker", "miner_basic"],
         });
         _world.AddComponent(_baseEntity, new SelectionComponent
         {
@@ -642,6 +694,43 @@ public class EngineWindow : GameWindow
             MaxHP = 2000f,
             CurrentHP = 2000f,
             Armor = 100f,
+        });
+
+        // Shipyard
+        var shipyard = _world.CreateEntity();
+        _world.AddComponent(shipyard, new TransformComponent
+        {
+            Position = new Vector3(50f, 0f, -50f),
+            Scale = new Vector3(18f, 18f, 18f),
+        });
+        _world.AddComponent(shipyard, new RenderComponent
+        {
+            MeshId = _baseVao,
+            VertexCount = _baseVertCount,
+            Color = new Vector4(0.8f, 0.5f, 0.2f, 1f),
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Lines,
+        });
+        _world.AddComponent(shipyard, new BuildingComponent
+        {
+            BuildingType = "shipyard",
+            ProductionRate = 1f,
+            Footprint = [3, 3],
+            PlayerId = 1,
+            RallyPoint = new Vector3(80f, 0f, -50f),
+            Producible = ["fighter_basic", "bomber_heavy", "destroyer_assault",
+                          "scout_light", "miner_basic", "transport_cargo"],
+        });
+        _world.AddComponent(shipyard, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = 18f,
+        });
+        _world.AddComponent(shipyard, new HealthComponent
+        {
+            MaxHP = 1500f,
+            CurrentHP = 1500f,
+            Armor = 75f,
         });
     }
 
@@ -1058,6 +1147,16 @@ public class EngineWindow : GameWindow
             case Keys.D9 when !ctrlHeld:
                 RecallControlGroup(9);
                 break;
+
+            // Build command (B key) — queue next producible item from selected building
+            case Keys.B when !ctrlHeld:
+                HandleBuildCommand();
+                break;
+
+            // Set rally point (R key + next right-click)
+            case Keys.R:
+                HandleSetRallyPoint();
+                break;
         }
     }
 
@@ -1386,6 +1485,66 @@ public class EngineWindow : GameWindow
             var sel = _world.GetComponent<SelectionComponent>(entity);
             if (sel != null)
                 sel.IsSelected = true;
+        }
+    }
+
+    // ── Building/Production Commands ──────────────────────────────────────────
+
+    /// <summary>
+    /// Queue the first producible item from any selected building.
+    /// Deducts resources immediately via ResourceManager.
+    /// </summary>
+    private void HandleBuildCommand()
+    {
+        if (_world == null || _resourceManager == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null || building.Producible.Count == 0) continue;
+
+            // Build the first producible item (UI will allow choosing later)
+            string defId = building.Producible[0];
+            if (!_definitions.TryGetValue(defId, out var def)) continue;
+
+            int energy = def.Cost?.Energy ?? 0;
+            int minerals = def.Cost?.Minerals ?? 0;
+            int data = def.Cost?.Data ?? 0;
+            int crew = def.Cost?.Crew ?? 0;
+
+            if (!_resourceManager.TrySpendCost(building.PlayerId, energy, minerals, data, crew))
+            {
+                Console.WriteLine($"[Build] Cannot afford {def.DisplayName}");
+                continue;
+            }
+
+            building.BuildQueue.Enqueue(defId);
+            Console.WriteLine($"[Build] Queued {def.DisplayName} at {building.BuildingType} " +
+                              $"(queue: {building.BuildQueue.Count})");
+            break; // Only queue at first selected building
+        }
+    }
+
+    /// <summary>Set rally point for selected building to current move target.</summary>
+    private void HandleSetRallyPoint()
+    {
+        if (_world == null) return;
+
+        // Set rally point to current mouse position
+        Vector3? worldPos = ScreenToWorld(MousePosition);
+        if (worldPos == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null) continue;
+
+            building.RallyPoint = worldPos.Value;
+            Console.WriteLine($"[Rally] Set rally point for {building.BuildingType}");
         }
     }
 
