@@ -12,6 +12,7 @@ using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
+using SharpOpenGl.Engine.UI.Widgets;
 using SharpOpenGl.Environment;
 using StbImageWriteSharp;
 using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
@@ -273,6 +274,7 @@ public class EngineWindow : GameWindow
         _uiManager.Clear();
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
+        hud.BuildPanel.BuildRequested += OnBuildPanelBuildRequested;
         _uiManager.Push(hud);
 
         if (!_gameplayMeshesLoaded)
@@ -978,6 +980,8 @@ public class EngineWindow : GameWindow
             // Tick economy (issue #4: resources on HUD)
             _resourceManager?.Tick(dt);
             BindResourceHUD();
+            BindBuildPanel();
+            BindUnitInfoPanel();
 
             // Fade move target indicator
             if (_moveTargetTimer > 0f)
@@ -1510,6 +1514,48 @@ public class EngineWindow : GameWindow
     // ── Building/Production Commands ──────────────────────────────────────────
 
     /// <summary>
+    /// Called when a build button is clicked in the BuildPanel UI.
+    /// </summary>
+    private void OnBuildPanelBuildRequested(string defId)
+    {
+        if (_world == null || _resourceManager == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null || !building.Producible.Contains(defId)) continue;
+
+            if (!_definitions.TryGetValue(defId, out var def)) continue;
+
+            int energy = def.Cost?.Energy ?? 0;
+            int minerals = def.Cost?.Minerals ?? 0;
+            int data = def.Cost?.Data ?? 0;
+            int crew = def.Cost?.Crew ?? 0;
+
+            if (_supplySystem != null && crew > 0 &&
+                !_supplySystem.CanAffordSupply(building.PlayerId, crew))
+            {
+                Console.WriteLine($"[Build] Supply cap reached");
+                return;
+            }
+
+            if (!_resourceManager.TrySpendCost(building.PlayerId, energy, minerals, data, crew))
+            {
+                Console.WriteLine($"[Build] Cannot afford {def.DisplayName}");
+                return;
+            }
+
+            if (_supplySystem != null && crew > 0)
+                _supplySystem.ConsumeSupply(building.PlayerId, crew);
+
+            building.BuildQueue.Enqueue(defId);
+            Console.WriteLine($"[Build] Queued {def.DisplayName}");
+            return;
+        }
+    }
+
+    /// <summary>
     /// Queue the first producible item from any selected building.
     /// Deducts resources immediately via ResourceManager.
     /// </summary>
@@ -1679,6 +1725,131 @@ public class EngineWindow : GameWindow
             _resourceManager.GetDisplay(1, ResourceType.Crew),
         };
         hud.ResourceBar.Resources = displays;
+    }
+
+    /// <summary>Bind build panel data when a building is selected.</summary>
+    private void BindBuildPanel()
+    {
+        if (_world == null || _resourceManager == null) return;
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        // Find first selected building
+        BuildingComponent? selectedBuilding = null;
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building != null && building.Producible.Count > 0)
+            {
+                selectedBuilding = building;
+                break;
+            }
+        }
+
+        if (selectedBuilding == null)
+        {
+            hud.BuildPanel.Visible = false;
+            return;
+        }
+
+        hud.BuildPanel.Visible = true;
+        hud.BuildPanel.BuildingName = selectedBuilding.BuildingType.Replace("_", " ");
+
+        // Supply info
+        if (_supplySystem != null)
+        {
+            int used = _supplySystem.GetUsed(selectedBuilding.PlayerId);
+            int cap = _supplySystem.GetCap(selectedBuilding.PlayerId);
+            hud.BuildPanel.SupplyText = $"{used} / {cap}";
+        }
+
+        // Available items
+        var items = new List<BuildableItem>();
+        foreach (string defId in selectedBuilding.Producible)
+        {
+            if (!_definitions.TryGetValue(defId, out var def)) continue;
+            var playerRes = _resourceManager.GetPlayer(selectedBuilding.PlayerId);
+
+            bool canAfford = playerRes != null &&
+                playerRes.GetAmount(ResourceType.Energy) >= (def.Cost?.Energy ?? 0) &&
+                playerRes.GetAmount(ResourceType.Minerals) >= (def.Cost?.Minerals ?? 0) &&
+                playerRes.GetAmount(ResourceType.Data) >= (def.Cost?.Data ?? 0) &&
+                playerRes.GetAmount(ResourceType.Crew) >= (def.Cost?.Crew ?? 0);
+
+            items.Add(new BuildableItem
+            {
+                Id = def.Id,
+                Name = def.DisplayName,
+                EnergyCost = def.Cost?.Energy ?? 0,
+                MineralsCost = def.Cost?.Minerals ?? 0,
+                DataCost = def.Cost?.Data ?? 0,
+                CrewCost = def.Cost?.Crew ?? 0,
+                BuildTime = def.BuildTime,
+                CanAfford = canAfford,
+            });
+        }
+        hud.BuildPanel.AvailableItems = items;
+
+        // Queue
+        var queueItems = new List<QueuedItem>();
+        int qIdx = 0;
+        foreach (string qItem in selectedBuilding.BuildQueue)
+        {
+            float progress = 0f;
+            if (qIdx == 0 && selectedBuilding.BuildProgress > 0)
+            {
+                var qDef = _definitions.GetValueOrDefault(qItem);
+                float totalTime = qDef?.BuildTime ?? 1f;
+                progress = selectedBuilding.BuildProgress / totalTime;
+            }
+            string name = _definitions.TryGetValue(qItem, out var d) ? d.DisplayName : qItem;
+            queueItems.Add(new QueuedItem { Name = name, Progress = progress });
+            qIdx++;
+        }
+        hud.BuildPanel.Queue = queueItems;
+    }
+
+    /// <summary>Bind unit info panel data for selected units (including miner cargo).</summary>
+    private void BindUnitInfoPanel()
+    {
+        if (_world == null) return;
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        var unitInfos = new List<UnitInfo>();
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            if (unitInfos.Count >= 6) break;
+
+            var health = _world.GetComponent<HealthComponent>(entity);
+            string name = "Unit";
+
+            // Determine name from components
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building != null)
+                name = building.BuildingType.Replace("_", " ");
+            else
+            {
+                var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+                if (collector != null)
+                {
+                    string cargoInfo = collector.CarryAmount > 0
+                        ? $" [{collector.CarryAmount:0}/{collector.CarryCapacity:0}]"
+                        : "";
+                    name = $"Miner{cargoInfo} ({collector.State})";
+                }
+                else
+                {
+                    var hero = _world.GetComponent<HeroComponent>(entity);
+                    name = hero != null ? "Hero Ship" : "Ship";
+                }
+            }
+
+            if (health != null)
+                unitInfos.Add(UnitInfo.FromHealth(name, health));
+        }
+
+        hud.UnitInfoPanel.SelectedUnits = unitInfos;
     }
 
     /// <summary>

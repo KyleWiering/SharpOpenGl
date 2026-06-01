@@ -25,6 +25,9 @@ public sealed class GameplayHUD : UIScreen
     /// <summary>Bottom-centre unit info panel.  Bind selected units each frame.</summary>
     public UnitInfoPanel UnitInfoPanel { get; }
 
+    /// <summary>Right-side build panel. Bind building data when a building is selected.</summary>
+    public BuildPanel BuildPanel { get; }
+
     // ── Events ────────────────────────────────────────────────────────────────
 
     /// <summary>Fired when the pause button is clicked.</summary>
@@ -64,6 +67,17 @@ public sealed class GameplayHUD : UIScreen
             Size = new Vector2(480f, 160f),
         };
         AddWidget(UnitInfoPanel);
+
+        // ── Build panel (right side, shown when building is selected) ────────
+        BuildPanel = new BuildPanel
+        {
+            Name = "BuildPanel",
+            Anchor = Anchor.TopRight,
+            Position = new Vector2(-280f, 56f),
+            Size = new Vector2(270f, 500f),
+            Visible = false,
+        };
+        AddWidget(BuildPanel);
 
         // ── Pause button (top-right) ─────────────────────────────────────────
         var pauseBtn = new Button
