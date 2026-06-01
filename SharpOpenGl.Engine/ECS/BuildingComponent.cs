@@ -1,3 +1,5 @@
+using OpenTK.Mathematics;
+
 namespace SharpOpenGl.Engine.ECS;
 
 /// <summary>
@@ -29,4 +31,18 @@ public sealed class BuildingComponent
 
     /// <summary>Grid-space footprint: [columns, rows].</summary>
     public int[] Footprint { get; set; } = [1, 1];
+
+    /// <summary>
+    /// Rally point where newly produced units move to after spawning.
+    /// Null means units spawn in place without auto-move.
+    /// </summary>
+    public Vector3? RallyPoint { get; set; }
+
+    /// <summary>Player who owns this building.</summary>
+    public int PlayerId { get; set; } = 1;
+
+    /// <summary>
+    /// List of entity definition IDs this building can produce.
+    /// </summary>
+    public List<string> Producible { get; set; } = new();
 }

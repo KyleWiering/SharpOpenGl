@@ -1,3 +1,4 @@
+using System.Text.Json;
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
@@ -5,11 +6,13 @@ using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
+using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
+using SharpOpenGl.Engine.UI.Widgets;
 using SharpOpenGl.Environment;
 using StbImageWriteSharp;
 using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
@@ -48,9 +51,14 @@ public class EngineWindow : GameWindow
     private World? _world;
     private MovementSystem? _movementSystem;
     private AIPlayerSystem? _aiSystem;
+    private BuildSystem? _buildSystem;
 
     // Economy
     private ResourceManager? _resourceManager;
+
+    // Entity definitions registry (loaded from GameData JSON)
+    private readonly Dictionary<string, EntityDefinition> _definitions = new();
+    private UnitFactory? _unitFactory;
 
     // Board size constants (100x original: was 20×20 cells @ 10f = 200 units, now 200×200 @ 10f = 2000 units)
     private const int GridColumns = 200;
@@ -69,11 +77,15 @@ public class EngineWindow : GameWindow
     private int _moveTargetVao, _moveTargetVbo, _moveTargetVertCount;
     private int _gridVao, _gridVbo, _gridVertCount;
     private int _resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount;
+    private int _minerVao, _minerVbo, _minerVertCount;
+    private int _baseVao, _baseVbo, _baseVertCount;
     private bool _gameplayMeshesLoaded;
 
     // Game entities
     private Entity _heroEntity;
+    private Entity _baseEntity;
     private readonly List<Entity> _fighterEntities = new();
+    private readonly List<Entity> _minerEntities = new();
     private readonly List<Entity> _resourceNodeEntities = new();
     private readonly List<Entity> _aiEntities = new();
 
@@ -83,6 +95,17 @@ public class EngineWindow : GameWindow
 
     // Input state for Escape key debounce
     private bool _escapeWasDown;
+
+    // Control groups (Ctrl+1-9 to assign, 1-9 to recall)
+    private readonly Dictionary<int, List<Entity>> _controlGroups = new();
+
+    // Input modes for attack-move and patrol
+    private bool _attackMoveMode;
+    private bool _patrolMode;
+
+    // Building placement mode
+    private string? _placementBuildingId;
+    private SupplySystem? _supplySystem;
 
     public EngineWindow(GameWindowSettings gameSettings, NativeWindowSettings nativeSettings,
         bool screenshotMode = false, string screenshotPath = "screenshot.png")
@@ -251,6 +274,7 @@ public class EngineWindow : GameWindow
         _uiManager.Clear();
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
+        hud.BuildPanel.BuildRequested += OnBuildPanelBuildRequested;
         _uiManager.Push(hud);
 
         if (!_gameplayMeshesLoaded)
@@ -301,7 +325,47 @@ public class EngineWindow : GameWindow
         // Resource node marker (diamond shape using wireframe cube)
         (_resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount) =
             MeshBuilder.BuildWireframeCube(new Vector3(0.9f, 0.8f, 0.2f));
+        // Miner ship (uses bomber mesh shape with different color — yellow/gold)
+        (_minerVao, _minerVbo, _minerVertCount) =
+            ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.8f, 0.2f), 2f);
+        // Base structure (wireframe cube — larger)
+        (_baseVao, _baseVbo, _baseVertCount) =
+            MeshBuilder.BuildWireframeCube(new Vector3(0.3f, 0.7f, 1.0f));
         _gameplayMeshesLoaded = true;
+    }
+
+    private void LoadEntityDefinitions()
+    {
+        _definitions.Clear();
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+
+        string[] searchDirs = ["GameData/Ships", "GameData/Units", "GameData/Bases"];
+        foreach (string dir in searchDirs)
+        {
+            if (!Directory.Exists(dir)) continue;
+            foreach (string file in Directory.GetFiles(dir, "*.json"))
+            {
+                if (Path.GetFileName(file).StartsWith("_")) continue;
+                try
+                {
+                    string json = File.ReadAllText(file);
+                    var def = JsonSerializer.Deserialize<EntityDefinition>(json, options);
+                    if (def != null && !string.IsNullOrEmpty(def.Id))
+                        _definitions[def.Id] = def;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[LoadDefs] Failed to load {file}: {ex.Message}");
+                }
+            }
+        }
+
+        Console.WriteLine($"[LoadDefs] Loaded {_definitions.Count} entity definitions.");
     }
 
     private void InitializeWorld()
@@ -326,6 +390,20 @@ public class EngineWindow : GameWindow
         playerRes.SetStartingAmount(ResourceType.Crew, 50f);
         playerRes.AddIncome(ResourceType.Energy, 5f);
         playerRes.AddIncome(ResourceType.Minerals, 3f);
+
+        // Add resource system (drives collector state machines)
+        _world.AddSystem(new ResourceSystem(_resourceManager));
+
+        // Load entity definitions and add build system
+        LoadEntityDefinitions();
+        _unitFactory = new UnitFactory();
+        _buildSystem = new BuildSystem(_unitFactory, id =>
+            _definitions.TryGetValue(id, out var def) ? def : null);
+        _world.AddSystem(_buildSystem);
+
+        // Supply system (tracks population cap)
+        _supplySystem = new SupplySystem(_resourceManager);
+        _world.AddSystem(_supplySystem);
 
         // Spawn hero ship at center
         _heroEntity = _world.CreateEntity();
@@ -489,6 +567,12 @@ public class EngineWindow : GameWindow
         // Issue #7: Spawn visible resource nodes
         SpawnResourceNodes(rng);
 
+        // Spawn player base (command center) near hero
+        SpawnPlayerBase();
+
+        // Spawn initial miners
+        SpawnMiners(rng);
+
         // Issue #1: Give hero an initial move target so ships visibly move immediately
         var heroMovement = _world.GetComponent<MovementComponent>(_heroEntity);
         if (heroMovement != null)
@@ -582,6 +666,128 @@ public class EngineWindow : GameWindow
         }
     }
 
+    private void SpawnPlayerBase()
+    {
+        if (_world == null) return;
+
+        // Command Center
+        _baseEntity = _world.CreateEntity();
+        _world.AddComponent(_baseEntity, new TransformComponent
+        {
+            Position = new Vector3(-30f, 0f, -30f),
+            Scale = new Vector3(15f, 15f, 15f),
+        });
+        _world.AddComponent(_baseEntity, new RenderComponent
+        {
+            MeshId = _baseVao,
+            VertexCount = _baseVertCount,
+            Color = new Vector4(0.3f, 0.7f, 1.0f, 1f),
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Lines,
+        });
+        _world.AddComponent(_baseEntity, new BuildingComponent
+        {
+            BuildingType = "command_center",
+            ProductionRate = 1f,
+            Footprint = [2, 2],
+            PlayerId = 1,
+            RallyPoint = new Vector3(-30f, 0f, 0f),
+            Producible = ["drone_worker", "miner_basic"],
+        });
+        _world.AddComponent(_baseEntity, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = 15f,
+        });
+        _world.AddComponent(_baseEntity, new HealthComponent
+        {
+            MaxHP = 2000f,
+            CurrentHP = 2000f,
+            Armor = 100f,
+        });
+
+        // Shipyard
+        var shipyard = _world.CreateEntity();
+        _world.AddComponent(shipyard, new TransformComponent
+        {
+            Position = new Vector3(50f, 0f, -50f),
+            Scale = new Vector3(18f, 18f, 18f),
+        });
+        _world.AddComponent(shipyard, new RenderComponent
+        {
+            MeshId = _baseVao,
+            VertexCount = _baseVertCount,
+            Color = new Vector4(0.8f, 0.5f, 0.2f, 1f),
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Lines,
+        });
+        _world.AddComponent(shipyard, new BuildingComponent
+        {
+            BuildingType = "shipyard",
+            ProductionRate = 1f,
+            Footprint = [3, 3],
+            PlayerId = 1,
+            RallyPoint = new Vector3(80f, 0f, -50f),
+            Producible = ["fighter_basic", "bomber_heavy", "destroyer_assault",
+                          "scout_light", "miner_basic", "transport_cargo"],
+        });
+        _world.AddComponent(shipyard, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = 18f,
+        });
+        _world.AddComponent(shipyard, new HealthComponent
+        {
+            MaxHP = 1500f,
+            CurrentHP = 1500f,
+            Armor = 75f,
+        });
+    }
+
+    private void SpawnMiners(Random rng)
+    {
+        if (_world == null) return;
+
+        for (int i = 0; i < 3; i++)
+        {
+            float x = -30f + (rng.NextSingle() - 0.5f) * 60f;
+            float z = -30f + (rng.NextSingle() - 0.5f) * 60f;
+
+            var miner = _world.CreateEntity();
+            _world.AddComponent(miner, new TransformComponent
+            {
+                Position = new Vector3(x, 0f, z),
+                Scale = Vector3.One,
+            });
+            _world.AddComponent(miner, new MovementComponent
+            {
+                Speed = 45f,
+                Acceleration = 60f,
+                TurnRate = 120f,
+            });
+            _world.AddComponent(miner, new SelectionComponent
+            {
+                IsSelected = false,
+                SelectionRadius = 6f,
+            });
+            _world.AddComponent(miner, new RenderComponent
+            {
+                MeshId = _minerVao,
+                VertexCount = _minerVertCount,
+                Color = new Vector4(0.9f, 0.8f, 0.2f, 1f),
+                Visible = true,
+                PrimitiveType = (int)PrimitiveType.Triangles,
+            });
+            _world.AddComponent(miner, new ResourceCollectorComponent
+            {
+                PlayerId = 1,
+                CarryCapacity = 100f,
+                DepositTarget = _baseEntity,
+            });
+            _minerEntities.Add(miner);
+        }
+    }
+
     private void CleanupGameplay()
     {
         _world?.Dispose();
@@ -590,6 +796,7 @@ public class EngineWindow : GameWindow
         _aiSystem = null;
         _resourceManager = null;
         _fighterEntities.Clear();
+        _minerEntities.Clear();
         _resourceNodeEntities.Clear();
         _aiEntities.Clear();
         _moveTargetPosition = null;
@@ -773,6 +980,8 @@ public class EngineWindow : GameWindow
             // Tick economy (issue #4: resources on HUD)
             _resourceManager?.Tick(dt);
             BindResourceHUD();
+            BindBuildPanel();
+            BindUnitInfoPanel();
 
             // Fade move target indicator
             if (_moveTargetTimer > 0f)
@@ -825,11 +1034,152 @@ public class EngineWindow : GameWindow
 
         if (e.Button == MouseButton.Left)
         {
-            HandleSelection(worldPos.Value);
+            if (_placementBuildingId != null)
+            {
+                HandlePlaceBuilding(worldPos.Value);
+                _placementBuildingId = null;
+            }
+            else if (_attackMoveMode)
+            {
+                HandleAttackMoveCommand(worldPos.Value);
+                _attackMoveMode = false;
+            }
+            else if (_patrolMode)
+            {
+                HandlePatrolCommand(worldPos.Value);
+                _patrolMode = false;
+            }
+            else
+            {
+                HandleSelection(worldPos.Value);
+            }
         }
         else if (e.Button == MouseButton.Right)
         {
+            // Cancel special modes on right-click
+            _attackMoveMode = false;
+            _patrolMode = false;
+            _placementBuildingId = null;
             HandleMoveCommand(worldPos.Value);
+        }
+    }
+
+    protected override void OnKeyDown(KeyboardKeyEventArgs e)
+    {
+        base.OnKeyDown(e);
+
+        if (_sceneManager.State != GameState.Playing || _world == null)
+            return;
+
+        bool ctrlHeld = KeyboardState.IsKeyDown(Keys.LeftControl) ||
+                        KeyboardState.IsKeyDown(Keys.RightControl);
+
+        switch (e.Key)
+        {
+            // Stop command (X key - since S is camera)
+            case Keys.X:
+                HandleStopCommand();
+                break;
+
+            // Attack-move mode (F key to avoid conflict with A for camera)
+            case Keys.F:
+                _attackMoveMode = true;
+                _patrolMode = false;
+                break;
+
+            // Patrol mode (P key)
+            case Keys.P:
+                _patrolMode = true;
+                _attackMoveMode = false;
+                break;
+
+            // Hold position (H key)
+            case Keys.H:
+                SetSelectedStance(Stance.Neutral);
+                break;
+
+            // Aggressive stance (G key)
+            case Keys.G:
+                SetSelectedStance(Stance.Aggressive);
+                break;
+
+            // Defensive stance (V key)
+            case Keys.V:
+                SetSelectedStance(Stance.Defensive);
+                break;
+
+            // Ability activation (1-4 without Ctrl — always abilities, not group recall)
+            case Keys.D1 when !ctrlHeld:
+                ActivateAbility(0);
+                break;
+            case Keys.D2 when !ctrlHeld:
+                ActivateAbility(1);
+                break;
+            case Keys.D3 when !ctrlHeld:
+                ActivateAbility(2);
+                break;
+            case Keys.D4 when !ctrlHeld:
+                ActivateAbility(3);
+                break;
+
+            // Control groups: Ctrl+1-9 to assign, 5-9 to recall (1-4 are abilities)
+            case Keys.D1 when ctrlHeld:
+                AssignControlGroup(1);
+                break;
+            case Keys.D2 when ctrlHeld:
+                AssignControlGroup(2);
+                break;
+            case Keys.D3 when ctrlHeld:
+                AssignControlGroup(3);
+                break;
+            case Keys.D4 when ctrlHeld:
+                AssignControlGroup(4);
+                break;
+            case Keys.D5 when ctrlHeld:
+                AssignControlGroup(5);
+                break;
+            case Keys.D6 when ctrlHeld:
+                AssignControlGroup(6);
+                break;
+            case Keys.D7 when ctrlHeld:
+                AssignControlGroup(7);
+                break;
+            case Keys.D8 when ctrlHeld:
+                AssignControlGroup(8);
+                break;
+            case Keys.D9 when ctrlHeld:
+                AssignControlGroup(9);
+                break;
+            case Keys.D5 when !ctrlHeld:
+                RecallControlGroup(5);
+                break;
+            case Keys.D6 when !ctrlHeld:
+                RecallControlGroup(6);
+                break;
+            case Keys.D7 when !ctrlHeld:
+                RecallControlGroup(7);
+                break;
+            case Keys.D8 when !ctrlHeld:
+                RecallControlGroup(8);
+                break;
+            case Keys.D9 when !ctrlHeld:
+                RecallControlGroup(9);
+                break;
+
+            // Build command (B key) — queue next producible item from selected building
+            case Keys.B when !ctrlHeld:
+                HandleBuildCommand();
+                break;
+
+            // Set rally point (R key + next right-click)
+            case Keys.R:
+                HandleSetRallyPoint();
+                break;
+
+            // Place building mode (N key cycles through available buildings)
+            case Keys.N:
+                EnterPlacementMode();
+                break;
         }
     }
 
@@ -885,9 +1235,25 @@ public class EngineWindow : GameWindow
 
         if (selectedEntities.Count == 0) return;
 
+        // Check if right-click target is a resource node
+        Entity? targetNode = FindResourceNodeAt(worldPos);
+
         for (int i = 0; i < selectedEntities.Count; i++)
         {
-            var movement = _world.GetComponent<MovementComponent>(selectedEntities[i]);
+            var entity = selectedEntities[i];
+
+            // If clicking a resource node and entity is a collector, assign to mine
+            if (targetNode.HasValue)
+            {
+                var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+                if (collector != null)
+                {
+                    AssignMinerToNode(entity, collector, targetNode.Value);
+                    continue;
+                }
+            }
+
+            var movement = _world.GetComponent<MovementComponent>(entity);
             if (movement == null) continue;
 
             Vector3 offset = Vector3.Zero;
@@ -903,6 +1269,426 @@ public class EngineWindow : GameWindow
 
         _moveTargetPosition = worldPos;
         _moveTargetTimer = 2f;
+    }
+
+    /// <summary>Find a resource node entity near the given world position.</summary>
+    private Entity? FindResourceNodeAt(Vector3 worldPos)
+    {
+        if (_world == null) return null;
+
+        const float nodeClickRadius = 12f;
+        Entity? closest = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var (entity, node) in _world.Query<ResourceNodeComponent>())
+        {
+            if (node.IsDepleted) continue;
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = (transform.Position - worldPos).Length;
+            if (dist < nodeClickRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = entity;
+            }
+        }
+
+        return closest;
+    }
+
+    /// <summary>Assign a miner to harvest a resource node.</summary>
+    private void AssignMinerToNode(Entity minerEntity, ResourceCollectorComponent collector, Entity nodeEntity)
+    {
+        if (_world == null) return;
+
+        collector.AssignedNode = nodeEntity;
+        collector.State = CollectorState.MovingToNode;
+        collector.PlayerId = 1; // Player 1
+
+        // Find nearest base as deposit target (or use hero position as fallback)
+        Entity? depositTarget = FindNearestBase(minerEntity);
+        collector.DepositTarget = depositTarget ?? _heroEntity;
+
+        // Set movement toward the node
+        var nodeTransform = _world.GetComponent<TransformComponent>(nodeEntity);
+        var movement = _world.GetComponent<MovementComponent>(minerEntity);
+        if (nodeTransform != null && movement != null)
+        {
+            movement.PathTarget = nodeTransform.Position;
+        }
+    }
+
+    /// <summary>Find the nearest base/building entity for resource deposit.</summary>
+    private Entity? FindNearestBase(Entity fromEntity)
+    {
+        if (_world == null) return null;
+
+        var fromTransform = _world.GetComponent<TransformComponent>(fromEntity);
+        if (fromTransform == null) return null;
+
+        Entity? nearest = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (var (entity, building) in _world.Query<BuildingComponent>())
+        {
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = (transform.Position - fromTransform.Position).Length;
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearest = entity;
+            }
+        }
+
+        return nearest;
+    }
+
+    // ── Ship Control Commands ─────────────────────────────────────────────────
+
+    /// <summary>Stop all selected ships (clear PathTarget and waypoints).</summary>
+    private void HandleStopCommand()
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null)
+            {
+                movement.PathTarget = null;
+                movement.Velocity = Vector3.Zero;
+            }
+
+            var waypoints = _world.GetComponent<WaypointQueueComponent>(entity);
+            if (waypoints != null)
+            {
+                waypoints.Waypoints.Clear();
+                waypoints.CurrentIndex = 0;
+                waypoints.Patrol = false;
+            }
+        }
+    }
+
+    /// <summary>Attack-move: move to position with aggressive auto-engage.</summary>
+    private void HandleAttackMoveCommand(Vector3 worldPos)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null)
+                movement.PathTarget = worldPos;
+
+            // Ensure entity has combat and stance components for aggressive behavior
+            var stance = _world.GetComponent<StanceComponent>(entity);
+            if (stance != null)
+                stance.CurrentStance = Stance.Aggressive;
+            else
+                _world.AddComponent(entity, new StanceComponent { CurrentStance = Stance.Aggressive });
+
+            // Ensure combat target component exists
+            if (!_world.HasComponent<CombatTargetComponent>(entity))
+                _world.AddComponent(entity, new CombatTargetComponent { Faction = 1 });
+        }
+
+        _moveTargetPosition = worldPos;
+        _moveTargetTimer = 2f;
+    }
+
+    /// <summary>Patrol: set waypoint loop between current position and target.</summary>
+    private void HandlePatrolCommand(Vector3 worldPos)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            var waypoints = _world.GetComponent<WaypointQueueComponent>(entity);
+            if (waypoints == null)
+            {
+                waypoints = new WaypointQueueComponent();
+                _world.AddComponent(entity, waypoints);
+            }
+
+            waypoints.Waypoints.Clear();
+            waypoints.Waypoints.Add(worldPos);
+            waypoints.Waypoints.Add(transform.Position);
+            waypoints.CurrentIndex = 0;
+            waypoints.Patrol = true;
+
+            // Start moving toward first waypoint
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null)
+                movement.PathTarget = worldPos;
+        }
+
+        _moveTargetPosition = worldPos;
+        _moveTargetTimer = 2f;
+    }
+
+    /// <summary>Set combat stance for all selected entities.</summary>
+    private void SetSelectedStance(Stance stance)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var stanceComp = _world.GetComponent<StanceComponent>(entity);
+            if (stanceComp != null)
+                stanceComp.CurrentStance = stance;
+            else
+                _world.AddComponent(entity, new StanceComponent { CurrentStance = stance });
+        }
+    }
+
+    /// <summary>Activate hero ability at given slot index.</summary>
+    private void ActivateAbility(int slot)
+    {
+        if (_world == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var abilities = _world.GetComponent<AbilityListComponent>(entity);
+            if (abilities == null) continue;
+
+            var ability = abilities.GetBySlot(slot);
+            ability?.Activate();
+        }
+    }
+
+    /// <summary>Assign currently selected entities to a control group.</summary>
+    private void AssignControlGroup(int group)
+    {
+        if (_world == null) return;
+
+        var entities = new List<Entity>();
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (sel.IsSelected)
+                entities.Add(entity);
+        }
+
+        _controlGroups[group] = entities;
+    }
+
+    /// <summary>Recall a control group (select those entities).</summary>
+    private void RecallControlGroup(int group)
+    {
+        if (_world == null) return;
+
+        if (!_controlGroups.TryGetValue(group, out var entities))
+            return;
+
+        // Deselect all first
+        foreach (var (_, sel) in _world.Query<SelectionComponent>())
+            sel.IsSelected = false;
+
+        // Select group members (skip dead entities)
+        foreach (var entity in entities)
+        {
+            if (!_world.IsAlive(entity)) continue;
+            var sel = _world.GetComponent<SelectionComponent>(entity);
+            if (sel != null)
+                sel.IsSelected = true;
+        }
+    }
+
+    // ── Building/Production Commands ──────────────────────────────────────────
+
+    /// <summary>
+    /// Called when a build button is clicked in the BuildPanel UI.
+    /// </summary>
+    private void OnBuildPanelBuildRequested(string defId)
+    {
+        if (_world == null || _resourceManager == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null || !building.Producible.Contains(defId)) continue;
+
+            TryEnqueueBuild(building, defId);
+            return;
+        }
+    }
+
+    /// <summary>
+    /// Queue the first producible item from any selected building.
+    /// Deducts resources immediately via ResourceManager.
+    /// </summary>
+    private void HandleBuildCommand()
+    {
+        if (_world == null || _resourceManager == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null || building.Producible.Count == 0) continue;
+
+            // Build the first producible item (UI will allow choosing later)
+            if (TryEnqueueBuild(building, building.Producible[0]))
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Shared logic: check supply + resources, deduct, and enqueue a build item.
+    /// Returns true if successfully enqueued.
+    /// </summary>
+    private bool TryEnqueueBuild(BuildingComponent building, string defId)
+    {
+        if (_resourceManager == null) return false;
+        if (!_definitions.TryGetValue(defId, out var def)) return false;
+
+        int energy = def.Cost?.Energy ?? 0;
+        int minerals = def.Cost?.Minerals ?? 0;
+        int data = def.Cost?.Data ?? 0;
+        int crew = def.Cost?.Crew ?? 0;
+
+        if (_supplySystem != null && crew > 0 &&
+            !_supplySystem.CanAffordSupply(building.PlayerId, crew))
+        {
+            Console.WriteLine($"[Build] Supply cap reached, cannot build {def.DisplayName}");
+            return false;
+        }
+
+        if (!_resourceManager.TrySpendCost(building.PlayerId, energy, minerals, data, crew))
+        {
+            Console.WriteLine($"[Build] Cannot afford {def.DisplayName}");
+            return false;
+        }
+
+        if (_supplySystem != null && crew > 0)
+            _supplySystem.ConsumeSupply(building.PlayerId, crew);
+
+        building.BuildQueue.Enqueue(defId);
+        Console.WriteLine($"[Build] Queued {def.DisplayName} at {building.BuildingType} " +
+                          $"(queue: {building.BuildQueue.Count})");
+        return true;
+    }
+
+    /// <summary>Set rally point for selected building to current move target.</summary>
+    private void HandleSetRallyPoint()
+    {
+        if (_world == null) return;
+
+        // Set rally point to current mouse position
+        Vector3? worldPos = ScreenToWorld(MousePosition);
+        if (worldPos == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null) continue;
+
+            building.RallyPoint = worldPos.Value;
+            Console.WriteLine($"[Rally] Set rally point for {building.BuildingType}");
+        }
+    }
+
+    // ── Building Placement ────────────────────────────────────────────────────
+
+    /// <summary>Available buildings the player can place.</summary>
+    private static readonly string[] PlaceableBuildings =
+        ["command_center", "shipyard"];
+
+    private int _placementIndex;
+
+    /// <summary>Enter building placement mode, cycling through available buildings.</summary>
+    private void EnterPlacementMode()
+    {
+        _placementIndex = (_placementIndex + 1) % PlaceableBuildings.Length;
+        _placementBuildingId = PlaceableBuildings[_placementIndex];
+        _attackMoveMode = false;
+        _patrolMode = false;
+        Console.WriteLine($"[Place] Click to place: {_placementBuildingId} (press N to cycle, right-click to cancel)");
+    }
+
+    /// <summary>Place a building at the given world position.</summary>
+    private void HandlePlaceBuilding(Vector3 worldPos)
+    {
+        if (_world == null || _resourceManager == null || _placementBuildingId == null) return;
+
+        if (!_definitions.TryGetValue(_placementBuildingId, out var def))
+        {
+            Console.WriteLine($"[Place] Unknown building: {_placementBuildingId}");
+            return;
+        }
+
+        // Check cost
+        int energy = def.Cost?.Energy ?? 0;
+        int minerals = def.Cost?.Minerals ?? 0;
+        int data = def.Cost?.Data ?? 0;
+        int crew = def.Cost?.Crew ?? 0;
+
+        if (!_resourceManager.TrySpendCost(1, energy, minerals, data, crew))
+        {
+            Console.WriteLine($"[Place] Cannot afford {def.DisplayName}");
+            return;
+        }
+
+        // Spawn building at position
+        var building = _world.CreateEntity();
+        _world.AddComponent(building, new TransformComponent
+        {
+            Position = worldPos,
+            Scale = new Vector3(15f, 15f, 15f),
+        });
+        _world.AddComponent(building, new RenderComponent
+        {
+            MeshId = _baseVao,
+            VertexCount = _baseVertCount,
+            Color = new Vector4(0.3f, 0.7f, 1.0f, 1f),
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Lines,
+        });
+        _world.AddComponent(building, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = 15f,
+        });
+
+        var healthDef = def.Components?.Health;
+        _world.AddComponent(building, new HealthComponent
+        {
+            MaxHP = healthDef?.MaxHP ?? 1000f,
+            CurrentHP = healthDef?.MaxHP ?? 1000f,
+            Armor = healthDef?.Armor ?? 50f,
+        });
+
+        var buildingDef = def.Components?.Building;
+        _world.AddComponent(building, new BuildingComponent
+        {
+            BuildingType = buildingDef?.BuildingType ?? _placementBuildingId,
+            ProductionRate = buildingDef?.ProductionRate ?? 1f,
+            Footprint = buildingDef?.Footprint ?? [2, 2],
+            PlayerId = 1,
+            RallyPoint = worldPos + new Vector3(30f, 0f, 0f),
+            Producible = def.Producible?.ToList() ?? new List<string>(),
+        });
+
+        Console.WriteLine($"[Place] Built {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
     }
 
     /// <summary>
@@ -921,6 +1707,131 @@ public class EngineWindow : GameWindow
             _resourceManager.GetDisplay(1, ResourceType.Crew),
         };
         hud.ResourceBar.Resources = displays;
+    }
+
+    /// <summary>Bind build panel data when a building is selected.</summary>
+    private void BindBuildPanel()
+    {
+        if (_world == null || _resourceManager == null) return;
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        // Find first selected building
+        BuildingComponent? selectedBuilding = null;
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building != null && building.Producible.Count > 0)
+            {
+                selectedBuilding = building;
+                break;
+            }
+        }
+
+        if (selectedBuilding == null)
+        {
+            hud.BuildPanel.Visible = false;
+            return;
+        }
+
+        hud.BuildPanel.Visible = true;
+        hud.BuildPanel.BuildingName = selectedBuilding.BuildingType.Replace("_", " ");
+
+        // Supply info
+        if (_supplySystem != null)
+        {
+            int used = _supplySystem.GetUsed(selectedBuilding.PlayerId);
+            int cap = _supplySystem.GetCap(selectedBuilding.PlayerId);
+            hud.BuildPanel.SupplyText = $"{used} / {cap}";
+        }
+
+        // Available items
+        var items = new List<BuildableItem>();
+        foreach (string defId in selectedBuilding.Producible)
+        {
+            if (!_definitions.TryGetValue(defId, out var def)) continue;
+            var playerRes = _resourceManager.GetPlayer(selectedBuilding.PlayerId);
+
+            bool canAfford = playerRes != null &&
+                playerRes.GetAmount(ResourceType.Energy) >= (def.Cost?.Energy ?? 0) &&
+                playerRes.GetAmount(ResourceType.Minerals) >= (def.Cost?.Minerals ?? 0) &&
+                playerRes.GetAmount(ResourceType.Data) >= (def.Cost?.Data ?? 0) &&
+                playerRes.GetAmount(ResourceType.Crew) >= (def.Cost?.Crew ?? 0);
+
+            items.Add(new BuildableItem
+            {
+                Id = def.Id,
+                Name = def.DisplayName,
+                EnergyCost = def.Cost?.Energy ?? 0,
+                MineralsCost = def.Cost?.Minerals ?? 0,
+                DataCost = def.Cost?.Data ?? 0,
+                CrewCost = def.Cost?.Crew ?? 0,
+                BuildTime = def.BuildTime,
+                CanAfford = canAfford,
+            });
+        }
+        hud.BuildPanel.AvailableItems = items;
+
+        // Queue
+        var queueItems = new List<QueuedItem>();
+        int qIdx = 0;
+        foreach (string qItem in selectedBuilding.BuildQueue)
+        {
+            float progress = 0f;
+            if (qIdx == 0 && selectedBuilding.BuildProgress > 0)
+            {
+                var qDef = _definitions.GetValueOrDefault(qItem);
+                float totalTime = qDef?.BuildTime ?? 1f;
+                progress = selectedBuilding.BuildProgress / totalTime;
+            }
+            string name = _definitions.TryGetValue(qItem, out var d) ? d.DisplayName : qItem;
+            queueItems.Add(new QueuedItem { Name = name, Progress = progress });
+            qIdx++;
+        }
+        hud.BuildPanel.Queue = queueItems;
+    }
+
+    /// <summary>Bind unit info panel data for selected units (including miner cargo).</summary>
+    private void BindUnitInfoPanel()
+    {
+        if (_world == null) return;
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        var unitInfos = new List<UnitInfo>();
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            if (unitInfos.Count >= 6) break;
+
+            var health = _world.GetComponent<HealthComponent>(entity);
+            string name = "Unit";
+
+            // Determine name from components
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building != null)
+                name = building.BuildingType.Replace("_", " ");
+            else
+            {
+                var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+                if (collector != null)
+                {
+                    string cargoInfo = collector.CarryAmount > 0
+                        ? $" [{collector.CarryAmount:0}/{collector.CarryCapacity:0}]"
+                        : "";
+                    name = $"Miner{cargoInfo} ({collector.State})";
+                }
+                else
+                {
+                    var hero = _world.GetComponent<HeroComponent>(entity);
+                    name = hero != null ? "Hero Ship" : "Ship";
+                }
+            }
+
+            if (health != null)
+                unitInfos.Add(UnitInfo.FromHealth(name, health));
+        }
+
+        hud.UnitInfoPanel.SelectedUnits = unitInfos;
     }
 
     /// <summary>

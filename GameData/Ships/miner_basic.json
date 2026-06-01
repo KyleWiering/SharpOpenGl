@@ -1,0 +1,18 @@
+{
+  "id": "miner_basic",
+  "displayName": "Mining Barge",
+  "category": "miner",
+  "mesh": "meshes/miner_basic.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 150, "shields": 0, "armor": 20 },
+    "movement": { "speed": 45, "acceleration": 60, "turnRate": 120 },
+    "weapons": [],
+    "resourceCollector": {
+      "carryCapacity": 100,
+      "harvestRate": 15
+    }
+  },
+  "cost": { "energy": 60, "minerals": 100, "data": 0, "crew": 2 },
+  "buildTime": 20
+}

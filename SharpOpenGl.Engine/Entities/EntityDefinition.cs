@@ -63,6 +63,13 @@ public sealed class SquadMemberDefinition
     public float[]? FormationOffset { get; set; }
 }
 
+/// <summary>JSON shape for a resource collector block.</summary>
+public sealed class ResourceCollectorDefinition
+{
+    public float CarryCapacity { get; set; } = 50f;
+    public float HarvestRate   { get; set; } = 5f;
+}
+
 /// <summary>JSON shape for a building block.</summary>
 public sealed class BuildingDefinition
 {
@@ -82,6 +89,7 @@ public sealed class ComponentsDefinition
     public HeroDefinition?        Hero        { get; set; }
     public SquadMemberDefinition? SquadMember { get; set; }
     public BuildingDefinition?    Building    { get; set; }
+    public ResourceCollectorDefinition? ResourceCollector { get; set; }
 }
 
 // ── Root DTO ──────────────────────────────────────────────────────────────────
@@ -118,6 +126,12 @@ public sealed class EntityDefinition
 
     /// <summary>Seconds required to build/spawn this entity.</summary>
     public float BuildTime { get; set; }
+
+    /// <summary>
+    /// List of entity definition IDs that this building can produce.
+    /// Only relevant for building-type entities (shipyard, command center).
+    /// </summary>
+    public List<string>? Producible { get; set; }
 
     // JSON comment fields are ignored automatically (AllowTrailingCommas + SkipComments).
 }

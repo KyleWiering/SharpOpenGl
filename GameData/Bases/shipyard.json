@@ -1,0 +1,26 @@
+{
+  "id": "shipyard",
+  "displayName": "Shipyard",
+  "category": "base",
+  "mesh": "meshes/shipyard.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 1500, "shields": 0, "armor": 75 },
+    "building": {
+      "buildingType": "shipyard",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 3]
+    }
+  },
+  "cost": { "energy": 200, "minerals": 300, "data": 50, "crew": 5 },
+  "buildTime": 45,
+  "producible": [
+    "fighter_basic",
+    "bomber_heavy",
+    "destroyer_assault",
+    "scout_light",
+    "miner_basic",
+    "transport_cargo"
+  ]
+}
