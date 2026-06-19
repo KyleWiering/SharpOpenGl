@@ -33,7 +33,8 @@ public class GameplayHUDInputTests
         var hud = new GameplayHUD();
         bool paused = false;
         hud.PauseRequested += () => paused = true;
-        var tap = new Vector2(1860f, 28f);
+        // Pause button: TopRight (-72, 8), size 56×40 → centre ≈ (1820, 28).
+        var tap = new Vector2(1820f, 28f);
         bool consumed = hud.HandlePointerTapped(tap, 0, ReferenceViewport);
         Assert.True(consumed);
         Assert.True(paused);

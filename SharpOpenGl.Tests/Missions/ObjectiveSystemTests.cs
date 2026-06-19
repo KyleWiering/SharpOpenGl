@@ -41,7 +41,7 @@ public class ObjectiveSystemTests
     // ── destroy_target ────────────────────────────────────────────────────────
 
     [Fact]
-    public void DestroyTarget_completes_when_entity_not_in_registry()
+    public void DestroyTarget_incomplete_when_entity_not_in_registry()
     {
         var (state, bus, system, world) = Setup(
         [
@@ -54,7 +54,7 @@ public class ObjectiveSystemTests
         // No entity registered yet → objective should stay incomplete.
         system.Update(world, 0.016f);
 
-        Assert.True(state.PrimaryObjectives[0].IsCompleted);
+        Assert.False(state.PrimaryObjectives[0].IsCompleted);
     }
 
     [Fact]
@@ -185,7 +185,11 @@ public class ObjectiveSystemTests
             }
         ]);
 
-        // No entity tag → completes immediately.
+        Entity enemy = world.CreateEntity();
+        state.EntityTags["enemy_1"] = enemy;
+        world.DestroyEntity(enemy);
+
+         → completes immediately.
         ObjectiveChangedEvent? evt = null;
         bus.Subscribe<ObjectiveChangedEvent>(e => evt = e);
 
@@ -208,6 +212,10 @@ public class ObjectiveSystemTests
                 Id = "kill_it", Type = "destroy_target", Target = "enemy_1"
             }
         ]);
+
+        Entity enemy = world.CreateEntity();
+        state.EntityTags["enemy_1"] = enemy;
+        world.DestroyEntity(enemy);
 
         MissionVictoryEvent? evt = null;
         bus.Subscribe<MissionVictoryEvent>(e => evt = e);
