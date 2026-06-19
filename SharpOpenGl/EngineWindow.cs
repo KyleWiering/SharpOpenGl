@@ -22,7 +22,7 @@ namespace SharpOpenGl;
 /// <summary>
 /// Main RTS game window. Manages scene transitions between main menu and gameplay.
 /// </summary>
-public class EngineWindow : GameWindow
+public partial class EngineWindow : GameWindow
 {
     private RTSCameraController _rtsCamera = null!;
     private EnvironmentController _environment = null!;
