@@ -1,17 +1,13 @@
-using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
 namespace SharpOpenGl.Engine.Rendering;
 
 /// <summary>
-/// Loads Wavefront .obj files into <see cref="ObjMeshData"/> (pure parse, no GL)
-/// and optionally uploads the data to the GPU.
+/// Loads Wavefront .obj files into <see cref="ObjMeshData"/> (pure parse, no GL).
 /// Supported .obj features: v, vn, f (triangles and quads, v/vt/vn syntax).
 /// </summary>
 public static class ObjMeshLoader
 {
-    // ── Public API ────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Parse a .obj file into vertex data.
     /// Returns <c>null</c> if the file is missing or contains no triangles.
@@ -53,44 +49,8 @@ public static class ObjMeshLoader
         return new ObjMeshData(outVerts.ToArray(), path, name);
     }
 
-    /// <summary>
-    /// Upload parsed mesh data to the GPU and return (vao, vbo, vertexCount).
-    /// Must be called from a thread with an active GL context.
-    /// Caller is responsible for cleanup via <see cref="MeshBuilder.DeleteMesh"/>.
-    /// </summary>
-    public static (int vao, int vbo, int vertexCount) Upload(ObjMeshData data)
-    {
-        int vertexCount = data.VertexCount;
-        int vao = GL.GenVertexArray();
-        GL.BindVertexArray(vao);
-
-        int vbo = GL.GenBuffer();
-        GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-        GL.BufferData(BufferTarget.ArrayBuffer,
-            data.Vertices.Length * sizeof(float),
-            data.Vertices,
-            BufferUsageHint.StaticDraw);
-
-        const int stride = ObjMeshData.Stride * sizeof(float);
-
-        // layout(location=0) vec3 position
-        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, 0);
-        GL.EnableVertexAttribArray(0);
-
-        // layout(location=1) vec3 normal  (re-using the "color" attribute slot)
-        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false,
-            stride, 3 * sizeof(float));
-        GL.EnableVertexAttribArray(1);
-
-        GL.BindVertexArray(0);
-        return (vao, vbo, vertexCount);
-    }
-
-    // ── Parsing helpers ───────────────────────────────────────────────────────
-
     private static Vector3 ParseVec3(string line)
     {
-        // tokens: ["v"|"vn", x, y, z]
         string[] t = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         float x = float.Parse(t[1], System.Globalization.CultureInfo.InvariantCulture);
         float y = float.Parse(t[2], System.Globalization.CultureInfo.InvariantCulture);
@@ -104,15 +64,13 @@ public static class ObjMeshLoader
         List<Vector3> normals,
         List<float> outVerts)
     {
-        // tokens: ["f", "v1[/vt1[/vn1]]", "v2…", "v3…" , "v4…"(optional)]
         string[] tokens = line.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        int faceCount = tokens.Length - 1; // number of corner indices
+        int faceCount = tokens.Length - 1;
 
         var corners = new (int posIdx, int normIdx)[faceCount];
         for (int i = 0; i < faceCount; i++)
             corners[i] = ParseFaceCorner(tokens[i + 1]);
 
-        // Fan-triangulate: works for convex polygons (triangles and quads)
         for (int i = 1; i < faceCount - 1; i++)
         {
             Emit(corners[0],   positions, normals, outVerts);
@@ -124,7 +82,7 @@ public static class ObjMeshLoader
     private static (int posIdx, int normIdx) ParseFaceCorner(string token)
     {
         string[] parts = token.Split('/');
-        int posIdx  = int.Parse(parts[0]) - 1; // OBJ is 1-based
+        int posIdx  = int.Parse(parts[0]) - 1;
         int normIdx = parts.Length >= 3 && parts[2].Length > 0
             ? int.Parse(parts[2]) - 1
             : -1;

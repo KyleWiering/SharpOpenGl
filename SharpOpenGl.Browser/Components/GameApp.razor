@@ -1,0 +1,60 @@
+@inject IJSRuntime JS
+@inject HttpClient Http
+@implements IAsyncDisposable
+
+<div id="game-root">
+    <canvas id="gl-canvas"></canvas>
+    <canvas id="ui-canvas"
+            @onmousedown="OnMouseDown"
+            @ontouchstart="OnTouchStart"
+            @ontouchstart:preventDefault="true"></canvas>
+</div>
+
+@code {
+    private BrowserGameHost? _host;
+    private DotNetObjectReference<GameApp>? _dotNetRef;
+    private bool _started;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _started) return;
+        _started = true;
+
+        var assetSource = new HttpAssetTextSource(Http);
+        var uiRenderer = new CanvasUIRenderer(JS);
+        var sceneRenderer = new WebGlSceneRenderer(JS);
+        _host = new BrowserGameHost(uiRenderer, sceneRenderer, assetSource);
+
+        int width = await JS.InvokeAsync<int>("eval", "Math.max(1, window.innerWidth)");
+        int height = await JS.InvokeAsync<int>("eval", "Math.max(1, window.innerHeight)");
+        await _host.InitializeAsync(width, height);
+
+        _dotNetRef = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("sharpLoop.start", _dotNetRef);
+        await JS.InvokeVoidAsync("sharpGameInput.attach", _dotNetRef);
+    }
+
+    [JSInvokable]
+    public void OnFrame(float deltaTime) => _host?.OnFrame(deltaTime);
+
+    [JSInvokable]
+    public void OnKey(string key) => _host?.HandleKey(key);
+
+    private void OnMouseDown(MouseEventArgs e) =>
+        _host?.HandlePointer((int)e.OffsetX, (int)e.OffsetY, true);
+
+    private void OnTouchStart(TouchEventArgs e)
+    {
+        if (e.Touches.Length == 0) return;
+        var t = e.Touches[0];
+        _host?.HandlePointer((int)t.ClientX, (int)t.ClientY, true);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        _ = JS.InvokeVoidAsync("sharpLoop.stop");
+        _host?.Dispose();
+        _dotNetRef?.Dispose();
+        return ValueTask.CompletedTask;
+    }
+}

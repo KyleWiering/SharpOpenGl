@@ -5,6 +5,8 @@
 
 ## 🎮 [Live Demo](https://kylewiering.github.io/SharpOpenGl/)
 
+The GitHub Pages site runs the **same C# game** as the desktop build (`SharpOpenGl.Browser` — Blazor WebAssembly + `SharpOpenGl.Engine`). Menus, mission select, briefing, ECS gameplay, and `GameData/` JSON all come from the shared engine library. CI publishes the WASM build to `docs/` on every push to `master`.
+
 ## Introduction
 
 A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 8, featuring an Entity Component System (ECS) architecture, procedural map generation, A* pathfinding, fog of war, and data-driven ship/mission definitions.
@@ -12,11 +14,11 @@ A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 
 > **AI assistants:** Read [`AGENTS.md`](AGENTS.md) first for architecture, conventions, and CI workflow. Keep it updated per [`.cursor/rules/ai-documentation.mdc`](.cursor/rules/ai-documentation.mdc).
 
 - **.NET 8** SDK-style project
-- **OpenTK 4.8** with GameWindow (cross-platform)
-- **Modern OpenGL 3.3+** (shaders, VAOs, VBOs)
+- **OpenTK 4.8** with GameWindow (cross-platform desktop)
+- **Blazor WebAssembly** browser build sharing `SharpOpenGl.Engine`
+- **Modern OpenGL 3.3+** desktop / **WebGL2** browser rendering
 - **ECS Architecture** with component pools, systems, and event bus
 - **Data-driven content** via JSON definitions in `GameData/`
-- **WebGL2** browser-based rendering via GitHub Pages
 - **GitHub Actions CI/CD** with automated screenshot verification
 
 ## Prerequisites
@@ -25,11 +27,18 @@ A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 
 
 ## Build & Run
 
+**Desktop:**
 ```bash
 dotnet restore
 dotnet build
 dotnet run --project SharpOpenGl
 ```
+
+**Browser (local):**
+```bash
+dotnet run --project SharpOpenGl.Browser
+```
+Then open the URL shown in the terminal (typically `https://localhost:7xxx`).
 
 ## Run Tests
 
@@ -41,10 +50,12 @@ dotnet test
 
 | Directory | Description |
 |-----------|-------------|
-| `SharpOpenGl/` | Main executable — window, camera, input, rendering |
+| `SharpOpenGl/` | Desktop executable — OpenTK window, camera, input, rendering |
+| `SharpOpenGl.Browser/` | Blazor WASM — same engine, WebGL2 + canvas UI |
 | `SharpOpenGl.Engine/` | Core engine — ECS, Grid, UI, Missions, Persistence |
 | `SharpOpenGl.Tests/` | xUnit test suite |
 | `GameData/` | JSON content — ships, maps, missions, config |
+| `docs/` | GitHub Pages deploy target (WASM publish output + guides) |
 | `AGENTS.md` | AI agent context — architecture map and conventions |
 
 ## Game Features

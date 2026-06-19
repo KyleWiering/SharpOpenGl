@@ -1,16 +1,14 @@
 using OpenTK.Graphics.OpenGL4;
 
-namespace SharpOpenGl.Engine.Rendering;
+namespace SharpOpenGl.Rendering;
 
 /// <summary>
 /// Compiles, links, and caches OpenGL shader programs.
-/// Extracted from EngineWindow so it can be reused across subsystems.
 /// </summary>
 public class ShaderManager : IDisposable
 {
     private readonly List<int> _programs = new();
 
-    /// <summary>Compile vertex and fragment sources into a linked program.</summary>
     public int CreateProgram(string vertexSource, string fragmentSource)
     {
         int vs = CompileShader(ShaderType.VertexShader, vertexSource);
@@ -29,7 +27,6 @@ public class ShaderManager : IDisposable
         return program;
     }
 
-    /// <summary>Returns the location of a uniform variable in the given program.</summary>
     public static int GetUniform(int program, string name) =>
         GL.GetUniformLocation(program, name);
 
