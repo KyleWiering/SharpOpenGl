@@ -846,6 +846,13 @@ public partial class EngineWindow : GameWindow
                 HandlePatrolCommand(worldPos.Value);
                 _patrolMode = false;
             }
+            else if (_moveCommandMode)
+            {
+                HandleMoveCommand(worldPos.Value);
+                _moveCommandMode = false;
+                if (_uiManager.Current is GameplayHUD moveHud)
+                    moveHud.ShipControlBar.ClearActiveCommand();
+            }
             else
             {
                 HandleSelection(worldPos.Value);
@@ -856,7 +863,10 @@ public partial class EngineWindow : GameWindow
             // Cancel special modes on right-click
             _attackMoveMode = false;
             _patrolMode = false;
+            _moveCommandMode = false;
             _placementBuildingId = null;
+            if (_uiManager.Current is GameplayHUD cancelHud)
+                cancelHud.ShipControlBar.ClearActiveCommand();
             HandleMoveCommand(worldPos.Value);
         }
     }
