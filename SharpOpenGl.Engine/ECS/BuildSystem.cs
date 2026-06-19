@@ -12,6 +12,12 @@ public sealed class BuildSystem : GameSystem
     private readonly UnitFactory _factory;
     private readonly Func<string, EntityDefinition?> _definitionLoader;
 
+    /// <summary>
+    /// Optional hook invoked after a unit spawns so the game layer can assign meshes,
+    /// selection, and player ownership.
+    /// </summary>
+    public Action<World, Entity, Entity, BuildingComponent, EntityDefinition>? OnUnitSpawned { get; set; }
+
     /// <param name="factory">Factory for creating spawned entities.</param>
     /// <param name="definitionLoader">
     /// Function that resolves a definition ID to its <see cref="EntityDefinition"/>.
@@ -30,15 +36,12 @@ public sealed class BuildSystem : GameSystem
         {
             if (building.BuildQueue.Count == 0) continue;
 
-            // Advance build progress
             building.BuildProgress += deltaTime * building.ProductionRate;
 
-            // Check if current item is complete
             string currentId = building.BuildQueue.Peek();
             var def = _definitionLoader(currentId);
             if (def == null)
             {
-                // Unknown definition — skip this item
                 building.BuildQueue.Dequeue();
                 building.BuildProgress = 0f;
                 continue;
@@ -46,10 +49,8 @@ public sealed class BuildSystem : GameSystem
 
             if (building.BuildProgress >= def.BuildTime)
             {
-                // Item complete — spawn entity
                 building.BuildQueue.Dequeue();
                 building.BuildProgress = 0f;
-
                 SpawnCompletedUnit(world, entity, building, def);
             }
         }
@@ -60,19 +61,18 @@ public sealed class BuildSystem : GameSystem
     {
         Entity spawned = _factory.Create(world, def);
 
-        // Position near the building
         var buildingTransform = world.GetComponent<TransformComponent>(buildingEntity);
-        if (buildingTransform != null)
+        var spawnTransform = world.GetComponent<TransformComponent>(spawned);
+        if (buildingTransform != null && spawnTransform != null)
         {
-            var spawnTransform = world.GetComponent<TransformComponent>(spawned);
-            if (spawnTransform != null)
-            {
-                // Offset spawn position slightly from building
-                spawnTransform.Position = buildingTransform.Position + new Vector3(20f, 0f, 0f);
-            }
+            Vector3 exitOffset = building.RallyPoint.HasValue
+                ? (building.RallyPoint.Value - buildingTransform.Position).Normalized() * 35f
+                : new Vector3(35f, 0f, 0f);
+            if (exitOffset.LengthSquared < 1f)
+                exitOffset = new Vector3(35f, 0f, 0f);
+            spawnTransform.Position = buildingTransform.Position + exitOffset;
         }
 
-        // Send to rally point if set
         if (building.RallyPoint.HasValue)
         {
             var movement = world.GetComponent<MovementComponent>(spawned);
@@ -80,12 +80,13 @@ public sealed class BuildSystem : GameSystem
                 movement.PathTarget = building.RallyPoint.Value;
         }
 
-        // If it's a miner and building has a deposit target setup, assign it
         var collector = world.GetComponent<ResourceCollectorComponent>(spawned);
         if (collector != null)
         {
             collector.PlayerId = building.PlayerId;
             collector.DepositTarget = buildingEntity;
         }
+
+        OnUnitSpawned?.Invoke(world, spawned, buildingEntity, building, def);
     }
 }

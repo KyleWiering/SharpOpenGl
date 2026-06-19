@@ -41,7 +41,7 @@ public class ObjectiveSystemTests
     // ── destroy_target ────────────────────────────────────────────────────────
 
     [Fact]
-    public void DestroyTarget_completes_when_entity_not_in_registry()
+    public void DestroyTarget_incomplete_when_entity_not_in_registry()
     {
         var (state, bus, system, world) = Setup(
         [
@@ -51,10 +51,10 @@ public class ObjectiveSystemTests
             }
         ]);
 
-        // No entity registered → tag absent → objective should complete immediately.
+        // No entity registered yet → objective should stay incomplete.
         system.Update(world, 0.016f);
 
-        Assert.True(state.PrimaryObjectives[0].IsCompleted);
+        Assert.False(state.PrimaryObjectives[0].IsCompleted);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public class ObjectiveSystemTests
     public void Collect_completes_when_resource_threshold_reached()
     {
         var resources = new ResourceManager();
-        var player    = resources.AddPlayer(0);
+        var player    = resources.AddPlayer(1);
         player.Add(ResourceType.Energy, 600f);
 
         var (state, bus, system, world) = Setup(
@@ -156,7 +156,7 @@ public class ObjectiveSystemTests
     public void Collect_incomplete_when_below_threshold()
     {
         var resources = new ResourceManager();
-        var player    = resources.AddPlayer(0);
+        var player    = resources.AddPlayer(1);
         player.Add(ResourceType.Energy, 100f);
 
         var (state, bus, system, world) = Setup(
@@ -185,7 +185,9 @@ public class ObjectiveSystemTests
             }
         ]);
 
-        // No entity tag → completes immediately.
+        Entity enemy = world.CreateEntity();
+        state.EntityTags["enemy_1"] = enemy;
+        world.DestroyEntity(enemy);
         ObjectiveChangedEvent? evt = null;
         bus.Subscribe<ObjectiveChangedEvent>(e => evt = e);
 
@@ -208,6 +210,10 @@ public class ObjectiveSystemTests
                 Id = "kill_it", Type = "destroy_target", Target = "enemy_1"
             }
         ]);
+
+        Entity enemy = world.CreateEntity();
+        state.EntityTags["enemy_1"] = enemy;
+        world.DestroyEntity(enemy);
 
         MissionVictoryEvent? evt = null;
         bus.Subscribe<MissionVictoryEvent>(e => evt = e);

@@ -1,3 +1,5 @@
+using SharpOpenGl.Engine.ECS;
+
 namespace SharpOpenGl.Engine.Missions;
 
 /// <summary>
@@ -47,11 +49,13 @@ public sealed class MissionState
     // ── Entity tag registry ───────────────────────────────────────────────────
 
     /// <summary>
-    /// Maps named entity tags (from mission JSON) to live <see cref="ECS.Entity"/> handles.
-    /// Populated by <see cref="MissionController"/> at mission start and updated
-    /// as scripted events spawn or destroy entities.
+    /// Maps named entity tags (from mission JSON) to live <see cref="Entity"/> handles.
+    /// Populated at mission start and updated as scripted events spawn entities.
     /// </summary>
-    public Dictionary<string, ECS.Entity> EntityTags { get; } = new();
+    public Dictionary<string, Entity> EntityTags { get; } = new();
+
+    /// <summary>Maps tags to all entities sharing that tag (for destroy-all objectives).</summary>
+    public Dictionary<string, HashSet<Entity>> EntityGroups { get; } = new();
 
     // ── Construction ──────────────────────────────────────────────────────────
 
@@ -66,10 +70,16 @@ public sealed class MissionState
         if (definition.Objectives != null)
         {
             foreach (var objDef in definition.Objectives.Primary)
+            {
+                NormalizeObjective(objDef);
                 primary.Add(new ObjectiveProgress(objDef, isPrimary: true));
+            }
 
             foreach (var objDef in definition.Objectives.Secondary)
+            {
+                NormalizeObjective(objDef);
                 secondary.Add(new ObjectiveProgress(objDef, isPrimary: false));
+            }
         }
 
         PrimaryObjectives   = primary;
@@ -96,4 +106,42 @@ public sealed class MissionState
     /// </summary>
     public TriggerProgress? FindTrigger(string id) =>
         Triggers.FirstOrDefault(t => t.Definition.Id == id);
+
+    /// <summary>Register an entity under a mission tag (supports groups).</summary>
+    public void RegisterEntityTag(string tag, Entity entity)
+    {
+        EntityTags[tag] = entity;
+        if (!EntityGroups.TryGetValue(tag, out HashSet<Entity>? group))
+        {
+            group = new HashSet<Entity>();
+            EntityGroups[tag] = group;
+        }
+        group.Add(entity);
+    }
+
+    /// <summary>
+    /// Convert JSON position/area fields into the runtime condition string
+    /// expected by <see cref="ObjectiveSystem"/>.
+    /// </summary>
+    public static void NormalizeObjective(ObjectiveDefinition def)
+    {
+        if (def.Type != "reach_area" || !string.IsNullOrEmpty(def.Condition))
+            return;
+
+        if (def.Area != null)
+        {
+            def.Condition = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "{0},{1},{2}", def.Area.X, def.Area.Y, def.Area.Radius);
+            return;
+        }
+
+        if (def.Position != null && def.Position.Length >= 2)
+        {
+            float radius = def.Radius > 0f ? def.Radius : 5f;
+            def.Condition = string.Format(
+                System.Globalization.CultureInfo.InvariantCulture,
+                "{0},{1},{2}", def.Position[0], def.Position[1], radius);
+        }
+    }
 }

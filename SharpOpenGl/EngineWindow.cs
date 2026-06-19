@@ -22,7 +22,7 @@ namespace SharpOpenGl;
 /// <summary>
 /// Main RTS game window. Manages scene transitions between main menu and gameplay.
 /// </summary>
-public class EngineWindow : GameWindow
+public partial class EngineWindow : GameWindow
 {
     private RTSCameraController _rtsCamera = null!;
     private EnvironmentController _environment = null!;
@@ -185,6 +185,9 @@ public class EngineWindow : GameWindow
         var menu = new MainMenuScreen();
         menu.NewGameRequested += ShowMissionSelect;
         menu.MultiplayerRequested += ShowMultiplayerSetup;
+        menu.ContinueRequested += ContinueSavedGame;
+        menu.ShipDesignerRequested += ShowShipDesigner;
+        menu.SettingsRequested += ShowSettings;
         menu.QuitRequested += () => Close();
         _uiManager.Push(menu);
     }
@@ -200,8 +203,8 @@ public class EngineWindow : GameWindow
 
         missionSelect.MissionStartRequested += missionId =>
         {
-            Console.WriteLine($"[Mission] Starting mission: {missionId}");
-            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+            Console.WriteLine($"[Mission] Selected: {missionId}");
+            ShowMissionBriefing(missionId);
         };
         missionSelect.BackRequested += () =>
         {
@@ -259,6 +262,7 @@ public class EngineWindow : GameWindow
         mpScreen.StartRequested += includeAI =>
         {
             Console.WriteLine($"[Multiplayer] Starting match, AI={includeAI}");
+            _pendingMissionId = null;
             _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
         };
         mpScreen.BackRequested += () => _uiManager.Pop();
@@ -276,6 +280,7 @@ public class EngineWindow : GameWindow
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
         hud.BuildPanel.BuildRequested += OnBuildPanelBuildRequested;
+        hud.ShipControlBar.CommandActivated += HandleShipControlCommand;
         _uiManager.Push(hud);
 
         if (!_gameplayMeshesLoaded)
@@ -283,7 +288,7 @@ public class EngineWindow : GameWindow
             LoadGameplayMeshes();
         }
         InitializeWorld();
-        Console.WriteLine("Game started! WASD=pan, Scroll=zoom, LClick=select, RClick=move, Esc=pause");
+        Console.WriteLine("Game started! W/S/Q/E/Z/X/A/D=camera, M/S/P/A=commands, LClick=select, RClick=move");
     }
 
     private void ShowPauseMenu()
@@ -369,215 +374,12 @@ public class EngineWindow : GameWindow
         Console.WriteLine($"[LoadDefs] Loaded {_definitions.Count} entity definitions.");
     }
 
+
     private void InitializeWorld()
     {
-        _world?.Dispose();
-        _fighterEntities.Clear();
-        _resourceNodeEntities.Clear();
-        _aiEntities.Clear();
-
-        _world = new World();
-        _movementSystem = new MovementSystem();
-        _aiSystem = new AIPlayerSystem(MapWorldSize);
-        _world.AddSystem(_movementSystem);
-        _world.AddSystem(_aiSystem);
-
-        // Initialize economy (issue #4: resources visible on HUD)
-        _resourceManager = new ResourceManager(_eventBus);
-        var playerRes = _resourceManager.AddPlayer(1);
-        playerRes.SetStartingAmount(ResourceType.Energy, 500f);
-        playerRes.SetStartingAmount(ResourceType.Minerals, 300f);
-        playerRes.SetStartingAmount(ResourceType.Data, 100f);
-        playerRes.SetStartingAmount(ResourceType.Crew, 50f);
-        playerRes.AddIncome(ResourceType.Energy, 5f);
-        playerRes.AddIncome(ResourceType.Minerals, 3f);
-
-        // Add resource system (drives collector state machines)
-        _world.AddSystem(new ResourceSystem(_resourceManager));
-
-        // Load entity definitions and add build system
-        LoadEntityDefinitions();
-        _unitFactory = new UnitFactory();
-        _buildSystem = new BuildSystem(_unitFactory, id =>
-            _definitions.TryGetValue(id, out var def) ? def : null);
-        _world.AddSystem(_buildSystem);
-
-        // Supply system (tracks population cap)
-        _supplySystem = new SupplySystem(_resourceManager);
-        _world.AddSystem(_supplySystem);
-
-        // Spawn hero ship at center
-        _heroEntity = _world.CreateEntity();
-        _world.AddComponent(_heroEntity, new TransformComponent
-        {
-            Position = new Vector3(0f, 0f, 0f),
-            Scale = Vector3.One
-        });
-        _world.AddComponent(_heroEntity, new MovementComponent
-        {
-            Speed = 80f,
-            Acceleration = 120f,
-            TurnRate = 180f,
-        });
-        _world.AddComponent(_heroEntity, new SelectionComponent
-        {
-            IsSelected = true,
-            SelectionRadius = 8f,
-        });
-        _world.AddComponent(_heroEntity, new RenderComponent
-        {
-            MeshId = _heroVao,
-            VertexCount = _heroVertCount,
-            Color = new Vector4(0.2f, 0.8f, 1.0f, 1f),
-            Visible = true,
-            PrimitiveType = (int)PrimitiveType.Triangles,
-        });
-
-        // Spawn a squad of fighters (spread across larger map)
-        var rng = new Random(123);
-        for (int i = 0; i < 5; i++)
-        {
-            float x = (rng.NextSingle() - 0.5f) * 400f;
-            float z = (rng.NextSingle() - 0.5f) * 400f;
-
-            var fighter = _world.CreateEntity();
-            _world.AddComponent(fighter, new TransformComponent
-            {
-                Position = new Vector3(x, 0f, z),
-                Scale = Vector3.One,
-            });
-            _world.AddComponent(fighter, new MovementComponent
-            {
-                Speed = 100f,
-                Acceleration = 150f,
-                TurnRate = 220f,
-            });
-            _world.AddComponent(fighter, new SelectionComponent
-            {
-                IsSelected = false,
-                SelectionRadius = 6f,
-            });
-            _world.AddComponent(fighter, new RenderComponent
-            {
-                MeshId = _fighterVao,
-                VertexCount = _fighterVertCount,
-                Color = new Vector4(0.4f, 1.0f, 0.4f, 1f),
-                Visible = true,
-                PrimitiveType = (int)PrimitiveType.Triangles,
-            });
-            _fighterEntities.Add(fighter);
-        }
-
-        // Spawn bombers
-        for (int i = 0; i < 3; i++)
-        {
-            float x = 150f + (rng.NextSingle() - 0.5f) * 200f;
-            float z = (rng.NextSingle() - 0.5f) * 300f;
-
-            var bomber = _world.CreateEntity();
-            _world.AddComponent(bomber, new TransformComponent
-            {
-                Position = new Vector3(x, 0f, z),
-                Scale = Vector3.One,
-            });
-            _world.AddComponent(bomber, new MovementComponent
-            {
-                Speed = 60f,
-                Acceleration = 90f,
-                TurnRate = 140f,
-            });
-            _world.AddComponent(bomber, new SelectionComponent
-            {
-                IsSelected = false,
-                SelectionRadius = 7f,
-            });
-            _world.AddComponent(bomber, new RenderComponent
-            {
-                MeshId = _bomberVao,
-                VertexCount = _bomberVertCount,
-                Color = new Vector4(0.9f, 0.5f, 0.2f, 1f),
-                Visible = true,
-                PrimitiveType = (int)PrimitiveType.Triangles,
-            });
-            _fighterEntities.Add(bomber);
-        }
-
-        // Spawn a destroyer
-        {
-            var destroyer = _world.CreateEntity();
-            _world.AddComponent(destroyer, new TransformComponent
-            {
-                Position = new Vector3(-200f, 0f, 100f),
-                Scale = Vector3.One,
-            });
-            _world.AddComponent(destroyer, new MovementComponent
-            {
-                Speed = 50f,
-                Acceleration = 70f,
-                TurnRate = 100f,
-            });
-            _world.AddComponent(destroyer, new SelectionComponent
-            {
-                IsSelected = false,
-                SelectionRadius = 10f,
-            });
-            _world.AddComponent(destroyer, new RenderComponent
-            {
-                MeshId = _destroyerVao,
-                VertexCount = _destroyerVertCount,
-                Color = new Vector4(0.7f, 0.2f, 0.9f, 1f),
-                Visible = true,
-                PrimitiveType = (int)PrimitiveType.Triangles,
-            });
-            _fighterEntities.Add(destroyer);
-        }
-
-        // Spawn a carrier
-        {
-            var carrier = _world.CreateEntity();
-            _world.AddComponent(carrier, new TransformComponent
-            {
-                Position = new Vector3(-100f, 0f, -250f),
-                Scale = Vector3.One,
-            });
-            _world.AddComponent(carrier, new MovementComponent
-            {
-                Speed = 35f,
-                Acceleration = 45f,
-                TurnRate = 60f,
-            });
-            _world.AddComponent(carrier, new SelectionComponent
-            {
-                IsSelected = false,
-                SelectionRadius = 12f,
-            });
-            _world.AddComponent(carrier, new RenderComponent
-            {
-                MeshId = _carrierVao,
-                VertexCount = _carrierVertCount,
-                Color = new Vector4(0.6f, 0.6f, 0.8f, 1f),
-                Visible = true,
-                PrimitiveType = (int)PrimitiveType.Triangles,
-            });
-            _fighterEntities.Add(carrier);
-        }
-
-        // Issue #5: Spawn AI-controlled enemy ships (computer player in every scenario)
-        SpawnAIPlayer(rng);
-
-        // Issue #7: Spawn visible resource nodes
-        SpawnResourceNodes(rng);
-
-        // Spawn player base (command center) near hero
-        SpawnPlayerBase();
-
-        // Spawn initial miners
-        SpawnMiners(rng);
-
-        // Issue #1: Give hero an initial move target so ships visibly move immediately
-        var heroMovement = _world.GetComponent<MovementComponent>(_heroEntity);
-        if (heroMovement != null)
-            heroMovement.PathTarget = new Vector3(50f, 0f, 50f);
+        string? missionId = _pendingMissionId;
+        _pendingMissionId = null;
+        InitializeWorldCore(missionId);
     }
 
     private void SpawnAIPlayer(Random rng)
@@ -951,7 +753,10 @@ public class EngineWindow : GameWindow
             KeyboardState.IsKeyDown(Keys.A))
         {
             foreach (var (entity, sel) in _world.Query<SelectionComponent>())
-                sel.IsSelected = true;
+            {
+                if (IsPlayerSelectable(entity))
+                    sel.IsSelected = true;
+            }
         }
 
         // Update scene
@@ -963,17 +768,7 @@ public class EngineWindow : GameWindow
         // Gameplay-specific updates
         if (_sceneManager.State == GameState.Playing && _world != null)
         {
-            // Camera panning with WASD
-            float panX = 0f, panZ = 0f;
-            if (KeyboardState.IsKeyDown(Keys.W) || KeyboardState.IsKeyDown(Keys.Up))
-                panZ = -1f;
-            if (KeyboardState.IsKeyDown(Keys.S) || KeyboardState.IsKeyDown(Keys.Down))
-                panZ = 1f;
-            if (KeyboardState.IsKeyDown(Keys.A) || KeyboardState.IsKeyDown(Keys.Left))
-                panX = -1f;
-            if (KeyboardState.IsKeyDown(Keys.D) || KeyboardState.IsKeyDown(Keys.Right))
-                panX = 1f;
-            _rtsCamera.Pan(panX, panZ, dt);
+            UpdateCameraControls(dt);
 
             // Update ECS world (issue #1: ensures movement system runs)
             _world.Update(dt);
@@ -983,6 +778,7 @@ public class EngineWindow : GameWindow
             BindResourceHUD();
             BindBuildPanel();
             BindUnitInfoPanel();
+            BindShipControlBar();
 
             // Fade move target indicator
             if (_moveTargetTimer > 0f)
@@ -1030,7 +826,7 @@ public class EngineWindow : GameWindow
         if (_sceneManager.State != GameState.Playing || _world == null)
             return;
 
-        Vector3? worldPos = ScreenToWorld(MousePosition);
+        Vector3? worldPos = ScreenToWorldGround(MousePosition);
         if (worldPos == null) return;
 
         if (e.Button == MouseButton.Left)
@@ -1050,6 +846,13 @@ public class EngineWindow : GameWindow
                 HandlePatrolCommand(worldPos.Value);
                 _patrolMode = false;
             }
+            else if (_moveCommandMode)
+            {
+                HandleMoveCommand(worldPos.Value);
+                _moveCommandMode = false;
+                if (_uiManager.Current is GameplayHUD moveHud)
+                    moveHud.ShipControlBar.ClearActiveCommand();
+            }
             else
             {
                 HandleSelection(worldPos.Value);
@@ -1060,7 +863,10 @@ public class EngineWindow : GameWindow
             // Cancel special modes on right-click
             _attackMoveMode = false;
             _patrolMode = false;
+            _moveCommandMode = false;
             _placementBuildingId = null;
+            if (_uiManager.Current is GameplayHUD cancelHud)
+                cancelHud.ShipControlBar.ClearActiveCommand();
             HandleMoveCommand(worldPos.Value);
         }
     }
@@ -1075,11 +881,18 @@ public class EngineWindow : GameWindow
         bool ctrlHeld = KeyboardState.IsKeyDown(Keys.LeftControl) ||
                         KeyboardState.IsKeyDown(Keys.RightControl);
 
+        if (TryHandleUnitShortcut(e.Key))
+        {
+            if (_uiManager.Current is GameplayHUD hudShortcut && hudShortcut.ShipControlBar.ActiveCommand != null)
+                HandleShipControlCommand(hudShortcut.ShipControlBar.ActiveCommand);
+            return;
+        }
+
         switch (e.Key)
         {
-            // Stop command (X key - since S is camera)
             case Keys.X:
-                HandleStopCommand();
+                if (HasSelectedUnits())
+                    HandleStopCommand();
                 break;
 
             // Attack-move mode (F key to avoid conflict with A for camera)
@@ -1196,6 +1009,7 @@ public class EngineWindow : GameWindow
 
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
+            if (!IsPlayerSelectable(entity)) continue;
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
@@ -1593,7 +1407,7 @@ public class EngineWindow : GameWindow
         if (_world == null) return;
 
         // Set rally point to current mouse position
-        Vector3? worldPos = ScreenToWorld(MousePosition);
+        Vector3? worldPos = ScreenToWorldGround(MousePosition);
         if (worldPos == null) return;
 
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())

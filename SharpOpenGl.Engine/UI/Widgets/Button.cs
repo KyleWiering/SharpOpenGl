@@ -7,8 +7,6 @@ namespace SharpOpenGl.Engine.UI.Widgets;
 /// </summary>
 public sealed class Button : Widget
 {
-    // ── Visual ────────────────────────────────────────────────────────────────
-
     /// <summary>Text displayed on the button face.</summary>
     public string Label { get; set; } = string.Empty;
 
@@ -27,8 +25,6 @@ public sealed class Button : Widget
     /// <summary>Font size in logical pixels.</summary>
     public float FontSize { get; set; } = 20f;
 
-    // ── State ─────────────────────────────────────────────────────────────────
-
     /// <summary>Whether the pointer is currently hovering over this button.</summary>
     public bool IsHovered { get; private set; }
 
@@ -38,12 +34,8 @@ public sealed class Button : Widget
     /// <summary>Whether the button can receive input.</summary>
     public bool IsEnabled { get; set; } = true;
 
-    // ── Events ────────────────────────────────────────────────────────────────
-
     /// <summary>Raised when the button is clicked (pointer tap within bounds).</summary>
     public event Action? Clicked;
-
-    // ── Interaction ───────────────────────────────────────────────────────────
 
     /// <inheritdoc/>
     public override bool HandlePointerTapped(
@@ -65,7 +57,6 @@ public sealed class Button : Widget
 
     /// <summary>
     /// Update hover / press state based on current pointer position.
-    /// Call this each frame with the live pointer position.
     /// </summary>
     public void UpdatePointerState(
         Vector2 pointerPosition, bool isPointerDown,
@@ -77,8 +68,6 @@ public sealed class Button : Widget
         IsPressed = IsHovered && isPointerDown;
     }
 
-    // ── Drawing ───────────────────────────────────────────────────────────────
-
     /// <inheritdoc/>
     protected override void OnDraw(IUIRenderer renderer, Vector2 position, Vector2 size)
     {
@@ -88,8 +77,10 @@ public sealed class Button : Widget
 
         if (!string.IsNullOrEmpty(Label))
         {
-            // Simple centre-text approximation: offset by a fixed amount.
-            Vector2 textPos = new(position.X + 8f, position.Y + (size.Y - FontSize) / 2f);
+            float textWidth = UIFontMetrics.MeasureTextWidth(Label, FontSize);
+            Vector2 textPos = new(
+                position.X + (size.X - textWidth) * 0.5f,
+                position.Y + (size.Y - FontSize) * 0.5f);
             renderer.DrawText(Label, textPos, FontSize, TextColor);
         }
     }

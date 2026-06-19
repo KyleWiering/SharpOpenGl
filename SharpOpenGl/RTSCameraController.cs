@@ -41,6 +41,25 @@ public class RTSCameraController
         Height = MathHelper.Clamp(Height - delta * ZoomSpeed, MinHeight, MaxHeight);
     }
 
+    /// <summary>Rotate the camera around the Y axis (degrees per second).</summary>
+    public void Rotate(float direction, float deltaTime, float speed = 90f)
+    {
+        if (MathF.Abs(direction) < 0.01f) return;
+        float radians = MathHelper.DegreesToRadians(speed * direction * deltaTime);
+        float cos = MathF.Cos(radians);
+        float sin = MathF.Sin(radians);
+        float x = Target.X * cos - Target.Z * sin;
+        float z = Target.X * sin + Target.Z * cos;
+        Target = new Vector3(x, Target.Y, z);
+    }
+
+    /// <summary>Raise or lower the camera height.</summary>
+    public void AdjustHeight(float direction, float deltaTime, float speed = 80f)
+    {
+        if (MathF.Abs(direction) < 0.01f) return;
+        Height = MathHelper.Clamp(Height + direction * speed * deltaTime, MinHeight, MaxHeight);
+    }
+
     /// <summary>Get the computed view matrix.</summary>
     public Matrix4 GetViewMatrix()
     {
