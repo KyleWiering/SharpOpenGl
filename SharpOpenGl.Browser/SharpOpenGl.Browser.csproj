@@ -5,7 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SharpOpenGl.Browser</RootNamespace>
-    <AssemblyName>SharpOpenGl.Browser</AssemblyName>`r`n    <BaseHref>/SharpOpenGl/</BaseHref>
+    <AssemblyName>SharpOpenGl.Browser</AssemblyName>
+    <BaseHref>/SharpOpenGl/</BaseHref>
   </PropertyGroup>
 
   <ItemGroup>
