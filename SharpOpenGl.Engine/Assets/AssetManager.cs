@@ -9,6 +9,7 @@ public class AssetManager
 {
     private readonly string _rootPath;
     private readonly Dictionary<string, object> _cache = new();
+    private readonly HashSet<string> _proceduralMeshes = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Create an AssetManager rooted at the given data directory.
@@ -46,4 +47,40 @@ public class AssetManager
     /// <summary>Returns true if the underlying JSON file exists on disk.</summary>
     public bool Exists(string key) =>
         File.Exists(Path.Combine(_rootPath, key + ".json"));
+
+    /// <summary>
+    /// Mark a mesh key as available via procedural/runtime generation.
+    /// Keys use the same format as entity definitions (e.g. "meshes/scout_light.obj").
+    /// </summary>
+    public void RegisterProceduralMesh(string meshKey)
+    {
+        if (string.IsNullOrWhiteSpace(meshKey)) return;
+        _proceduralMeshes.Add(NormalizeMeshKey(meshKey));
+    }
+
+    /// <summary>Returns true if a mesh exists on disk or was registered procedurally.</summary>
+    public bool MeshExists(string meshKey)
+    {
+        if (string.IsNullOrWhiteSpace(meshKey)) return false;
+        string normalized = NormalizeMeshKey(meshKey);
+        if (_proceduralMeshes.Contains(normalized)) return true;
+        return File.Exists(ResolveMeshPath(normalized));
+    }
+
+    /// <summary>Resolve a mesh key to an absolute .obj path under GameData/Meshes.</summary>
+    public string ResolveMeshPath(string meshKey)
+    {
+        string fileName = NormalizeMeshKey(meshKey);
+        if (!fileName.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
+            fileName += ".obj";
+        return Path.Combine(_rootPath, "Meshes", fileName);
+    }
+
+    private static string NormalizeMeshKey(string meshKey)
+    {
+        string normalized = meshKey.Replace('\\', '/').Trim();
+        if (normalized.StartsWith("meshes/", StringComparison.OrdinalIgnoreCase))
+            normalized = normalized["meshes/".Length..];
+        return normalized;
+    }
 }

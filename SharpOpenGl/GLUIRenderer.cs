@@ -108,11 +108,11 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
 
     private void DrawTextLine(string text, Vector2 position, float fontSize, Vector4 color)
     {
-        float charWidth = fontSize * 0.62f;
+        float charWidth = UIFontMetrics.GetCharWidth(fontSize);
         float charHeight = fontSize;
-        float spacing = charWidth * 0.15f;
-        float lineThickness = MathF.Max(3.5f, fontSize * 0.26f);
-        var outline = new Vector4(0f, 0f, 0f, color.W * 0.85f);
+        float spacing = UIFontMetrics.GetCharSpacing(fontSize);
+        float lineThickness = UIFontMetrics.GetLineThickness(fontSize);
+        var shadow = new Vector4(0f, 0f, 0f, color.W * 0.45f);
 
         int charIndex = 0;
         for (int i = 0; i < text.Length; i++)
@@ -128,10 +128,10 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
             float y = position.Y;
             charIndex++;
 
-            DrawGlyph(c, x - 1f, y, charWidth, charHeight, lineThickness, outline);
-            DrawGlyph(c, x + 1f, y, charWidth, charHeight, lineThickness, outline);
-            DrawGlyph(c, x, y - 1f, charWidth, charHeight, lineThickness, outline);
-            DrawGlyph(c, x, y + 1f, charWidth, charHeight, lineThickness, outline);
+            DrawGlyph(c, x + 1f, y + 1f, charWidth, charHeight, lineThickness, shadow);
+
+
+
             DrawGlyph(c, x, y, charWidth, charHeight, lineThickness, color);
         }
     }
@@ -228,8 +228,8 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         'J' => [Seg.Top, Seg.TopRight, Seg.BottomRight, Seg.Bottom, Seg.BottomLeft],
         'K' => [Seg.LeftFull, Seg.Middle, Seg.TopRight, Seg.BottomRight],
         'L' => [Seg.TopLeft, Seg.BottomLeft, Seg.Bottom],
-        'M' => [Seg.Top, Seg.LeftFull, Seg.RightFull, Seg.CenterVert],
-        'N' => [Seg.Top, Seg.Bottom, Seg.LeftFull, Seg.RightFull],
+        'M' => [Seg.LeftFull, Seg.RightFull, Seg.TopHalfLeft, Seg.TopHalfRight],
+        'N' => [Seg.LeftFull, Seg.RightFull, Seg.DiagTopRightToBottomLeft],
         'O' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
         'P' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft],
         'Q' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
@@ -238,7 +238,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         'T' => [Seg.Top, Seg.CenterVert],
         'U' => [Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
         'V' => [Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight, Seg.Bottom],
-        'W' => [Seg.Bottom, Seg.LeftFull, Seg.RightFull, Seg.CenterVert],
+        'W' => [Seg.LeftFull, Seg.RightFull, Seg.BottomHalfLeft, Seg.BottomHalfRight],
         'X' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.BottomRight],
         'Y' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.CenterVert],
         'Z' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopRight, Seg.BottomLeft],

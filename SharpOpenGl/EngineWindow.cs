@@ -548,6 +548,7 @@ public partial class EngineWindow : GameWindow
         _aiEntities.Clear();
         _moveTargetPosition = null;
         _moveTargetTimer = 0f;
+        CancelSelectionDrag();
     }
 
     // ── Rendering ─────────────────────────────────────────────────────────────
@@ -582,6 +583,8 @@ public partial class EngineWindow : GameWindow
         // Render UI on top
         _uiRenderer.Begin();
         _uiManager.Draw(_uiRenderer);
+        if (_selectionBoxVisible)
+            DrawSelectionBox(_uiRenderer);
         _uiRenderer.End();
 
         GL.BindVertexArray(0);
@@ -750,6 +753,40 @@ public partial class EngineWindow : GameWindow
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
+        protected override void OnMouseMove(MouseMoveEventArgs e)
+    {
+        base.OnMouseMove(e);
+
+        if (!_selectionDragActive || _sceneManager.State != GameState.Playing)
+            return;
+
+        _selectionDragCurrent = new Vector2(MousePosition.X, MousePosition.Y);
+        if ((_selectionDragCurrent - _selectionDragStart).Length >= SelectionDragThresholdPx)
+            _selectionBoxVisible = true;
+    }
+
+    protected override void OnMouseUp(MouseButtonEventArgs e)
+    {
+        base.OnMouseUp(e);
+
+        if (e.Button != MouseButton.Left || !_selectionDragActive)
+            return;
+
+        if (_sceneManager.State == GameState.Playing && _world != null)
+        {
+            if (_selectionBoxVisible)
+                HandleBoxSelection(_selectionDragStart, _selectionDragCurrent);
+            else
+            {
+                Vector3? worldPos = ScreenToWorldGround(_selectionDragStart);
+                if (worldPos != null)
+                    HandleSelection(worldPos.Value);
+            }
+        }
+
+        CancelSelectionDrag();
+    }
+
     protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
@@ -761,51 +798,56 @@ public partial class EngineWindow : GameWindow
     {
         base.OnMouseDown(e);
 
-        // Route click to UI first
         var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
         var viewportSize = new Vector2(Size.X, Size.Y);
         if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
             return;
 
-        // If UI didn't consume, handle gameplay input
         if (_sceneManager.State != GameState.Playing || _world == null)
             return;
 
-        Vector3? worldPos = ScreenToWorldGround(MousePosition);
-        if (worldPos == null) return;
-
         if (e.Button == MouseButton.Left)
         {
-            if (_placementBuildingId != null)
+            if (_placementBuildingId != null || _attackMoveMode || _patrolMode || _moveCommandMode)
             {
-                HandlePlaceBuilding(worldPos.Value);
-                _placementBuildingId = null;
-            }
-            else if (_attackMoveMode)
-            {
-                HandleAttackMoveCommand(worldPos.Value);
-                _attackMoveMode = false;
-            }
-            else if (_patrolMode)
-            {
-                HandlePatrolCommand(worldPos.Value);
-                _patrolMode = false;
-            }
-            else if (_moveCommandMode)
-            {
-                HandleMoveCommand(worldPos.Value);
-                _moveCommandMode = false;
-                if (_uiManager.Current is GameplayHUD moveHud)
-                    moveHud.ShipControlBar.ClearActiveCommand();
+                Vector3? commandPos = ScreenToWorldGround(MousePosition);
+                if (commandPos == null) return;
+
+                if (_placementBuildingId != null)
+                {
+                    HandlePlaceBuilding(commandPos.Value);
+                    _placementBuildingId = null;
+                }
+                else if (_attackMoveMode)
+                {
+                    HandleAttackMoveCommand(commandPos.Value);
+                    _attackMoveMode = false;
+                }
+                else if (_patrolMode)
+                {
+                    HandlePatrolCommand(commandPos.Value);
+                    _patrolMode = false;
+                }
+                else if (_moveCommandMode)
+                {
+                    HandleMoveCommand(commandPos.Value);
+                    _moveCommandMode = false;
+                    if (_uiManager.Current is GameplayHUD moveHud)
+                        moveHud.ShipControlBar.ClearActiveCommand();
+                }
             }
             else
             {
-                HandleSelection(worldPos.Value);
+                BeginSelectionDrag(screenPoint);
             }
         }
         else if (e.Button == MouseButton.Right)
         {
-            // Cancel special modes on right-click
+            CancelSelectionDrag();
+
+            Vector3? worldPos = ScreenToWorldGround(MousePosition);
+            if (worldPos == null) return;
+
             _attackMoveMode = false;
             _patrolMode = false;
             _moveCommandMode = false;

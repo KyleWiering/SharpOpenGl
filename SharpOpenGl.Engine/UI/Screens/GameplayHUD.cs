@@ -22,6 +22,9 @@ public sealed class GameplayHUD : UIScreen
     /// <summary>Fired when the pause button is clicked.</summary>
     public event Action? PauseRequested;
 
+    /// <summary>Fired when the minimap is clicked. Argument is normalised 0..1.</summary>
+    public event Action<Vector2>? MinimapClicked;
+
     public GameplayHUD()
     {
         ResourceBar = new ResourceBar
@@ -51,6 +54,7 @@ public sealed class GameplayHUD : UIScreen
             Position = new Vector2(8f, -248f),
             Size = new Vector2(240f, 240f),
         };
+        Minimap.Clicked += norm => MinimapClicked?.Invoke(norm);
         AddWidget(Minimap);
 
         UnitInfoPanel = new UnitInfoPanel
@@ -109,6 +113,9 @@ public sealed class GameplayHUD : UIScreen
 
         if (ShipControlBar.Visible &&
             ShipControlBar.HandlePointerTapped(screenPoint, button, Vector2.Zero, viewportSize))
+            return true;
+
+        if (Minimap.HandlePointerTapped(screenPoint, button, Vector2.Zero, viewportSize))
             return true;
 
         foreach (var root in Roots)

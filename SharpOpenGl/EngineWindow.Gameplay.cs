@@ -140,11 +140,11 @@ public partial class EngineWindow
         _world = new World();
         _movementSystem = new MovementSystem();
         _aiSystem = new AIPlayerSystem(MapWorldSize);
-        _world.AddSystem(_movementSystem);
         _world.AddSystem(new StanceSystem());
         _world.AddSystem(new CombatSystem(_eventBus));
         _world.AddSystem(new ProjectileSystem(_eventBus));
         _world.AddSystem(_aiSystem);
+        InitializeMapSystems();
 
         _resourceManager = new ResourceManager(_eventBus);
         var playerRes = _resourceManager.AddPlayer(1);
@@ -159,6 +159,7 @@ public partial class EngineWindow
 
         LoadEntityDefinitions();
         EnsureAssets();
+        RegisterProceduralMeshes();
         _unitFactory = new UnitFactory(_assetManager);
         _buildSystem = new BuildSystem(_unitFactory, id =>
             _definitions.TryGetValue(id, out var def) ? def : null);
@@ -202,6 +203,7 @@ public partial class EngineWindow
         if (_world == null) return;
 
         SpawnDefaultHeroAndFleet();
+        RevealAreaAt(Vector3.Zero, 18);
         SpawnAIPlayer(new Random(123));
         SpawnResourceNodes(new Random(123));
         SpawnPlayerBase();
@@ -234,6 +236,7 @@ public partial class EngineWindow
 
         Vector3 spawnCenter = GridCellToWorld(start?.PlayerSpawn ?? [3, 3]);
         _rtsCamera.Target = spawnCenter;
+        RevealAreaAt(spawnCenter, 18);
 
         if (start?.StartingUnits is { Length: > 0 })
         {
@@ -359,6 +362,14 @@ public partial class EngineWindow
             }
         }
 
+        if (!_world.HasComponent<SightRadiusComponent>(entity))
+        {
+            int radius = def.Components?.SightRadius > 0
+                ? def.Components.SightRadius
+                : _world.HasComponent<BuildingComponent>(entity) ? 10 : 5;
+            _world.AddComponent(entity, new SightRadiusComponent { Radius = radius });
+        }
+
         ApplyCombatComponents(entity, isEnemy ? 2 : playerId, isEnemy);
         if (!_world.HasComponent<EntityNameComponent>(entity))
         {
@@ -427,6 +438,8 @@ public partial class EngineWindow
             return (_carrierVao, _carrierVertCount, new Vector4(0.6f, 0.6f, 0.8f, 1f));
         if (id.Contains("miner"))
             return (_minerVao, _minerVertCount, new Vector4(0.9f, 0.8f, 0.2f, 1f));
+        if (id.Contains("transport") || id.Contains("hauler"))
+            return (_carrierVao, _carrierVertCount, new Vector4(0.55f, 0.75f, 0.95f, 1f));
         if (id.Contains("scout") || id.Contains("fighter"))
             return (_fighterVao, _fighterVertCount, new Vector4(0.4f, 1f, 0.4f, 1f));
         return (_fighterVao, _fighterVertCount, new Vector4(0.5f, 0.8f, 1f, 1f));
@@ -697,4 +710,18 @@ public partial class EngineWindow
 
         hud.BindShipControlBar(hasWeapons, hasMovement, stance, anySelected);
     }
+    private void RegisterProceduralMeshes()
+    {
+        if (_assetManager == null) return;
+
+        foreach (var def in _definitions.Values)
+        {
+            if (!string.IsNullOrWhiteSpace(def.Mesh))
+                _assetManager.RegisterProceduralMesh(def.Mesh);
+        }
+
+        _assetManager.RegisterProceduralMesh("meshes/command_center.obj");
+        _assetManager.RegisterProceduralMesh("meshes/shipyard.obj");
+    }
+
 }

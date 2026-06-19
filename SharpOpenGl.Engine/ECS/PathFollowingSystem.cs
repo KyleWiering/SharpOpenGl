@@ -81,8 +81,11 @@ public sealed class PathFollowingSystem : GameSystem
         if (!_grid.WorldToGrid(currentPos, out int startX, out int startY))
             return null;
 
+        if (!_grid.WorldToGrid(dest.Target, out int goalX, out int goalY))
+            return null;
+
         GridCell? startCell = _grid.GetCell(startX, startY);
-        GridCell? goalCell = _grid.GetCell(dest.GridX, dest.GridY);
+        GridCell? goalCell = _grid.GetCell(goalX, goalY);
 
         if (startCell == null || goalCell == null) return null;
         if (!goalCell.IsPassable) return null;

@@ -12,19 +12,48 @@ internal static class FactoryHelpers
 {
     /// <summary>
     /// Resolve the mesh key to use: prefer <paramref name="preferred"/>,
-    /// fall back to <paramref name="fallback"/> (or "default") when missing.
+    /// fall back to <paramref name="fallback"/> or <paramref name="defaultMeshKey"/> when missing.
     /// </summary>
-    internal static string ResolveMesh(AssetManager? assets, string preferred, string fallback)
+    internal static string ResolveMesh(
+        AssetManager? assets, string preferred, string fallback, string defaultMeshKey)
     {
-        if (string.IsNullOrEmpty(preferred))
-            return string.IsNullOrEmpty(fallback) ? "default" : fallback;
-
-        if (assets != null && assets.Exists(preferred))
+        if (assets != null && !string.IsNullOrEmpty(preferred) && assets.MeshExists(preferred))
             return preferred;
 
-        Console.WriteLine($"[Factory] Mesh '{preferred}' not found, using fallback '{fallback}'.");
-        return string.IsNullOrEmpty(fallback) ? "default" : fallback;
+        string resolved = ResolveFallbackMesh(assets, fallback, defaultMeshKey);
+        if (assets != null
+            && !string.IsNullOrEmpty(preferred)
+            && !string.Equals(preferred, resolved, StringComparison.OrdinalIgnoreCase)
+            && !assets.MeshExists(resolved))
+        {
+            Console.WriteLine(
+                $"[Factory] Mesh '{preferred}' not found, no fallback available.");
+        }
+
+        return resolved;
     }
+
+    private static string ResolveFallbackMesh(
+        AssetManager? assets, string fallback, string defaultMeshKey)
+    {
+        if (assets == null)
+            return PickFallbackKey(fallback, defaultMeshKey);
+
+        if (!string.IsNullOrEmpty(fallback)
+            && !string.Equals(fallback, "default", StringComparison.OrdinalIgnoreCase)
+            && assets.MeshExists(fallback))
+            return fallback;
+
+        if (assets.MeshExists(defaultMeshKey))
+            return defaultMeshKey;
+
+        return PickFallbackKey(fallback, defaultMeshKey);
+    }
+
+    private static string PickFallbackKey(string fallback, string defaultMeshKey) =>
+        string.IsNullOrEmpty(fallback) || string.Equals(fallback, "default", StringComparison.OrdinalIgnoreCase)
+            ? defaultMeshKey
+            : fallback;
 
     /// <summary>Apply <see cref="HealthComponent"/> from definition.</summary>
     internal static void ApplyHealth(World world, Entity entity, HealthDefinition? def)
@@ -137,7 +166,14 @@ internal static class FactoryHelpers
         world.AddComponent(entity, comp);
     }
 
-    /// <summary>Apply <see cref="ResourceCollectorComponent"/> from definition.</summary>
+    /// <summary>Apply <see cref="SightRadiusComponent"/> from definition.</summary>
+    internal static void ApplySightRadius(World world, Entity entity, ComponentsDefinition? components)
+    {
+        int radius = components?.SightRadius > 0 ? components.SightRadius : 5;
+        world.AddComponent(entity, new SightRadiusComponent { Radius = radius });
+    }
+
+        /// <summary>Apply <see cref="ResourceCollectorComponent"/> from definition.</summary>
     internal static void ApplyResourceCollector(World world, Entity entity, ResourceCollectorDefinition? def)
     {
         if (def == null) return;
