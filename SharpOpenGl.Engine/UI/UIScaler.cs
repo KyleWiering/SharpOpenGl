@@ -56,7 +56,14 @@ public sealed class UIScaler
     public Vector2 ScalePosition(Vector2 logicalPosition) =>
         new(logicalPosition.X * _scale.X, logicalPosition.Y * _scale.Y);
 
-    // ─────────────────────────────────────────────────────────────────────────
+    /// <summary>Convert physical screen pixels to logical (reference) coordinates.</summary>
+    public Vector2 UnscalePosition(Vector2 physicalPosition) =>
+        new(physicalPosition.X / _scale.X, physicalPosition.Y / _scale.Y);
+
+    /// <summary>Convert a physical pixel size to logical (reference) coordinates.</summary>
+    public Vector2 UnscaleSize(Vector2 physicalSize) =>
+        new(physicalSize.X / _scale.X, physicalSize.Y / _scale.Y);
+
     private void RecalculateScale()
     {
         _scale = new Vector2(

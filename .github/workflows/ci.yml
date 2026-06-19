@@ -2,7 +2,7 @@ name: CI — Test, Build & Package
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [ main, master, 'copilot/**' ]
   pull_request:
     branches: [ main, master ]
 
@@ -37,7 +37,7 @@ jobs:
     name: Desktop Builds
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     strategy:
       matrix:
@@ -83,7 +83,7 @@ jobs:
     name: WebGL2 Minification
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     steps:
       - uses: actions/checkout@v4

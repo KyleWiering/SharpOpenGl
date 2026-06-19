@@ -43,13 +43,13 @@ public abstract class UIScreen
             root.Update(deltaTime);
     }
 
-    /// <summary>Draw all root widgets over the full viewport.</summary>
+    /// <summary>Draw all root widgets over the reference-resolution viewport.</summary>
     public virtual void Draw(IUIRenderer renderer)
     {
         if (!Visible) return;
-        Vector2 viewport = renderer.ViewportSize;
+        Vector2 logicalViewport = UIScaler.ReferenceSize;
         foreach (Widget root in _roots)
-            root.Draw(renderer, Vector2.Zero, viewport);
+            root.Draw(renderer, Vector2.Zero, logicalViewport);
     }
 
     /// <summary>

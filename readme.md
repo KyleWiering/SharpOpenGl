@@ -9,6 +9,8 @@
 
 A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 8, featuring an Entity Component System (ECS) architecture, procedural map generation, A* pathfinding, fog of war, and data-driven ship/mission definitions.
 
+> **AI assistants:** Read [`AGENTS.md`](AGENTS.md) first for architecture, conventions, and CI workflow. Keep it updated per [`.cursor/rules/ai-documentation.mdc`](.cursor/rules/ai-documentation.mdc).
+
 - **.NET 8** SDK-style project
 - **OpenTK 4.8** with GameWindow (cross-platform)
 - **Modern OpenGL 3.3+** (shaders, VAOs, VBOs)
@@ -19,7 +21,7 @@ A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (optional — CI runs on GitHub Actions)
 
 ## Build & Run
 
@@ -43,6 +45,7 @@ dotnet test
 | `SharpOpenGl.Engine/` | Core engine — ECS, Grid, UI, Missions, Persistence |
 | `SharpOpenGl.Tests/` | xUnit test suite |
 | `GameData/` | JSON content — ships, maps, missions, config |
+| `AGENTS.md` | AI agent context — architecture map and conventions |
 
 ## Game Features
 
