@@ -23,7 +23,6 @@ public sealed class BrowserGameHost : IDisposable
     private const string SceneMainMenu = "MainMenu";
     private const string SceneGameplay = "Gameplay";
     private const string GameDataRoot = "GameData";
-    private const float MapWorldSize = 2000f;
 
     private readonly EventBus _eventBus = new();
     private readonly SceneManager _sceneManager;
@@ -93,12 +92,15 @@ public sealed class BrowserGameHost : IDisposable
         if (!_initialized) return;
 
         _sceneManager.Update(deltaTime);
-                _world?.Update(deltaTime);
+        _world?.Update(deltaTime);
 
         if (_sceneManager.State == GameState.Playing && _world != null)
             _sceneRenderer.Render(_world, _viewportWidth, _viewportHeight);
 
-        if (_uiManager.Current is GameplayHUD activeHud) BindResourceHud(activeHud);`r`n`r`n        _uiRenderer.Begin();
+        if (_uiManager.Current is GameplayHUD activeHud)
+            BindResourceHud(activeHud);
+
+        _uiRenderer.Begin();
         _uiManager.Draw(_uiRenderer);
         _uiRenderer.End();
     }
@@ -202,7 +204,13 @@ public sealed class BrowserGameHost : IDisposable
     private void BindResourceHud(GameplayHUD hud)
     {
         if (_resourceManager == null) return;
-        hud.ResourceBar.Resources = new List<ResourceDisplay> { _resourceManager!.GetDisplay(1, ResourceType.Energy), _resourceManager.GetDisplay(1, ResourceType.Minerals), _resourceManager.GetDisplay(1, ResourceType.Data), _resourceManager.GetDisplay(1, ResourceType.Crew) };
+        hud.ResourceBar.Resources =
+        [
+            _resourceManager.GetDisplay(1, ResourceType.Energy),
+            _resourceManager.GetDisplay(1, ResourceType.Minerals),
+            _resourceManager.GetDisplay(1, ResourceType.Data),
+            _resourceManager.GetDisplay(1, ResourceType.Crew),
+        ];
     }
 
     private void InitializeWorld(string? missionId)
@@ -225,6 +233,7 @@ public sealed class BrowserGameHost : IDisposable
         playerRes.AddIncome(ResourceType.Energy, 5f);
         playerRes.AddIncome(ResourceType.Minerals, 3f);
         _world.AddSystem(new ResourceSystem(_resourceManager));
+
         if (!string.IsNullOrEmpty(missionId) && _missionController.CurrentMission != null)
             SpawnMissionFleet(missionId);
         else
