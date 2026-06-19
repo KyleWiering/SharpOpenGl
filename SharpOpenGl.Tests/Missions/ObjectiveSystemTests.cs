@@ -188,8 +188,6 @@ public class ObjectiveSystemTests
         Entity enemy = world.CreateEntity();
         state.EntityTags["enemy_1"] = enemy;
         world.DestroyEntity(enemy);
-
-         → completes immediately.
         ObjectiveChangedEvent? evt = null;
         bus.Subscribe<ObjectiveChangedEvent>(e => evt = e);
 
