@@ -21,7 +21,7 @@ public class UIScalerIntegrationTests
         mgr.Push(menu);
 
         // "New Game" is the first button: TopCenter, offset (-160, 322), size 320×60
-        // at reference 1920×1080 → centre ≈ (800, 352).
+        // at reference 1920×1080 → centre ≈ (800, 350).
         var scaler = new UIScaler(PhysicalViewport);
         Vector2 logicalCenter = new(800f, 350f);
         Vector2 physicalTap = scaler.ScalePosition(logicalCenter);
@@ -67,8 +67,10 @@ public class UIScalerIntegrationTests
 
         scaled.DrawRect(new Vector2(100f, 200f), new Vector2(50f, 30f), Vector4.One);
 
-        Assert.Equal(new Vector2(53.33f, 142.22f), inner.LastRectPosition, precision: 1);
-        Assert.Equal(new Vector2(26.67f, 21.33f), inner.LastRectSize, precision: 1);
+        Assert.Equal(53.33f, inner.LastRectPosition.X, 1);
+        Assert.Equal(142.22f, inner.LastRectPosition.Y, 1);
+        Assert.Equal(26.67f, inner.LastRectSize.X, 1);
+        Assert.Equal(21.33f, inner.LastRectSize.Y, 1);
     }
 
     private sealed class RecordingRenderer : IUIRenderer
