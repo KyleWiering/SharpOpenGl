@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.Input;
+using InputAction = SharpOpenGl.Engine.Input.InputAction;
 
 namespace SharpOpenGl.Input;
 
