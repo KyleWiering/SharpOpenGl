@@ -57,7 +57,7 @@ public class AssetManagerTests
 
             var manager = new AssetManager(root);
             var first = manager.Load<SampleAsset>("Ships/cached");
-            File.Delete(file); // delete original to prove cache is used
+            File.Delete(file);
             var second = manager.Load<SampleAsset>("Ships/cached");
 
             Assert.Same(first, second);
@@ -81,7 +81,34 @@ public class AssetManagerTests
         finally { Directory.Delete(root, true); }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    [Fact]
+    public void MeshExists_returns_true_for_obj_file()
+    {
+        string root = CreateTempDir();
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(root, "Meshes"));
+            File.WriteAllText(Path.Combine(root, "Meshes", "scout_light.obj"), "# stub");
+
+            var manager = new AssetManager(root);
+            Assert.True(manager.MeshExists("meshes/scout_light.obj"));
+            Assert.False(manager.MeshExists("meshes/missing.obj"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void RegisterProceduralMesh_makes_mesh_available_without_file()
+    {
+        string root = CreateTempDir();
+        try
+        {
+            var manager = new AssetManager(root);
+            manager.RegisterProceduralMesh("meshes/cruiser_heavy.obj");
+            Assert.True(manager.MeshExists("meshes/cruiser_heavy.obj"));
+        }
+        finally { Directory.Delete(root, true); }
+    }
 
     private class SampleAsset
     {

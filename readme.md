@@ -68,8 +68,11 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 
 ## Controls
 
-| Key | Action |
-|-----|--------|
+| Key / Mouse | Action |
+|-------------|--------|
+| Left drag | Box-select multiple ships |
+| Left click | Select single ship |
+| Right click | Move selected ships |
 | W/S | Move forward/backward |
 | Q/E | Strafe left/right |
 | Z/X | Move up/down |

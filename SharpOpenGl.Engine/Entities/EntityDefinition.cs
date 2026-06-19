@@ -90,6 +90,9 @@ public sealed class ComponentsDefinition
     public SquadMemberDefinition? SquadMember { get; set; }
     public BuildingDefinition?    Building    { get; set; }
     public ResourceCollectorDefinition? ResourceCollector { get; set; }
+
+    /// <summary>Fog-of-war reveal radius in grid cells.</summary>
+    public int SightRadius { get; set; } = 5;
 }
 
 // ── Root DTO ──────────────────────────────────────────────────────────────────

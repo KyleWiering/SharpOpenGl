@@ -42,6 +42,26 @@ public static class MeshBuilder
         };
         return Upload(v, 6, PrimitiveType.Triangles);
     }
+    /// <summary>
+    /// Build a quad in the XZ plane (two triangles), with given color.
+    /// </summary>
+    public static (int vao, int vbo, int vertexCount) BuildGroundQuad(
+        float width, float depth, Vector3 color)
+    {
+        float hw = width * 0.5f, hd = depth * 0.5f;
+        float r = color.X, g = color.Y, b = color.Z;
+        float[] v =
+        {
+            -hw, 0, -hd, r, g, b,
+             hw, 0, -hd, r, g, b,
+             hw, 0,  hd, r, g, b,
+
+            -hw, 0, -hd, r, g, b,
+             hw, 0,  hd, r, g, b,
+            -hw, 0,  hd, r, g, b,
+        };
+        return Upload(v, 6, PrimitiveType.Triangles);
+    }
 
     /// <summary>
     /// Build a flat grid of lines in the XZ plane.

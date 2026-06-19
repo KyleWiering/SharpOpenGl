@@ -42,7 +42,8 @@ public sealed class ShipFactory
         world.AddComponent(entity, new TransformComponent());
 
         // Render — resolve mesh with fallback
-        string meshKey = FactoryHelpers.ResolveMesh(_assets, def.Mesh, def.FallbackMesh);
+        string meshKey = FactoryHelpers.ResolveMesh(
+            _assets, def.Mesh, def.FallbackMesh, "meshes/default_ship.obj");
         world.AddComponent(entity, new RenderComponent { MeshKey = meshKey, MeshId = -1 });
 
         // Core gameplay components
@@ -64,6 +65,7 @@ public sealed class ShipFactory
 
         // Resource collector (miners)
         FactoryHelpers.ApplyResourceCollector(world, entity, def.Components?.ResourceCollector);
+        FactoryHelpers.ApplySightRadius(world, entity, def.Components);
 
         return entity;
     }

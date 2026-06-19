@@ -1,4 +1,4 @@
-using OpenTK.Mathematics;
+﻿using OpenTK.Mathematics;
 
 namespace SharpOpenGl.Engine.Input;
 
@@ -44,4 +44,37 @@ public static class GroundPlaneRaycaster
 
         return near + dir * t;
     }
+
+    /// <summary>
+    /// Project a world position to screen-space pixels (top-left origin).
+    /// </summary>
+    public static bool TryWorldToScreen(
+        Vector3 worldPos,
+        Vector2 viewportSize,
+        Matrix4 projection,
+        Matrix4 view,
+        out Vector2 screenPos)
+    {
+        screenPos = Vector2.Zero;
+        if (viewportSize.X <= 0f || viewportSize.Y <= 0f)
+            return false;
+
+        var clip = new Vector4(worldPos, 1f) * view * projection;
+        if (clip.W <= 1e-6f)
+            return false;
+
+        float invW = 1f / clip.W;
+        float ndcX = clip.X * invW;
+        float ndcY = clip.Y * invW;
+
+        screenPos = new Vector2(
+            (ndcX + 1f) * 0.5f * viewportSize.X,
+            (1f - ndcY) * 0.5f * viewportSize.Y);
+        return true;
+    }
+
+    /// <summary>Returns <c>true</c> when <paramref name="point"/> lies inside the screen rectangle.</summary>
+    public static bool IsInsideScreenRect(Vector2 point, Vector2 rectMin, Vector2 rectMax) =>
+        point.X >= rectMin.X && point.X <= rectMax.X
+        && point.Y >= rectMin.Y && point.Y <= rectMax.Y;
 }

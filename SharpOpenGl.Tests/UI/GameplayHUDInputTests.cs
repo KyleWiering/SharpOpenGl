@@ -19,12 +19,15 @@ public class GameplayHUDInputTests
     }
 
     [Fact]
-    public void Clicks_on_minimap_do_not_consume_input()
+    public void Clicks_on_minimap_consume_input()
     {
         var hud = new GameplayHUD();
-        var tap = new Vector2(120f, 1000f);
+        Vector2? clicked = null;
+        hud.MinimapClicked += norm => clicked = norm;
+        var tap = new Vector2(120f, 700f);
         bool consumed = hud.HandlePointerTapped(tap, 0, ReferenceViewport);
-        Assert.False(consumed);
+        Assert.True(consumed);
+        Assert.NotNull(clicked);
     }
 
     [Fact]
