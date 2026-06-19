@@ -21,12 +21,20 @@ public sealed class UIManager
 {
     private readonly List<UIScreen> _stack = new();
     private readonly EventBus _eventBus;
+    private readonly UIScaler _scaler;
 
     /// <param name="eventBus">Bus for publishing <see cref="UIScreenChangedEvent"/>.</param>
     public UIManager(EventBus eventBus)
     {
         _eventBus = eventBus;
+        _scaler = new UIScaler(UIScaler.ReferenceSize);
     }
+
+    /// <summary>Scaler mapping reference-resolution UI to the physical viewport.</summary>
+    public UIScaler Scaler => _scaler;
+
+    /// <summary>Update the scaler when the window/viewport is resized.</summary>
+    public void Resize(Vector2 viewportSize) => _scaler.Resize(viewportSize);
 
     /// <summary>Number of screens currently on the stack.</summary>
     public int ScreenCount => _stack.Count;
@@ -102,16 +110,19 @@ public sealed class UIManager
     /// </summary>
     public void Draw(IUIRenderer renderer)
     {
+        _scaler.Resize(renderer.ViewportSize);
+        var scaledRenderer = new ScaledUIRenderer(renderer, _scaler);
         int startIdx = GetLowestVisibleIndex();
         for (int i = startIdx; i < _stack.Count; i++)
-            _stack[i].Draw(renderer);
+            _stack[i].Draw(scaledRenderer);
     }
 
     /// <summary>Route a pointer-tap event to the topmost screen that accepts it.</summary>
     public bool HandlePointerTapped(Vector2 screenPoint, int button, Vector2 viewportSize)
     {
-        // Only the topmost screen handles input.
-        return Current?.HandlePointerTapped(screenPoint, button, viewportSize) ?? false;
+        _scaler.Resize(viewportSize);
+        Vector2 logicalPoint = _scaler.UnscalePosition(screenPoint);
+        return Current?.HandlePointerTapped(logicalPoint, button, UIScaler.ReferenceSize) ?? false;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

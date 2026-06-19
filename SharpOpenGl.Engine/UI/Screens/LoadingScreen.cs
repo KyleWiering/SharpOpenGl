@@ -98,8 +98,8 @@ public sealed class LoadingScreen : UIScreen
     {
         base.Draw(renderer);
 
-        // Draw the status text manually at a fixed position relative to viewport.
-        Vector2 viewport = renderer.ViewportSize;
+        // Draw the status text manually at a fixed position in reference coordinates.
+        Vector2 viewport = UIScaler.ReferenceSize;
         float textX = viewport.X / 2f - 290f;
         float textY = viewport.Y / 2f - 40f;
         renderer.DrawText(

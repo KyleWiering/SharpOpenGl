@@ -158,6 +158,7 @@ public class EngineWindow : GameWindow
         _eventBus = new EventBus();
         _sceneManager = new SceneManager(_eventBus);
         _uiManager = new UIManager(_eventBus);
+        _uiManager.Resize(new Vector2(Size.X, Size.Y));
 
         // Register scenes
         _sceneManager.Register(SceneMainMenu, () => new MainMenuScene(this));
@@ -1878,6 +1879,7 @@ public class EngineWindow : GameWindow
         base.OnResize(e);
         GL.Viewport(0, 0, e.Width, e.Height);
         _uiRenderer?.UpdateViewport(e.Width, e.Height);
+        _uiManager?.Resize(new Vector2(e.Width, e.Height));
     }
 
     protected override void OnUnload()

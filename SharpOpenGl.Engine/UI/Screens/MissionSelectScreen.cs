@@ -108,8 +108,13 @@ public sealed class MissionSelectScreen : UIScreen
         _missions.Clear();
         _missions.AddRange(missions);
         RebuildList();
-        _selected = null;
-        _startButton.IsEnabled = false;
+        if (_missions.Count > 0)
+            SelectMission(_missions[0]);
+        else
+        {
+            _selected = null;
+            _startButton.IsEnabled = false;
+        }
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

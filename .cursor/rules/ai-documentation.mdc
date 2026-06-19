@@ -1,0 +1,34 @@
+---
+description: Keep AGENTS.md in sync with code changes so future AI sessions skip full re-analysis
+alwaysApply: true
+---
+
+# AI Documentation Maintenance
+
+Before finishing any task, read `AGENTS.md` and update it when your changes affect:
+
+- Project structure, entry points, or scene/UI flow
+- ECS components, systems, or namespaces
+- GameData JSON schemas or content paths
+- GitHub Actions workflows or build/test commands
+- Known issues, conventions, or active branch context
+- Test file locations for new subsystems
+
+## Rules
+
+1. **AGENTS.md is canonical** — future AI calls should read it first, not re-scan the repo.
+2. **Update in the same PR/commit** as the code change; do not defer.
+3. **Be concise** — tables and file paths over long prose.
+4. **Mark resolved issues** — move fixed bugs out of "Known Issues" or note the fix.
+5. **Do not duplicate** `GAME_PLAN.md` phase details; link to it instead.
+6. **User-facing docs** (`readme.md`, `docs/*.md`) only when the user asks or behavior visible to players changes.
+
+## Quick reference
+
+| Change type | Update |
+|-------------|--------|
+| New screen/widget | AGENTS.md UI section + tests map |
+| New ECS component | AGENTS.md ECS section |
+| New workflow | AGENTS.md Quick Start table |
+| Bug fix | AGENTS.md Known Issues + Active Branch |
+| New JSON content type | AGENTS.md GameData table |
