@@ -9,7 +9,7 @@ namespace SharpOpenGl.Engine.UI;
 public sealed class ScaledUIRenderer : IUIRenderer
 {
     /// <summary>Minimum physical font size so menu text stays legible at 1024×768.</summary>
-    public const float MinPhysicalFontSize = 16f;
+    public const float MinPhysicalFontSize = 18f;
 
     private readonly IUIRenderer _inner;
     private readonly UIScaler _scaler;

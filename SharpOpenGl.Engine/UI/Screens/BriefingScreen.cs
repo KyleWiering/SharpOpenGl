@@ -11,8 +11,6 @@ namespace SharpOpenGl.Engine.UI.Screens;
 /// </summary>
 public sealed class BriefingScreen : UIScreen
 {
-    // ── Widgets ───────────────────────────────────────────────────────────────
-
     private readonly Panel  _briefingPanel;
     private readonly Panel  _objectivesPanel;
     private readonly Button _startButton;
@@ -21,20 +19,15 @@ public sealed class BriefingScreen : UIScreen
     /// <inheritdoc/>
     public override string ScreenName => "Briefing";
 
-    // ── Events ────────────────────────────────────────────────────────────────
-
     /// <summary>Fired when the player clicks "Start Mission".</summary>
     public event Action? StartRequested;
 
     /// <summary>Fired when the player clicks "Back".</summary>
     public event Action? BackRequested;
 
-    // ── Construction ──────────────────────────────────────────────────────────
-
     /// <summary>Build the briefing screen layout.</summary>
     public BriefingScreen()
     {
-        // ── Main briefing text area ───────────────────────────────────────────
         _briefingPanel = new Panel
         {
             Name     = "BriefingText",
@@ -44,7 +37,6 @@ public sealed class BriefingScreen : UIScreen
         };
         AddWidget(_briefingPanel);
 
-        // ── Objectives preview ────────────────────────────────────────────────
         _objectivesPanel = new Panel
         {
             Name     = "ObjectivesPreview",
@@ -54,7 +46,6 @@ public sealed class BriefingScreen : UIScreen
         };
         AddWidget(_objectivesPanel);
 
-        // ── Action buttons ────────────────────────────────────────────────────
         _startButton = new Button
         {
             Name     = "StartMission",
@@ -62,7 +53,7 @@ public sealed class BriefingScreen : UIScreen
             Anchor   = Anchor.BottomRight,
             Position = new Vector2(-80f, -80f),
             Size     = new Vector2(280f, 56f),
-            FontSize = 20f,
+            FontSize = 22f,
         };
         _startButton.Clicked += () => StartRequested?.Invoke();
         AddWidget(_startButton);
@@ -74,65 +65,71 @@ public sealed class BriefingScreen : UIScreen
             Anchor   = Anchor.BottomLeft,
             Position = new Vector2(80f, -80f),
             Size     = new Vector2(200f, 56f),
-            FontSize = 20f,
+            FontSize = 22f,
         };
         _backButton.Clicked += () => BackRequested?.Invoke();
         AddWidget(_backButton);
     }
 
-    // ── Public API ────────────────────────────────────────────────────────────
-
     /// <summary>
     /// Populate the screen with data from a <see cref="MissionDefinition"/>.
-    /// Call before pushing this screen onto the <see cref="UIManager"/> stack.
     /// </summary>
     public void SetMission(MissionDefinition definition)
     {
-        // Rebuild briefing panel content
         while (_briefingPanel.Children.Count > 0)
             _briefingPanel.RemoveChild(_briefingPanel.Children[0]);
 
-        // Mission title banner
-        _briefingPanel.AddChild(new Button
+        _briefingPanel.AddChild(new Label
         {
-            Name     = "MissionTitle",
-            Label    = definition.DisplayName,
-            Anchor   = Anchor.TopLeft,
-            Position = new Vector2(16f, 12f),
-            Size     = new Vector2(1728f, 48f),
-            FontSize = 28f,
-            IsEnabled = false,
+            Name      = "MissionTitle",
+            Text      = definition.DisplayName,
+            Anchor    = Anchor.TopLeft,
+            Position  = new Vector2(16f, 12f),
+            Size      = new Vector2(1728f, 52f),
+            FontSize  = 32f,
+            TextColor = new Vector4(0.55f, 0.85f, 1f, 1f),
         });
 
-        // Briefing body text (shown as a disabled button for now — no Label widget yet)
         string briefingText = definition.Briefing?.Text ?? definition.Description;
-        _briefingPanel.AddChild(new Button
+        _briefingPanel.AddChild(new Label
         {
             Name      = "BriefingBody",
-            Label     = briefingText,
+            Text      = briefingText,
             Anchor    = Anchor.TopLeft,
-            Position  = new Vector2(16f, 76f),
-            Size      = new Vector2(1728f, 400f),
-            FontSize  = 18f,
-            IsEnabled = false,
+            Position  = new Vector2(16f, 72f),
+            Size      = new Vector2(1728f, 410f),
+            FontSize  = 20f,
+            WrapWidth = 1700f,
+            TextColor = new Vector4(0.92f, 0.93f, 0.98f, 1f),
         });
 
-        // Rebuild objectives preview
         while (_objectivesPanel.Children.Count > 0)
             _objectivesPanel.RemoveChild(_objectivesPanel.Children[0]);
+
+        _objectivesPanel.AddChild(new Label
+        {
+            Name      = "ObjectivesHeader",
+            Text      = "OBJECTIVES",
+            Anchor    = Anchor.TopLeft,
+            Position  = new Vector2(16f, 8f),
+            Size      = new Vector2(400f, 32f),
+            FontSize  = 20f,
+            TextColor = new Vector4(0.7f, 0.8f, 1f, 1f),
+        });
 
         var previews = definition.Briefing?.ObjectivesPreview ?? [];
         for (int i = 0; i < previews.Length; i++)
         {
-            _objectivesPanel.AddChild(new Button
+            _objectivesPanel.AddChild(new Label
             {
                 Name      = $"Objective_{i}",
-                Label     = $"• {previews[i]}",
+                Text      = $"• {previews[i]}",
                 Anchor    = Anchor.TopLeft,
-                Position  = new Vector2(16f, 16f + i * 52f),
-                Size      = new Vector2(1728f, 44f),
-                FontSize  = 16f,
-                IsEnabled = false,
+                Position  = new Vector2(16f, 44f + i * 40f),
+                Size      = new Vector2(1728f, 36f),
+                FontSize  = 18f,
+                WrapWidth = 1700f,
+                TextColor = new Vector4(0.88f, 0.9f, 0.95f, 1f),
             });
         }
     }

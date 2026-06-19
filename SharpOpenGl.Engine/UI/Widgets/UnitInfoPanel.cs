@@ -53,76 +53,60 @@ public sealed class UnitInfo
 /// </summary>
 public sealed class UnitInfoPanel : Widget
 {
-    // ── Data bindings ─────────────────────────────────────────────────────────
-
     /// <summary>Snapshot data for selected units (up to <see cref="MaxDisplayed"/>).</summary>
     public IReadOnlyList<UnitInfo> SelectedUnits { get; set; } = Array.Empty<UnitInfo>();
 
     /// <summary>Maximum number of units displayed when multiple are selected.</summary>
-    public int MaxDisplayed { get; set; } = 6;
+    public int MaxDisplayed { get; set; } = 4;
 
-    // ── Visual config ─────────────────────────────────────────────────────────
-
-    /// <summary>Panel background colour.</summary>
-    public Vector4 BackgroundColor { get; set; } = new Vector4(0.05f, 0.05f, 0.1f, 0.9f);
-
-    /// <summary>HP bar colour.</summary>
+    public Vector4 BackgroundColor { get; set; } = new Vector4(0.05f, 0.06f, 0.12f, 0.92f);
     public Vector4 HPColor { get; set; } = new Vector4(0.2f, 0.9f, 0.2f, 1f);
-
-    /// <summary>Shield bar colour.</summary>
     public Vector4 ShieldColor { get; set; } = new Vector4(0.3f, 0.6f, 1.0f, 1f);
-
-    /// <summary>Bar background colour.</summary>
     public Vector4 BarBgColor { get; set; } = new Vector4(0.15f, 0.15f, 0.15f, 1f);
+    public float FontSize { get; set; } = 18f;
 
-    /// <summary>Font size in logical pixels.</summary>
-    public float FontSize { get; set; } = 14f;
-
-    // ── Drawing ───────────────────────────────────────────────────────────────
-
-    /// <inheritdoc/>
     protected override void OnDraw(IUIRenderer renderer, Vector2 position, Vector2 size)
     {
         renderer.DrawRect(position, size, BackgroundColor);
-        renderer.DrawRectOutline(position, size, new Vector4(0.4f, 0.4f, 0.6f, 1f));
+        renderer.DrawRectOutline(position, size, new Vector4(0.4f, 0.55f, 0.75f, 1f));
 
         if (SelectedUnits.Count == 0)
         {
-            renderer.DrawText("No unit selected", position + new Vector2(8f, 8f),
-                FontSize, new Vector4(0.5f, 0.5f, 0.5f, 1f));
+            renderer.DrawText("Click a ship or building to inspect",
+                position + new Vector2(10f, 10f), FontSize,
+                new Vector4(0.65f, 0.68f, 0.75f, 1f));
             return;
         }
 
         int count = Math.Min(SelectedUnits.Count, MaxDisplayed);
         float slotH = size.Y / count;
-        float padding = 6f;
-        float barH = 8f;
+        float padding = 8f;
+        float barH = 9f;
 
         for (int i = 0; i < count; i++)
         {
             UnitInfo unit = SelectedUnits[i];
             float slotY = position.Y + i * slotH;
             float textY = slotY + padding;
-            float barY = textY + FontSize + 4f;
+            float barY = textY + FontSize * 2f + 4f;
             float barW = size.X - padding * 2f;
             float barX = position.X + padding;
 
-            // Name
+            renderer.DrawText(unit.Name, new Vector2(barX, textY), FontSize + 2f,
+                new Vector4(0.55f, 0.85f, 1f, 1f));
             renderer.DrawText(
-                $"{unit.Name}  {unit.CurrentHP:0}/{unit.MaxHP:0} HP  {unit.Armor:0} AR",
-                new Vector2(barX, textY), FontSize,
-                new Vector4(0.9f, 0.9f, 0.9f, 1f));
+                $"HP {unit.CurrentHP:0}/{unit.MaxHP:0}   SH {unit.CurrentShields:0}/{unit.MaxShields:0}   AR {unit.Armor:0}",
+                new Vector2(barX, textY + FontSize + 2f), FontSize - 1f,
+                new Vector4(0.88f, 0.9f, 0.95f, 1f));
 
-            // HP bar background
             renderer.DrawRect(new Vector2(barX, barY), new Vector2(barW, barH), BarBgColor);
-            // HP fill
             float hpFill = barW * Math.Clamp(unit.HPFraction, 0f, 1f);
             if (hpFill > 0f)
                 renderer.DrawRect(new Vector2(barX, barY), new Vector2(hpFill, barH), HPColor);
 
             if (unit.MaxShields > 0f)
             {
-                float shieldY = barY + barH + 2f;
+                float shieldY = barY + barH + 3f;
                 renderer.DrawRect(new Vector2(barX, shieldY), new Vector2(barW, barH), BarBgColor);
                 float shieldFill = barW * Math.Clamp(unit.ShieldFraction, 0f, 1f);
                 if (shieldFill > 0f)
@@ -136,7 +120,7 @@ public sealed class UnitInfoPanel : Widget
             string more = $"+ {SelectedUnits.Count - MaxDisplayed} more";
             renderer.DrawText(more,
                 new Vector2(position.X + padding, position.Y + size.Y - FontSize - padding),
-                FontSize, new Vector4(0.6f, 0.6f, 0.6f, 1f));
+                FontSize, new Vector4(0.6f, 0.65f, 0.72f, 1f));
         }
     }
 }

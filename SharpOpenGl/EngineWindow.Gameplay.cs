@@ -12,6 +12,7 @@ using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Persistence;
 using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI.Screens;
+using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl;
 
@@ -359,6 +360,19 @@ public partial class EngineWindow
         }
 
         ApplyCombatComponents(entity, isEnemy ? 2 : playerId, isEnemy);
+        if (!_world.HasComponent<EntityNameComponent>(entity))
+        {
+            string display = string.IsNullOrWhiteSpace(def.DisplayName)
+                ? def.Id.Replace('_', ' ')
+                : def.DisplayName;
+            if (isEnemy)
+                display = $"Enemy {display}";
+            _world.AddComponent(entity, new EntityNameComponent
+            {
+                DisplayName = display,
+                DefinitionId = def.Id,
+            });
+        }
     }
 
     private void ApplyCombatComponents(Entity entity, int faction, bool isEnemy)
@@ -595,6 +609,70 @@ public partial class EngineWindow
         };
         if (c == '\0') return false;
         return hud.ShipControlBar.HandleKeyShortcut(c);
+    }
+
+
+    private string ResolveEntityDisplayName(Entity entity)
+    {
+        if (_world == null) return "Unit";
+
+        var named = _world.GetComponent<EntityNameComponent>(entity);
+        if (named != null && !string.IsNullOrWhiteSpace(named.DisplayName))
+            return named.DisplayName;
+
+        if (_world.HasComponent<AIControlledComponent>(entity))
+            return "Enemy Ship";
+
+        var building = _world.GetComponent<BuildingComponent>(entity);
+        if (building != null)
+            return FormatBuildingName(building.BuildingType);
+
+        var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+        if (collector != null)
+        {
+            string cargo = collector.CarryAmount > 0
+                ? $" [{collector.CarryAmount:0}/{collector.CarryCapacity:0}]"
+                : "";
+            return $"Resource Miner{cargo}";
+        }
+
+        if (_world.HasComponent<HeroComponent>(entity))
+            return "Hero Command Ship";
+
+        return "Fleet Ship";
+    }
+
+    private static string FormatBuildingName(string buildingType) => buildingType switch
+    {
+        "command_center" => "Command Center",
+        "shipyard"       => "Shipyard",
+        _                => buildingType.Replace('_', ' '),
+    };
+
+    private void BindObjectivePanel()
+    {
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        if (_missionController?.CurrentMission == null)
+        {
+            hud.ObjectivePanel.Visible = false;
+            return;
+        }
+
+        var mission = _missionController.CurrentMission;
+        hud.ObjectivePanel.Visible = true;
+        hud.ObjectivePanel.MissionTitle = mission.Definition.DisplayName;
+
+        var lines = new List<ObjectiveLine>();
+        foreach (var obj in mission.PrimaryObjectives)
+        {
+            string text = obj.Definition.Description;
+            if (string.IsNullOrWhiteSpace(text))
+                text = obj.Definition.Id.Replace('_', ' ');
+            lines.Add(new ObjectiveLine { Text = text, IsCompleted = obj.IsCompleted });
+        }
+
+        hud.ObjectivePanel.Objectives = lines;
     }
 
     private void BindShipControlBar()

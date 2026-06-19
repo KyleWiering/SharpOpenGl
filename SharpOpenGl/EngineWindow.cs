@@ -78,7 +78,8 @@ public partial class EngineWindow : GameWindow
     private int _gridVao, _gridVbo, _gridVertCount;
     private int _resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount;
     private int _minerVao, _minerVbo, _minerVertCount;
-    private int _baseVao, _baseVbo, _baseVertCount;
+    private int _commandCenterVao, _commandCenterVbo, _commandCenterVertCount;
+    private int _shipyardVao, _shipyardVbo, _shipyardVertCount;
     private bool _gameplayMeshesLoaded;
 
     // Game entities
@@ -334,9 +335,10 @@ public partial class EngineWindow : GameWindow
         // Miner ship (uses bomber mesh shape with different color — yellow/gold)
         (_minerVao, _minerVbo, _minerVertCount) =
             ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.8f, 0.2f), 2f);
-        // Base structure (wireframe cube — larger)
-        (_baseVao, _baseVbo, _baseVertCount) =
-            MeshBuilder.BuildWireframeCube(new Vector3(0.3f, 0.7f, 1.0f));
+        (_commandCenterVao, _commandCenterVbo, _commandCenterVertCount) =
+            ShipMeshBuilder.BuildCommandCenterStation(8f);
+        (_shipyardVao, _shipyardVbo, _shipyardVertCount) =
+            ShipMeshBuilder.BuildShipyardStation(9f);
         _gameplayMeshesLoaded = true;
     }
 
@@ -473,80 +475,22 @@ public partial class EngineWindow : GameWindow
     {
         if (_world == null) return;
 
-        // Command Center
         _baseEntity = _world.CreateEntity();
-        _world.AddComponent(_baseEntity, new TransformComponent
-        {
-            Position = new Vector3(-30f, 0f, -30f),
-            Scale = new Vector3(15f, 15f, 15f),
-        });
-        _world.AddComponent(_baseEntity, new RenderComponent
-        {
-            MeshId = _baseVao,
-            VertexCount = _baseVertCount,
-            Color = new Vector4(0.3f, 0.7f, 1.0f, 1f),
-            Visible = true,
-            PrimitiveType = (int)PrimitiveType.Lines,
-        });
-        _world.AddComponent(_baseEntity, new BuildingComponent
-        {
-            BuildingType = "command_center",
-            ProductionRate = 1f,
-            Footprint = [2, 2],
-            PlayerId = 1,
-            RallyPoint = new Vector3(-30f, 0f, 0f),
-            Producible = ["drone_worker", "miner_basic"],
-        });
-        _world.AddComponent(_baseEntity, new SelectionComponent
-        {
-            IsSelected = false,
-            SelectionRadius = 15f,
-        });
-        _world.AddComponent(_baseEntity, new HealthComponent
-        {
-            MaxHP = 2000f,
-            CurrentHP = 2000f,
-            Armor = 100f,
-        });
+        _world.AddComponent(_baseEntity, new TransformComponent { Position = new Vector3(-30f, 0f, -30f), Scale = new Vector3(2f, 2f, 2f) });
+        _world.AddComponent(_baseEntity, new RenderComponent { MeshId = _commandCenterVao, VertexCount = _commandCenterVertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
+        _world.AddComponent(_baseEntity, new BuildingComponent { BuildingType = "command_center", ProductionRate = 1f, Footprint = [2, 2], PlayerId = 1, RallyPoint = new Vector3(-30f, 0f, 0f), Producible = ["drone_worker", "miner_basic"] });
+        _world.AddComponent(_baseEntity, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
+        _world.AddComponent(_baseEntity, new HealthComponent { MaxHP = 2000f, CurrentHP = 2000f, Armor = 100f });
+        _world.AddComponent(_baseEntity, new EntityNameComponent { DisplayName = "Command Center", DefinitionId = "command_center" });
 
-        // Shipyard
         var shipyard = _world.CreateEntity();
-        _world.AddComponent(shipyard, new TransformComponent
-        {
-            Position = new Vector3(50f, 0f, -50f),
-            Scale = new Vector3(18f, 18f, 18f),
-        });
-        _world.AddComponent(shipyard, new RenderComponent
-        {
-            MeshId = _baseVao,
-            VertexCount = _baseVertCount,
-            Color = new Vector4(0.8f, 0.5f, 0.2f, 1f),
-            Visible = true,
-            PrimitiveType = (int)PrimitiveType.Lines,
-        });
-        _world.AddComponent(shipyard, new BuildingComponent
-        {
-            BuildingType = "shipyard",
-            ProductionRate = 1f,
-            Footprint = [3, 3],
-            PlayerId = 1,
-            RallyPoint = new Vector3(80f, 0f, -50f),
-            Producible = ["fighter_basic", "bomber_heavy", "destroyer_assault",
-                          "scout_light", "miner_basic", "transport_cargo"],
-        });
-        _world.AddComponent(shipyard, new SelectionComponent
-        {
-            IsSelected = false,
-            SelectionRadius = 18f,
-        });
-        _world.AddComponent(shipyard, new HealthComponent
-        {
-            MaxHP = 1500f,
-            CurrentHP = 1500f,
-            Armor = 75f,
-        });
+        _world.AddComponent(shipyard, new TransformComponent { Position = new Vector3(50f, 0f, -50f), Scale = new Vector3(2.2f, 2.2f, 2.2f) });
+        _world.AddComponent(shipyard, new RenderComponent { MeshId = _shipyardVao, VertexCount = _shipyardVertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
+        _world.AddComponent(shipyard, new BuildingComponent { BuildingType = "shipyard", ProductionRate = 1f, Footprint = [3, 3], PlayerId = 1, RallyPoint = new Vector3(80f, 0f, -50f), Producible = ["fighter_basic", "bomber_heavy", "destroyer_assault", "scout_light", "miner_basic", "transport_cargo"] });
+        _world.AddComponent(shipyard, new SelectionComponent { IsSelected = false, SelectionRadius = 18f });
+        _world.AddComponent(shipyard, new HealthComponent { MaxHP = 1500f, CurrentHP = 1500f, Armor = 75f });
+        _world.AddComponent(shipyard, new EntityNameComponent { DisplayName = "Shipyard", DefinitionId = "shipyard" });
     }
-
     private void SpawnMiners(Random rng)
     {
         if (_world == null) return;
@@ -778,6 +722,7 @@ public partial class EngineWindow : GameWindow
             BindResourceHUD();
             BindBuildPanel();
             BindUnitInfoPanel();
+            BindObjectivePanel();
             BindShipControlBar();
 
             // Fade move target indicator
@@ -1446,56 +1391,41 @@ public partial class EngineWindow : GameWindow
     }
 
     /// <summary>Place a building at the given world position.</summary>
+    private (int meshId, int vertCount, Vector3 scale) ResolveBuildingMesh(string buildingType) => buildingType switch
+    {
+        "shipyard" => (_shipyardVao, _shipyardVertCount, new Vector3(2.2f, 2.2f, 2.2f)),
+        _ => (_commandCenterVao, _commandCenterVertCount, new Vector3(2f, 2f, 2f)),
+    };
+
     private void HandlePlaceBuilding(Vector3 worldPos)
     {
         if (_world == null || _resourceManager == null || _placementBuildingId == null) return;
-
         if (!_definitions.TryGetValue(_placementBuildingId, out var def))
         {
             Console.WriteLine($"[Place] Unknown building: {_placementBuildingId}");
             return;
         }
 
-        // Check cost
         int energy = def.Cost?.Energy ?? 0;
         int minerals = def.Cost?.Minerals ?? 0;
         int data = def.Cost?.Data ?? 0;
         int crew = def.Cost?.Crew ?? 0;
-
         if (!_resourceManager.TrySpendCost(1, energy, minerals, data, crew))
         {
             Console.WriteLine($"[Place] Cannot afford {def.DisplayName}");
             return;
         }
 
-        // Spawn building at position
+        string buildingType = def.Components?.Building?.BuildingType ?? _placementBuildingId;
+        var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType);
+
         var building = _world.CreateEntity();
-        _world.AddComponent(building, new TransformComponent
-        {
-            Position = worldPos,
-            Scale = new Vector3(15f, 15f, 15f),
-        });
-        _world.AddComponent(building, new RenderComponent
-        {
-            MeshId = _baseVao,
-            VertexCount = _baseVertCount,
-            Color = new Vector4(0.3f, 0.7f, 1.0f, 1f),
-            Visible = true,
-            PrimitiveType = (int)PrimitiveType.Lines,
-        });
-        _world.AddComponent(building, new SelectionComponent
-        {
-            IsSelected = false,
-            SelectionRadius = 15f,
-        });
+        _world.AddComponent(building, new TransformComponent { Position = worldPos, Scale = scale });
+        _world.AddComponent(building, new RenderComponent { MeshId = meshId, VertexCount = vertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
+        _world.AddComponent(building, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
 
         var healthDef = def.Components?.Health;
-        _world.AddComponent(building, new HealthComponent
-        {
-            MaxHP = healthDef?.MaxHP ?? 1000f,
-            CurrentHP = healthDef?.MaxHP ?? 1000f,
-            Armor = healthDef?.Armor ?? 50f,
-        });
+        _world.AddComponent(building, new HealthComponent { MaxHP = healthDef?.MaxHP ?? 1000f, CurrentHP = healthDef?.MaxHP ?? 1000f, Armor = healthDef?.Armor ?? 50f });
 
         var buildingDef = def.Components?.Building;
         _world.AddComponent(building, new BuildingComponent
@@ -1506,6 +1436,11 @@ public partial class EngineWindow : GameWindow
             PlayerId = 1,
             RallyPoint = worldPos + new Vector3(30f, 0f, 0f),
             Producible = def.Producible?.ToList() ?? new List<string>(),
+        });
+        _world.AddComponent(building, new EntityNameComponent
+        {
+            DisplayName = string.IsNullOrWhiteSpace(def.DisplayName) ? buildingType.Replace("_", " ") : def.DisplayName,
+            DefinitionId = def.Id,
         });
 
         Console.WriteLine($"[Place] Built {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
@@ -1620,37 +1555,12 @@ public partial class EngineWindow : GameWindow
         var unitInfos = new List<UnitInfo>();
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
-            if (!sel.IsSelected) continue;
-            if (unitInfos.Count >= 6) break;
-
+            if (!sel.IsSelected || !IsPlayerSelectable(entity)) continue;
+            if (unitInfos.Count >= 4) break;
             var health = _world.GetComponent<HealthComponent>(entity);
-            string name = "Unit";
-
-            // Determine name from components
-            var building = _world.GetComponent<BuildingComponent>(entity);
-            if (building != null)
-                name = building.BuildingType.Replace("_", " ");
-            else
-            {
-                var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
-                if (collector != null)
-                {
-                    string cargoInfo = collector.CarryAmount > 0
-                        ? $" [{collector.CarryAmount:0}/{collector.CarryCapacity:0}]"
-                        : "";
-                    name = $"Miner{cargoInfo} ({collector.State})";
-                }
-                else
-                {
-                    var hero = _world.GetComponent<HeroComponent>(entity);
-                    name = hero != null ? "Hero Ship" : "Ship";
-                }
-            }
-
-            if (health != null)
-                unitInfos.Add(UnitInfo.FromHealth(name, health));
+            string name = ResolveEntityDisplayName(entity);
+            if (health != null) unitInfos.Add(UnitInfo.FromHealth(name, health));
         }
-
         hud.UnitInfoPanel.SelectedUnits = unitInfos;
     }
 
