@@ -8,7 +8,7 @@ using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
-using SharpOpenGl.Engine.Rendering;
+using SharpOpenGl.Engine.Rendering;`r`nusing SharpOpenGl.Rendering;`r`nusing SharpOpenGl.Rendering;
 using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;

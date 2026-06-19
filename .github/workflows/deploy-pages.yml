@@ -23,8 +23,24 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
+      - name: Publish Blazor WASM to docs/
+        run: |
+          mkdir -p _md_backup
+          cp docs/*.md _md_backup/ 2>/dev/null || true
+          dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
+            --configuration Release \
+            --output docs \
+            /p:BaseHref=/SharpOpenGl/
+          cp _md_backup/*.md docs/ 2>/dev/null || true
+          rm -f docs/engine.js docs/engine.min.js
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

@@ -1,19 +1,17 @@
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using SharpOpenGl.Engine.Input;
 
-namespace SharpOpenGl.Engine.Input;
+namespace SharpOpenGl.Input;
 
 /// <summary>
 /// Desktop keyboard implementation of <see cref="IInputProvider"/>.
-/// Bindings mirror the default controls defined in controls.json.
-/// Pass the OpenTK <see cref="KeyboardState"/> each frame via <see cref="Update(KeyboardState)"/>.
 /// </summary>
 public class KeyboardInput : IInputProvider
 {
     private KeyboardState _current = default!;
     private KeyboardState _previous = default!;
 
-    // Default key bindings — can be made data-driven via controls.json later
     private static readonly Dictionary<InputAction, Keys> Bindings = new()
     {
         { InputAction.CameraMoveForward,  Keys.W },
@@ -34,31 +32,25 @@ public class KeyboardInput : IInputProvider
         { InputAction.Cancel,             Keys.Escape },
     };
 
-    /// <summary>Update with the current frame's keyboard state.</summary>
     public void Update(KeyboardState current)
     {
         _previous = _current;
         _current = current;
     }
 
-    /// <inheritdoc/>
-    public void Update() { /* Called by interface; use Update(KeyboardState) from OpenTK. */ }
+    public void Update() { }
 
-    /// <inheritdoc/>
     public bool IsActionHeld(InputAction action) =>
         Bindings.TryGetValue(action, out Keys key) && _current.IsKeyDown(key);
 
-    /// <inheritdoc/>
     public bool IsActionPressed(InputAction action) =>
         Bindings.TryGetValue(action, out Keys key) &&
         _current.IsKeyDown(key) && !_previous.IsKeyDown(key);
 
-    /// <inheritdoc/>
     public bool IsActionReleased(InputAction action) =>
         Bindings.TryGetValue(action, out Keys key) &&
         !_current.IsKeyDown(key) && _previous.IsKeyDown(key);
 
-    /// <inheritdoc/>
     public Vector2 GetAxis(string axisName) => axisName switch
     {
         "MoveHorizontal" => new Vector2(
@@ -70,6 +62,5 @@ public class KeyboardInput : IInputProvider
         _ => Vector2.Zero,
     };
 
-    /// <inheritdoc/>
     public Vector2 PointerPosition => new(-1f, -1f);
 }

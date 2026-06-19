@@ -1,14 +1,11 @@
 using OpenTK.Audio.OpenAL;
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Audio;
 
-namespace SharpOpenGl.Engine.Audio;
+namespace SharpOpenGl.Audio;
 
 /// <summary>
 /// Desktop audio manager backed by OpenAL (via OpenTK).
-/// Maintains a pool of <see cref="SourcePoolSize"/> AL sources for sound
-/// effects and one dedicated streaming source for background music.
-/// Falls back gracefully to <see cref="NullAudioManager"/> behaviour if no
-/// audio device is available.
 /// </summary>
 public sealed class OpenAlAudioManager : IAudioManager
 {
@@ -18,28 +15,20 @@ public sealed class OpenAlAudioManager : IAudioManager
     private readonly ALContext _context;
     private readonly bool      _initialized;
 
-    // SFX source pool
     private readonly int[] _sfxSources;
     private int _nextSource;
 
-    // Per-event AL buffer (lazy-generated from PlaceholderSoundGenerator)
     private readonly Dictionary<AudioEventType, int> _buffers = new();
 
-    // Music
     private int   _musicSource;
     private int   _musicBuffer;
     private bool  _musicPlaying;
-    private float _musicFade;        // current gain factor for crossfade
-    private float _musicFadeSpeed;   // units per second (negative = fade-out)
-    private bool? _pendingMusicLoop; // loop flag for the track queued after fade-out
+    private float _musicFade;
+    private float _musicFadeSpeed;
+    private bool? _pendingMusicLoop;
 
-    /// <inheritdoc/>
     public AudioSettings Settings { get; } = new AudioSettings();
 
-    /// <summary>
-    /// Create and initialise the OpenAL audio manager.
-    /// If no audio device is available the manager operates silently.
-    /// </summary>
     public OpenAlAudioManager()
     {
         try
@@ -64,9 +53,6 @@ public sealed class OpenAlAudioManager : IAudioManager
         }
     }
 
-    // ── IAudioManager ────────────────────────────────────────────────────────
-
-    /// <inheritdoc/>
     public void PlaySound(AudioEventType eventType, Vector3 worldPosition = default)
     {
         if (!_initialized) return;
@@ -81,14 +67,12 @@ public sealed class OpenAlAudioManager : IAudioManager
         AL.SourcePlay(src);
     }
 
-    /// <inheritdoc/>
     public void PlayMusic(string trackId, bool loop = true, float crossfadeSeconds = 1.0f)
     {
         if (!_initialized) return;
 
         if (_musicPlaying)
         {
-            // Fade out the current track; store loop flag so Update starts the new one.
             _musicFadeSpeed  = crossfadeSeconds > 0f ? -1f / crossfadeSeconds : float.NegativeInfinity;
             _pendingMusicLoop = loop;
             return;
@@ -97,7 +81,6 @@ public sealed class OpenAlAudioManager : IAudioManager
         StartMusicTrack(loop);
     }
 
-    /// <inheritdoc/>
     public void StopMusic(float fadeOutSeconds = 1.0f)
     {
         if (!_initialized || !_musicPlaying) return;
@@ -105,7 +88,6 @@ public sealed class OpenAlAudioManager : IAudioManager
         _musicFadeSpeed = fadeOutSeconds > 0f ? -1f / fadeOutSeconds : float.NegativeInfinity;
     }
 
-    /// <inheritdoc/>
     public void Update(float deltaTime)
     {
         if (!_initialized) return;
@@ -120,7 +102,6 @@ public sealed class OpenAlAudioManager : IAudioManager
                 AL.SourceStop(_musicSource);
                 _musicPlaying = false;
 
-                // Start a queued track if one was requested during fade-out.
                 if (_pendingMusicLoop.HasValue)
                 {
                     StartMusicTrack(_pendingMusicLoop.Value);
@@ -130,7 +111,6 @@ public sealed class OpenAlAudioManager : IAudioManager
         }
     }
 
-    /// <inheritdoc/>
     public void SetListenerTransform(Vector3 position, Vector3 forward, Vector3 up)
     {
         if (!_initialized) return;
@@ -140,7 +120,6 @@ public sealed class OpenAlAudioManager : IAudioManager
         AL.Listener(ALListenerfv.Orientation, orientation);
     }
 
-    /// <inheritdoc/>
     public void SetMasterVolume(float volume)
     {
         Settings.MasterVolume = volume;
@@ -148,10 +127,8 @@ public sealed class OpenAlAudioManager : IAudioManager
             AL.Listener(ALListenerf.Gain, Settings.MasterVolume);
     }
 
-    /// <inheritdoc/>
     public void SetSfxVolume(float volume) => Settings.SfxVolume = volume;
 
-    /// <inheritdoc/>
     public void SetMusicVolume(float volume)
     {
         Settings.MusicVolume = volume;
@@ -159,9 +136,6 @@ public sealed class OpenAlAudioManager : IAudioManager
             AL.Source(_musicSource, ALSourcef.Gain, _musicFade * Settings.EffectiveMusicGain);
     }
 
-    // ── IDisposable ──────────────────────────────────────────────────────────
-
-    /// <inheritdoc/>
     public void Dispose()
     {
         if (!_initialized) return;
@@ -186,13 +160,10 @@ public sealed class OpenAlAudioManager : IAudioManager
         ALC.CloseDevice(_device);
     }
 
-    // ── Private helpers ───────────────────────────────────────────────────────
-
     private int NextSource()
     {
         int src = _sfxSources[_nextSource % SourcePoolSize];
         _nextSource = (_nextSource + 1) % SourcePoolSize;
-        // If still playing, stop it to reclaim the slot
         AL.GetSource(src, ALGetSourcei.SourceState, out int state);
         if ((ALSourceState)state == ALSourceState.Playing)
             AL.SourceStop(src);
@@ -207,7 +178,6 @@ public sealed class OpenAlAudioManager : IAudioManager
         short[] pcm = PlaceholderSoundGenerator.GetPlaceholder(type);
         int buf = AL.GenBuffer();
 
-        // Convert short[] to byte[] for OpenAL
         byte[] bytes = new byte[pcm.Length * 2];
         Buffer.BlockCopy(pcm, 0, bytes, 0, bytes.Length);
 
@@ -218,7 +188,6 @@ public sealed class OpenAlAudioManager : IAudioManager
 
     private void StartMusicTrack(bool loop)
     {
-        // Use a long low-frequency tone as placeholder music
         short[] pcm  = PlaceholderSoundGenerator.GenerateTone(110f, 4.0f, 0.5f, 0.5f);
         byte[]  bytes = new byte[pcm.Length * 2];
         Buffer.BlockCopy(pcm, 0, bytes, 0, bytes.Length);

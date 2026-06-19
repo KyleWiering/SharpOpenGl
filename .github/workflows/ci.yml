@@ -78,9 +78,9 @@ jobs:
           path: dist/${{ matrix.rid }}
           retention-days: 30
 
-  # ── WebGL2 production build ───────────────────────────────────────────────
-  build-webgl2:
-    name: WebGL2 Minification
+  # ── Browser (Blazor WASM) build ───────────────────────────────────────────
+  build-browser:
+    name: Browser WASM Build
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
@@ -88,35 +88,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: '20'
+          dotnet-version: '8.0.x'
 
-      - name: Install terser
-        run: npm install -g terser
+      - name: Restore dependencies
+        run: dotnet restore
 
-      - name: Minify engine.js
+      - name: Publish Blazor WASM
         run: |
-          terser docs/engine.js \
-            --compress --mangle \
-            --output docs/engine.min.js
-          echo "Original: $(wc -c < docs/engine.js) bytes"
-          echo "Minified: $(wc -c < docs/engine.min.js) bytes"
+          dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
+            --configuration Release \
+            --output dist/browser \
+            /p:BaseHref=/SharpOpenGl/
 
-      - name: Upload WebGL2 artifact
+      - name: Upload browser artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SharpOpenGl-WebGL2
-          path: |
-            docs/index.html
-            docs/engine.min.js
+          name: SharpOpenGl-Browser
+          path: dist/browser
           retention-days: 30
 
   # ── Release ─────────────────────────────────────────────────────────────────
   release:
     name: Create GitHub Release
-    needs: [build-desktop, build-webgl2]
+    needs: [build-desktop, build-browser]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
@@ -159,6 +156,6 @@ jobs:
             - **Linux x64** — `SharpOpenGl-linux-x64.zip`
             - **macOS x64** — `SharpOpenGl-osx-x64.zip`
             - **macOS ARM64** — `SharpOpenGl-osx-arm64.zip`
-            - **WebGL2** — `SharpOpenGl-WebGL2.zip`
+            - **Browser (WASM)** — `SharpOpenGl-Browser.zip`
           files: release/*.zip
           generate_release_notes: true

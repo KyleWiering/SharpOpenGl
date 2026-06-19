@@ -1,7 +1,7 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 
-namespace SharpOpenGl.Engine.Rendering;
+namespace SharpOpenGl.Rendering;
 
 /// <summary>
 /// Builds common procedural meshes (VAO + VBO) for engine and game use.
@@ -16,15 +16,12 @@ public static class MeshBuilder
     /// </summary>
     public static (int vao, int vbo, int vertexCount) BuildWireframeCube(Vector3 color)
     {
-        // 12 edges × 2 vertices = 24 vertices
         float r = color.X, g = color.Y, b = color.Z;
         float[] v = BuildWireframeCubeVertices(r, g, b);
         return Upload(v, 6, PrimitiveType.Lines);
     }
 
-    /// <summary>
-    /// Build a quad in the XY plane (two triangles), with given color.
-    /// </summary>
+    /// <summary>Build a quad in the XY plane (two triangles), with given color.</summary>
     public static (int vao, int vbo, int vertexCount) BuildQuad(
         float width, float height, Vector3 color)
     {
@@ -42,9 +39,8 @@ public static class MeshBuilder
         };
         return Upload(v, 6, PrimitiveType.Triangles);
     }
-    /// <summary>
-    /// Build a quad in the XZ plane (two triangles), with given color.
-    /// </summary>
+
+    /// <summary>Build a quad in the XZ plane (two triangles), with given color.</summary>
     public static (int vao, int vbo, int vertexCount) BuildGroundQuad(
         float width, float depth, Vector3 color)
     {
@@ -63,9 +59,7 @@ public static class MeshBuilder
         return Upload(v, 6, PrimitiveType.Triangles);
     }
 
-    /// <summary>
-    /// Build a flat grid of lines in the XZ plane.
-    /// </summary>
+    /// <summary>Build a flat grid of lines in the XZ plane.</summary>
     public static (int vao, int vbo, int vertexCount) BuildGrid(
         int columns, int rows, float cellSize, Vector3 color)
     {
@@ -74,14 +68,13 @@ public static class MeshBuilder
         float totalH = rows * cellSize;
         var verts = new List<float>();
 
-        // Vertical lines
         for (int x = 0; x <= columns; x++)
         {
             float px = x * cellSize;
             verts.AddRange(new[] { px, 0f, 0f, r, g, b });
             verts.AddRange(new[] { px, 0f, totalH, r, g, b });
         }
-        // Horizontal lines
+
         for (int z = 0; z <= rows; z++)
         {
             float pz = z * cellSize;
@@ -92,9 +85,7 @@ public static class MeshBuilder
         return Upload(verts.ToArray(), 6, PrimitiveType.Lines);
     }
 
-    /// <summary>
-    /// Build a point-cloud mesh from pre-built vertex data (pos+col, stride 6).
-    /// </summary>
+    /// <summary>Build a point-cloud mesh from pre-built vertex data (pos+col, stride 6).</summary>
     public static (int vao, int vbo, int vertexCount) BuildPointCloud(float[] posColorData)
         => Upload(posColorData, 6, PrimitiveType.Points);
 
@@ -104,8 +95,6 @@ public static class MeshBuilder
         GL.DeleteBuffer(vbo);
         GL.DeleteVertexArray(vao);
     }
-
-    // ── Internal helpers ──────────────────────────────────────────────────────
 
     private static (int vao, int vbo, int vertexCount) Upload(
         float[] data, int stride, PrimitiveType _)
@@ -120,12 +109,10 @@ public static class MeshBuilder
         GL.BufferData(BufferTarget.ArrayBuffer, data.Length * sizeof(float),
             data, BufferUsageHint.StaticDraw);
 
-        // layout(location=0) vec3 position
         GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false,
             stride * sizeof(float), 0);
         GL.EnableVertexAttribArray(0);
 
-        // layout(location=1) vec3 color
         GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false,
             stride * sizeof(float), 3 * sizeof(float));
         GL.EnableVertexAttribArray(1);
@@ -136,7 +123,6 @@ public static class MeshBuilder
 
     private static float[] BuildWireframeCubeVertices(float r, float g, float b)
     {
-        // Half-extents
         float[] corners = {
             -0.5f, -0.5f, -0.5f,
              0.5f, -0.5f, -0.5f,
@@ -149,9 +135,9 @@ public static class MeshBuilder
         };
 
         int[] edges = {
-            0,1, 1,2, 2,3, 3,0,  // back face
-            4,5, 5,6, 6,7, 7,4,  // front face
-            0,4, 1,5, 2,6, 3,7   // connecting edges
+            0,1, 1,2, 2,3, 3,0,
+            4,5, 5,6, 6,7, 7,4,
+            0,4, 1,5, 2,6, 3,7
         };
 
         float[] result = new float[edges.Length * 6];
