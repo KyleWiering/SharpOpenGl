@@ -4,6 +4,7 @@ using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Grid;
 
 namespace SharpOpenGl.Engine.Missions;
 
@@ -90,13 +91,16 @@ public sealed class TriggerSystem : GameSystem
     {
         if (cond.Position == null || cond.Position.Length < 2) return false;
 
-        var center = new Vector3(cond.Position[0], cond.Position[1], 0f);
+        var center = MapCoordinates.GridToWorld(cond.Position[0], cond.Position[1]);
         float radius = cond.Radius > 0f ? cond.Radius : 5f;
 
         foreach (var (entity, tf) in world.Query<TransformComponent>())
         {
             if (world.HasComponent<AIControlledComponent>(entity)) continue;
-            if (Vector3.Distance(tf.Position, center) <= radius)
+
+            float dx = tf.Position.X - center.X;
+            float dz = tf.Position.Z - center.Z;
+            if (MathF.Sqrt(dx * dx + dz * dz) <= radius)
                 return true;
         }
         return false;
@@ -142,7 +146,7 @@ public sealed class TriggerSystem : GameSystem
 
         var pos = Vector3.Zero;
         if (action.Position != null && action.Position.Length >= 2)
-            pos = new Vector3(action.Position[0], action.Position[1], 0f);
+            pos = MapCoordinates.GridToWorld(action.Position[0], action.Position[1]);
 
         foreach (string unitId in action.Units)
         {

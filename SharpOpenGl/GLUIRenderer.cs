@@ -87,7 +87,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
 
     public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color)
     {
-        float thickness = 1f;
+        float thickness = MathF.Max(1.5f, size.Y * 0.01f);
         DrawRect(position, new Vector2(size.X, thickness), color);
         DrawRect(new Vector2(position.X, position.Y + size.Y - thickness),
             new Vector2(size.X, thickness), color);
@@ -98,21 +98,40 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
 
     public void DrawText(string text, Vector2 position, float fontSize, Vector4 color)
     {
-        float charWidth = fontSize * 0.6f;
-        float charHeight = fontSize;
-        float spacing = charWidth * 0.2f;
-        float lineThickness = MathF.Max(2.5f, fontSize * 0.22f);
-        var shadow = new Vector4(0f, 0f, 0f, color.W * 0.65f);
+        if (string.IsNullOrEmpty(text)) return;
 
+        string[] lines = text.Split('\n');
+        float lineHeight = fontSize * UITextDrawing.LineHeightFactor;
+        for (int line = 0; line < lines.Length; line++)
+            DrawTextLine(lines[line], position + new Vector2(0f, line * lineHeight), fontSize, color);
+    }
+
+    private void DrawTextLine(string text, Vector2 position, float fontSize, Vector4 color)
+    {
+        float charWidth = fontSize * 0.62f;
+        float charHeight = fontSize;
+        float spacing = charWidth * 0.15f;
+        float lineThickness = MathF.Max(3.5f, fontSize * 0.26f);
+        var outline = new Vector4(0f, 0f, 0f, color.W * 0.85f);
+
+        int charIndex = 0;
         for (int i = 0; i < text.Length; i++)
         {
             char c = text[i];
-            if (c == ' ') continue;
+            if (c == ' ')
+            {
+                charIndex++;
+                continue;
+            }
 
-            float x = position.X + i * (charWidth + spacing);
+            float x = position.X + charIndex * (charWidth + spacing);
             float y = position.Y;
+            charIndex++;
 
-            DrawGlyph(c, x + 1f, y + 1f, charWidth, charHeight, lineThickness, shadow);
+            DrawGlyph(c, x - 1f, y, charWidth, charHeight, lineThickness, outline);
+            DrawGlyph(c, x + 1f, y, charWidth, charHeight, lineThickness, outline);
+            DrawGlyph(c, x, y - 1f, charWidth, charHeight, lineThickness, outline);
+            DrawGlyph(c, x, y + 1f, charWidth, charHeight, lineThickness, outline);
             DrawGlyph(c, x, y, charWidth, charHeight, lineThickness, color);
         }
     }
@@ -245,6 +264,8 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         '>' => [Seg.TopLeft, Seg.Middle, Seg.BottomLeft],
         '<' => [Seg.TopRight, Seg.Middle, Seg.BottomRight],
         '#' => [Seg.Middle, Seg.CenterVert, Seg.Top, Seg.Bottom],
+        '•' => [Seg.Dot],
+        '·' => [Seg.Dot],
         _ => [Seg.Middle],
     };
 

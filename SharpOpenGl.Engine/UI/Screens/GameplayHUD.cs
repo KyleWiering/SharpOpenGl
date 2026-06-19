@@ -17,6 +17,7 @@ public sealed class GameplayHUD : UIScreen
     public UnitInfoPanel UnitInfoPanel { get; }
     public BuildPanel BuildPanel { get; }
     public ShipControlBar ShipControlBar { get; }
+    public ObjectivePanel ObjectivePanel { get; }
 
     /// <summary>Fired when the pause button is clicked.</summary>
     public event Action? PauseRequested;
@@ -29,8 +30,19 @@ public sealed class GameplayHUD : UIScreen
             Anchor = Anchor.TopLeft,
             Position = Vector2.Zero,
             Size = new Vector2(1920f, 48f),
+            FontSize = 18f,
         };
         AddWidget(ResourceBar);
+
+        ObjectivePanel = new ObjectivePanel
+        {
+            Name = "ObjectivePanel",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(-360f, 56f),
+            Size = new Vector2(720f, 200f),
+            Visible = false,
+        };
+        AddWidget(ObjectivePanel);
 
         Minimap = new Minimap
         {
@@ -45,8 +57,9 @@ public sealed class GameplayHUD : UIScreen
         {
             Name = "UnitInfoPanel",
             Anchor = Anchor.BottomCenter,
-            Position = new Vector2(-240f, -168f),
-            Size = new Vector2(480f, 160f),
+            Position = new Vector2(-280f, -180f),
+            Size = new Vector2(560f, 170f),
+            FontSize = 18f,
         };
         AddWidget(UnitInfoPanel);
 
@@ -77,7 +90,7 @@ public sealed class GameplayHUD : UIScreen
             Anchor = Anchor.TopRight,
             Position = new Vector2(-72f, 8f),
             Size = new Vector2(56f, 40f),
-            FontSize = 18f,
+            FontSize = 20f,
         };
         pauseBtn.Clicked += () => PauseRequested?.Invoke();
         AddWidget(pauseBtn);

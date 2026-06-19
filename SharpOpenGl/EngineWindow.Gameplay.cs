@@ -6,11 +6,13 @@ using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Input;
 using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Persistence;
 using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI.Screens;
+using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl;
 
@@ -24,6 +26,7 @@ public partial class EngineWindow
     private SettingsManager? _settingsManager;
     private SaveManager? _saveManager;
     private string? _pendingMissionId;
+    private bool _gameplayEventsHooked;
 
     private string ResolveGameDataPath()
     {
@@ -47,6 +50,16 @@ public partial class EngineWindow
         _assetManager ??= new AssetManager(ResolveGameDataPath());
         _missionLoader ??= new MissionLoader(_assetManager);
         _missionController ??= new MissionController(_missionLoader, _resourceManager, _eventBus);
+    }
+
+    private void EnsureGameplayEventHooks()
+    {
+        if (_gameplayEventsHooked) return;
+        _gameplayEventsHooked = true;
+
+        _eventBus.Subscribe<UnitDiedEvent>(_ => _triggerSystem?.RecordKill());
+        _eventBus.Subscribe<DialogEvent>(evt =>
+            Console.WriteLine($"[{evt.Speaker}] {evt.Text}"));
     }
 
     internal void ShowMissionBriefing(string missionId)
@@ -122,10 +135,15 @@ public partial class EngineWindow
         _triggerSystem = null;
         _objectiveSystem = null;
 
+        EnsureGameplayEventHooks();
+
         _world = new World();
         _movementSystem = new MovementSystem();
         _aiSystem = new AIPlayerSystem(MapWorldSize);
         _world.AddSystem(_movementSystem);
+        _world.AddSystem(new StanceSystem());
+        _world.AddSystem(new CombatSystem(_eventBus));
+        _world.AddSystem(new ProjectileSystem(_eventBus));
         _world.AddSystem(_aiSystem);
 
         _resourceManager = new ResourceManager(_eventBus);
@@ -176,9 +194,6 @@ public partial class EngineWindow
             };
             _world.AddSystem(_objectiveSystem);
             _world.AddSystem(_triggerSystem);
-
-            _eventBus.Subscribe<DialogEvent>(evt =>
-                Console.WriteLine($"[{evt.Speaker}] {evt.Text}"));
         }
     }
 
@@ -244,13 +259,8 @@ public partial class EngineWindow
         SpawnPlayerBase();
     }
 
-    private Vector3 GridCellToWorld(int[] cell)
-    {
-        float half = MapWorldSize * 0.5f;
-        float x = cell[0] * GridCellSize - half;
-        float z = cell.Length > 1 ? cell[1] * GridCellSize - half : 0f;
-        return new Vector3(x, 0f, z);
-    }
+    private static Vector3 GridCellToWorld(int[] cell) =>
+        MapCoordinates.GridToWorld(cell[0], cell.Length > 1 ? cell[1] : 0);
 
     private void SpawnDefaultHeroAndFleet()
     {
@@ -328,24 +338,66 @@ public partial class EngineWindow
         {
             _world.AddComponent(entity, new AIControlledComponent { PlayerId = 2, Aggressiveness = 0.6f });
             _aiEntities.Add(entity);
-            return;
+        }
+        else
+        {
+            if (!_world.HasComponent<SelectionComponent>(entity))
+            {
+                _world.AddComponent(entity, new SelectionComponent
+                {
+                    IsSelected = false,
+                    SelectionRadius = ResolveSelectionRadius(def),
+                });
+            }
+
+            var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+            if (collector != null)
+            {
+                collector.PlayerId = playerId;
+                if (collector.DepositTarget == default)
+                    collector.DepositTarget = _baseEntity;
+            }
         }
 
-        if (!_world.HasComponent<SelectionComponent>(entity))
+        ApplyCombatComponents(entity, isEnemy ? 2 : playerId, isEnemy);
+        if (!_world.HasComponent<EntityNameComponent>(entity))
         {
-            _world.AddComponent(entity, new SelectionComponent
+            string display = string.IsNullOrWhiteSpace(def.DisplayName)
+                ? def.Id.Replace('_', ' ')
+                : def.DisplayName;
+            if (isEnemy)
+                display = $"Enemy {display}";
+            _world.AddComponent(entity, new EntityNameComponent
             {
-                IsSelected = false,
-                SelectionRadius = ResolveSelectionRadius(def),
+                DisplayName = display,
+                DefinitionId = def.Id,
+            });
+        }
+    }
+
+    private void ApplyCombatComponents(Entity entity, int faction, bool isEnemy)
+    {
+        if (_world == null) return;
+
+        bool canFight = _world.HasComponent<WeaponListComponent>(entity);
+        bool canBeTargeted = _world.HasComponent<HealthComponent>(entity);
+        if (!canFight && !canBeTargeted) return;
+
+        if (!_world.HasComponent<CombatTargetComponent>(entity))
+        {
+            _world.AddComponent(entity, new CombatTargetComponent
+            {
+                Faction = faction,
+                Priority = isEnemy ? 10 : _world.HasComponent<HeroComponent>(entity) ? 100 : 20,
             });
         }
 
-        var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
-        if (collector != null)
+        if (canFight && !_world.HasComponent<StanceComponent>(entity))
         {
-            collector.PlayerId = playerId;
-            if (collector.DepositTarget == default)
-                collector.DepositTarget = _baseEntity;
+            _world.AddComponent(entity, new StanceComponent
+            {
+                CurrentStance = isEnemy ? Stance.Aggressive : Stance.Defensive,
+            });
         }
     }
 
@@ -408,6 +460,79 @@ public partial class EngineWindow
             if (IsPlayerSelectable(entity)) return true;
         }
         return false;
+    }
+
+    private static float HorizontalDistance(Vector3 a, Vector3 b)
+    {
+        float dx = a.X - b.X;
+        float dz = a.Z - b.Z;
+        return MathF.Sqrt(dx * dx + dz * dz);
+    }
+
+    private Entity? FindEnemyAt(Vector3 worldPos)
+    {
+        if (_world == null) return null;
+
+        const float clickRadius = 20f;
+        Entity? closest = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var (entity, _) in _world.Query<AIControlledComponent>())
+        {
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            var health = _world.GetComponent<HealthComponent>(entity);
+            if (transform == null || health == null || health.IsDead) continue;
+
+            float dist = HorizontalDistance(transform.Position, worldPos);
+            if (dist < clickRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = entity;
+            }
+        }
+
+        return closest;
+    }
+
+    private void HandleAttackCommand(Entity enemy)
+    {
+        if (_world == null) return;
+
+        var enemyTransform = _world.GetComponent<TransformComponent>(enemy);
+        if (enemyTransform == null) return;
+
+        bool anyAttacker = false;
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected || !IsPlayerSelectable(entity)) continue;
+            if (!_world.HasComponent<WeaponListComponent>(entity)) continue;
+
+            anyAttacker = true;
+
+            var ct = _world.GetComponent<CombatTargetComponent>(entity);
+            if (ct == null)
+            {
+                ct = new CombatTargetComponent { Faction = 1 };
+                _world.AddComponent(entity, ct);
+            }
+            ct.CurrentTarget = enemy;
+
+            var stance = _world.GetComponent<StanceComponent>(entity);
+            if (stance == null)
+                _world.AddComponent(entity, new StanceComponent { CurrentStance = Stance.Aggressive });
+            else
+                stance.CurrentStance = Stance.Aggressive;
+
+            var movement = _world.GetComponent<MovementComponent>(entity);
+            if (movement != null)
+                movement.PathTarget = enemyTransform.Position;
+        }
+
+        if (anyAttacker)
+        {
+            _moveTargetPosition = enemyTransform.Position;
+            _moveTargetTimer = 2f;
+        }
     }
 
     private void UpdateCameraControls(float dt)
@@ -484,6 +609,70 @@ public partial class EngineWindow
         };
         if (c == '\0') return false;
         return hud.ShipControlBar.HandleKeyShortcut(c);
+    }
+
+
+    private string ResolveEntityDisplayName(Entity entity)
+    {
+        if (_world == null) return "Unit";
+
+        var named = _world.GetComponent<EntityNameComponent>(entity);
+        if (named != null && !string.IsNullOrWhiteSpace(named.DisplayName))
+            return named.DisplayName;
+
+        if (_world.HasComponent<AIControlledComponent>(entity))
+            return "Enemy Ship";
+
+        var building = _world.GetComponent<BuildingComponent>(entity);
+        if (building != null)
+            return FormatBuildingName(building.BuildingType);
+
+        var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+        if (collector != null)
+        {
+            string cargo = collector.CarryAmount > 0
+                ? $" [{collector.CarryAmount:0}/{collector.CarryCapacity:0}]"
+                : "";
+            return $"Resource Miner{cargo}";
+        }
+
+        if (_world.HasComponent<HeroComponent>(entity))
+            return "Hero Command Ship";
+
+        return "Fleet Ship";
+    }
+
+    private static string FormatBuildingName(string buildingType) => buildingType switch
+    {
+        "command_center" => "Command Center",
+        "shipyard"       => "Shipyard",
+        _                => buildingType.Replace('_', ' '),
+    };
+
+    private void BindObjectivePanel()
+    {
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        if (_missionController?.CurrentMission == null)
+        {
+            hud.ObjectivePanel.Visible = false;
+            return;
+        }
+
+        var mission = _missionController.CurrentMission;
+        hud.ObjectivePanel.Visible = true;
+        hud.ObjectivePanel.MissionTitle = mission.Definition.DisplayName;
+
+        var lines = new List<ObjectiveLine>();
+        foreach (var obj in mission.PrimaryObjectives)
+        {
+            string text = obj.Definition.Description;
+            if (string.IsNullOrWhiteSpace(text))
+                text = obj.Definition.Id.Replace('_', ' ');
+            lines.Add(new ObjectiveLine { Text = text, IsCompleted = obj.IsCompleted });
+        }
+
+        hud.ObjectivePanel.Objectives = lines;
     }
 
     private void BindShipControlBar()
