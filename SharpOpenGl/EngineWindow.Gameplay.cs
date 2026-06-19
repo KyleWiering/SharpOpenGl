@@ -9,6 +9,7 @@ using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Input;
 using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Persistence;
+using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI.Screens;
 
 namespace SharpOpenGl;
@@ -23,7 +24,6 @@ public partial class EngineWindow
     private SettingsManager? _settingsManager;
     private SaveManager? _saveManager;
     private string? _pendingMissionId;
-    private bool _rallyPointMode;
 
     private string ResolveGameDataPath()
     {
