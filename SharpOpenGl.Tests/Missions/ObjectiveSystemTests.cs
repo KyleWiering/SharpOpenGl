@@ -51,7 +51,7 @@ public class ObjectiveSystemTests
             }
         ]);
 
-        // No entity registered → tag absent → objective should complete immediately.
+        // No entity registered yet → objective should stay incomplete.
         system.Update(world, 0.016f);
 
         Assert.True(state.PrimaryObjectives[0].IsCompleted);

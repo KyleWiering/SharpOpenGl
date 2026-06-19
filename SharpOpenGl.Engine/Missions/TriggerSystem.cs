@@ -10,17 +10,6 @@ namespace SharpOpenGl.Engine.Missions;
 /// <summary>
 /// ECS <see cref="GameSystem"/> that evaluates trigger conditions each frame and
 /// executes their scripted actions when conditions are met.
-/// <para>
-/// Supported trigger condition types:
-/// <list type="bullet">
-///   <item><c>timer</c> — fires after N elapsed seconds (<c>seconds</c> field).</item>
-///   <item><c>area_enter</c> — fires when any entity enters radius of <c>position</c>.</item>
-///   <item><c>kill_count</c> — fires when kill counter reaches <c>count</c>.</item>
-///   <item><c>resource_threshold</c> — fires when player has at least <c>threshold</c>
-///         of <c>resourceType</c>.</item>
-/// </list>
-/// Supported action types: <c>spawn_units</c>, <c>dialog</c>, <c>camera_pan</c>.
-/// </para>
 /// </summary>
 public sealed class TriggerSystem : GameSystem
 {
@@ -32,6 +21,12 @@ public sealed class TriggerSystem : GameSystem
 
     /// <summary>Player ID used for resource-threshold checks.</summary>
     public int PlayerId { get; set; } = 0;
+
+    /// <summary>
+    /// Optional hook invoked after a trigger spawns a unit so the game layer
+    /// can assign meshes, selection, and faction ownership.
+    /// </summary>
+    public Action<World, Entity, EntityDefinition, string?>? OnUnitSpawned { get; set; }
 
     /// <param name="state">The running mission state.</param>
     /// <param name="bus">Event bus for publishing <see cref="TriggerFiredEvent"/> and actions.</param>
@@ -98,8 +93,9 @@ public sealed class TriggerSystem : GameSystem
         var center = new Vector3(cond.Position[0], cond.Position[1], 0f);
         float radius = cond.Radius > 0f ? cond.Radius : 5f;
 
-        foreach (var (_, tf) in world.Query<TransformComponent>())
+        foreach (var (entity, tf) in world.Query<TransformComponent>())
         {
+            if (world.HasComponent<AIControlledComponent>(entity)) continue;
             if (Vector3.Distance(tf.Position, center) <= radius)
                 return true;
         }
@@ -150,7 +146,6 @@ public sealed class TriggerSystem : GameSystem
 
         foreach (string unitId in action.Units)
         {
-            // Try to load the entity definition; skip if not found.
             EntityDefinition? def = null;
             if (_assets != null)
             {
@@ -160,14 +155,16 @@ public sealed class TriggerSystem : GameSystem
             }
 
             if (def == null)
-            {
-                // Fallback: create a minimal default definition.
-                def = new EntityDefinition { Id = unitId, Category = "ship" };
-            }
+                def = new EntityDefinition { Id = unitId, Category = "fighter" };
 
             Entity spawned = _unitFactory.Create(world, def);
             var tf = world.GetComponent<TransformComponent>(spawned);
             if (tf != null) tf.Position = pos;
+
+            if (!string.IsNullOrEmpty(action.Tag))
+                _state.RegisterEntityTag(action.Tag, spawned);
+
+            OnUnitSpawned?.Invoke(world, spawned, def, action.Tag);
         }
     }
 
@@ -182,17 +179,13 @@ public sealed class TriggerSystem : GameSystem
     {
         if (action.CameraTarget == null || action.CameraTarget.Length < 2) return;
 
-        // Publish a generic event that the camera system can pick up.
         _bus.Publish(new PointerTappedEvent(
-            new OpenTK.Mathematics.Vector2(action.CameraTarget[0], action.CameraTarget[1]),
+            new Vector2(action.CameraTarget[0], action.CameraTarget[1]),
             -1));
     }
 
-    // ── Public counter hook ───────────────────────────────────────────────────
-
     /// <summary>
     /// Increment the kill counter on all <c>kill_count</c> triggers that are still active.
-    /// Call this from combat death handlers or by subscribing to <see cref="UnitDiedEvent"/>.
     /// </summary>
     public void RecordKill()
     {

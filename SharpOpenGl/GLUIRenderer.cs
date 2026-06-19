@@ -26,7 +26,6 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         _uniformProjection = GL.GetUniformLocation(_program, "projection");
         _uniformColor = GL.GetUniformLocation(_program, "color");
 
-        // A single quad (two triangles) we reuse for all rects
         float[] quadVerts =
         {
             0f, 0f,
@@ -56,7 +55,6 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         ViewportSize = new Vector2(width, height);
     }
 
-    /// <summary>Begin a UI rendering pass (sets up orthographic state).</summary>
     public void Begin()
     {
         GL.Disable(EnableCap.DepthTest);
@@ -69,7 +67,6 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
     }
 
-    /// <summary>End the UI rendering pass (restores 3D state).</summary>
     public void End()
     {
         GL.Enable(EnableCap.DepthTest);
@@ -79,7 +76,6 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
     {
         GL.Uniform4(_uniformColor, color);
 
-        // Transform: scale to size, then translate to position
         int locTransform = GL.GetUniformLocation(_program, "transform");
         var transform = Matrix4.CreateScale(size.X, size.Y, 1f) *
                         Matrix4.CreateTranslation(position.X, position.Y, 0f);
@@ -92,14 +88,10 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
     public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color)
     {
         float thickness = 1f;
-        // Top
         DrawRect(position, new Vector2(size.X, thickness), color);
-        // Bottom
         DrawRect(new Vector2(position.X, position.Y + size.Y - thickness),
             new Vector2(size.X, thickness), color);
-        // Left
         DrawRect(position, new Vector2(thickness, size.Y), color);
-        // Right
         DrawRect(new Vector2(position.X + size.X - thickness, position.Y),
             new Vector2(thickness, size.Y), color);
     }
@@ -109,7 +101,8 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         float charWidth = fontSize * 0.6f;
         float charHeight = fontSize;
         float spacing = charWidth * 0.2f;
-        float lineThickness = MathF.Max(1.5f, fontSize * 0.14f);
+        float lineThickness = MathF.Max(2.5f, fontSize * 0.22f);
+        var shadow = new Vector4(0f, 0f, 0f, color.W * 0.65f);
 
         for (int i = 0; i < text.Length; i++)
         {
@@ -119,16 +112,13 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
             float x = position.X + i * (charWidth + spacing);
             float y = position.Y;
 
+            DrawGlyph(c, x + 1f, y + 1f, charWidth, charHeight, lineThickness, shadow);
             DrawGlyph(c, x, y, charWidth, charHeight, lineThickness, color);
         }
     }
 
-    /// <summary>Draws a single character glyph using segment-based line rectangles.</summary>
     private void DrawGlyph(char c, float x, float y, float w, float h, float t, Vector4 color)
     {
-        // 7-segment style layout:
-        // Segments: top, topLeft, topRight, middle, bottomLeft, bottomRight, bottom
-        // Plus diagonals and extras for non-digit characters
         float halfH = h * 0.5f;
 
         var segments = GetCharSegments(char.ToUpper(c));
@@ -176,7 +166,6 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                     DrawRect(new Vector2(x + w * 0.4f, y + h - t * 2f), new Vector2(t * 1.5f, t * 1.5f), color);
                     break;
                 case Seg.DiagTopRightToBottomLeft:
-                    // Approximate diagonal with 3 small rects
                     DrawRect(new Vector2(x + w * 0.66f, y + h * 0.1f), new Vector2(t, h * 0.25f), color);
                     DrawRect(new Vector2(x + w * 0.33f, y + h * 0.35f), new Vector2(t, h * 0.25f), color);
                     DrawRect(new Vector2(x, y + h * 0.6f), new Vector2(t, h * 0.25f), color);
@@ -256,7 +245,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         '>' => [Seg.TopLeft, Seg.Middle, Seg.BottomLeft],
         '<' => [Seg.TopRight, Seg.Middle, Seg.BottomRight],
         '#' => [Seg.Middle, Seg.CenterVert, Seg.Top, Seg.Bottom],
-        _ => [Seg.Middle], // fallback: dash for unknown chars
+        _ => [Seg.Middle],
     };
 
     public void Dispose()
@@ -293,33 +282,15 @@ void main()
         int vs = GL.CreateShader(ShaderType.VertexShader);
         GL.ShaderSource(vs, vertSrc);
         GL.CompileShader(vs);
-        GL.GetShader(vs, ShaderParameter.CompileStatus, out int vsOk);
-        if (vsOk == 0)
-        {
-            string info = GL.GetShaderInfoLog(vs);
-            Console.WriteLine($"[UIRenderer] Vertex shader compile failed: {info}");
-        }
 
         int fs = GL.CreateShader(ShaderType.FragmentShader);
         GL.ShaderSource(fs, fragSrc);
         GL.CompileShader(fs);
-        GL.GetShader(fs, ShaderParameter.CompileStatus, out int fsOk);
-        if (fsOk == 0)
-        {
-            string info = GL.GetShaderInfoLog(fs);
-            Console.WriteLine($"[UIRenderer] Fragment shader compile failed: {info}");
-        }
 
         int program = GL.CreateProgram();
         GL.AttachShader(program, vs);
         GL.AttachShader(program, fs);
         GL.LinkProgram(program);
-        GL.GetProgram(program, GetProgramParameterName.LinkStatus, out int linkOk);
-        if (linkOk == 0)
-        {
-            string info = GL.GetProgramInfoLog(program);
-            Console.WriteLine($"[UIRenderer] Program link failed: {info}");
-        }
 
         GL.DeleteShader(vs);
         GL.DeleteShader(fs);

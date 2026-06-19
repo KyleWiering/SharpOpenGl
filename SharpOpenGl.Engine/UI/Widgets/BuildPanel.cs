@@ -177,6 +177,6 @@ public sealed class BuildPanel : Widget
             y += btnH + 4f;
         }
 
-        return true; // consume click even if no button hit
+        return false;
     }
 }

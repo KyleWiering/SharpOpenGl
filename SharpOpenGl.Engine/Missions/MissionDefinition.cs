@@ -26,6 +26,14 @@ public sealed class ResourceAmounts
     public float Crew { get; set; }
 }
 
+/// <summary>Circular area used by reach-area objectives.</summary>
+public sealed class AreaDefinition
+{
+    public float X { get; set; }
+    public float Y { get; set; }
+    public float Radius { get; set; }
+}
+
 /// <summary>A single mission objective.</summary>
 public sealed class ObjectiveDefinition
 {
@@ -34,6 +42,9 @@ public sealed class ObjectiveDefinition
     public string? Target { get; set; }
     public string? Condition { get; set; }
     public string Description { get; set; } = string.Empty;
+    public float[]? Position { get; set; }
+    public float Radius { get; set; }
+    public AreaDefinition? Area { get; set; }
 }
 
 /// <summary>Groups of primary and secondary objectives.</summary>
@@ -62,6 +73,7 @@ public sealed class TriggerActionDefinition
     public string Type { get; set; } = string.Empty;
     public string[]? Units { get; set; }
     public int[]? Position { get; set; }
+    public string? Tag { get; set; }
     public string? Speaker { get; set; }
     public string? Text { get; set; }
     public float[]? CameraTarget { get; set; }
