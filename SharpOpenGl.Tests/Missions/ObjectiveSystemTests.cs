@@ -136,7 +136,7 @@ public class ObjectiveSystemTests
     public void Collect_completes_when_resource_threshold_reached()
     {
         var resources = new ResourceManager();
-        var player    = resources.AddPlayer(0);
+        var player    = resources.AddPlayer(1);
         player.Add(ResourceType.Energy, 600f);
 
         var (state, bus, system, world) = Setup(
@@ -156,7 +156,7 @@ public class ObjectiveSystemTests
     public void Collect_incomplete_when_below_threshold()
     {
         var resources = new ResourceManager();
-        var player    = resources.AddPlayer(0);
+        var player    = resources.AddPlayer(1);
         player.Add(ResourceType.Energy, 100f);
 
         var (state, bus, system, world) = Setup(
