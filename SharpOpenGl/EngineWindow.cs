@@ -1044,20 +1044,25 @@ public partial class EngineWindow : GameWindow
         var selectedEntities = new List<Entity>();
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
-            if (sel.IsSelected)
+            if (sel.IsSelected && IsPlayerSelectable(entity))
                 selectedEntities.Add(entity);
         }
 
         if (selectedEntities.Count == 0) return;
 
-        // Check if right-click target is a resource node
+        Entity? targetEnemy = FindEnemyAt(worldPos);
+        if (targetEnemy.HasValue)
+        {
+            HandleAttackCommand(targetEnemy.Value);
+            return;
+        }
+
         Entity? targetNode = FindResourceNodeAt(worldPos);
 
         for (int i = 0; i < selectedEntities.Count; i++)
         {
             var entity = selectedEntities[i];
 
-            // If clicking a resource node and entity is a collector, assign to mine
             if (targetNode.HasValue)
             {
                 var collector = _world.GetComponent<ResourceCollectorComponent>(entity);

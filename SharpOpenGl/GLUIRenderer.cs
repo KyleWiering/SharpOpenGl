@@ -101,7 +101,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         float charWidth = fontSize * 0.6f;
         float charHeight = fontSize;
         float spacing = charWidth * 0.2f;
-        float lineThickness = MathF.Max(2.5f, fontSize * 0.22f);
+        float lineThickness = MathF.Max(3f, fontSize * 0.24f);
         var shadow = new Vector4(0f, 0f, 0f, color.W * 0.65f);
 
         for (int i = 0; i < text.Length; i++)

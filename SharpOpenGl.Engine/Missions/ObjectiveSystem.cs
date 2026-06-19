@@ -2,6 +2,7 @@ using OpenTK.Mathematics;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Grid;
 
 namespace SharpOpenGl.Engine.Missions;
 
@@ -90,29 +91,17 @@ public sealed class ObjectiveSystem : GameSystem
 
     private static bool EvalReachArea(World world, ObjectiveProgress obj)
     {
-        var cond = obj.Definition.Condition;
-        if (string.IsNullOrEmpty(cond)) return false;
-
-        var parts = cond.Split(',');
-        if (parts.Length < 2) return false;
-
-        if (!float.TryParse(parts[0], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out float cx)) return false;
-        if (!float.TryParse(parts[1], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out float cy)) return false;
-
-        float radius = 5f;
-        if (parts.Length >= 3)
-            float.TryParse(parts[2], System.Globalization.NumberStyles.Float,
-                System.Globalization.CultureInfo.InvariantCulture, out radius);
-
-        var center = new Vector3(cx, cy, 0f);
+        if (!MapCoordinates.TryParseReachArea(obj.Definition.Condition, out Vector3 center, out float radius))
+            return false;
 
         foreach (var (entity, tf) in world.Query<TransformComponent>())
         {
             if (world.HasComponent<AIControlledComponent>(entity)) continue;
             if (world.HasComponent<BuildingComponent>(entity)) continue;
-            if (Vector3.Distance(tf.Position, center) <= radius)
+
+            float dx = tf.Position.X - center.X;
+            float dz = tf.Position.Z - center.Z;
+            if (MathF.Sqrt(dx * dx + dz * dz) <= radius)
                 return true;
         }
         return false;
