@@ -213,7 +213,7 @@ public partial class EngineWindow
         GL.BindVertexArray(_moveTargetVao);
         foreach (Vector3 waypoint in _objectiveWaypoints)
         {
-            float pulse = 0.7f + 0.3f * MathF.Sin(Environment.TickCount * 0.004f);
+            float pulse = 0.7f + 0.3f * MathF.Sin(System.Environment.TickCount * 0.004f);
             var model = Matrix4.CreateScale(pulse * 1.2f) *
                         Matrix4.CreateTranslation(waypoint with { Y = 0.5f });
             GL.UniformMatrix4(_uniformModel, false, ref model);
