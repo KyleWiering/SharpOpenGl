@@ -4,7 +4,6 @@ using SharpOpenGl.Browser.Rendering;
 using SharpOpenGl.Engine.Assets;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
-using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Rendering;
@@ -16,7 +15,7 @@ using SharpOpenGl.Engine.UI.Widgets;
 namespace SharpOpenGl.Browser.Game;
 
 /// <summary>
-/// Browser game shell — same Engine UI, scenes, ECS, and missions as the desktop app.
+/// Browser game shell — same Engine UI, ECS, shaders, and mesh pipeline as desktop.
 /// </summary>
 public sealed class BrowserGameHost : IDisposable
 {
@@ -28,7 +27,9 @@ public sealed class BrowserGameHost : IDisposable
     private readonly SceneManager _sceneManager;
     private readonly UIManager _uiManager;
     private readonly CanvasUIRenderer _uiRenderer;
-    private readonly WebGlSceneRenderer _sceneRenderer;
+    private readonly WebGlRenderer _glRenderer;
+    private readonly BrowserMeshLibrary _meshes = new();
+    private readonly BrowserGameplayRenderer _gameplayRenderer;
     private readonly HttpAssetTextSource _assetSource;
     private readonly AssetManager _assetManager;
     private readonly MissionLoader _missionLoader;
@@ -42,11 +43,16 @@ public sealed class BrowserGameHost : IDisposable
     private int _viewportHeight = 768;
     private bool _initialized;
 
-    public BrowserGameHost(CanvasUIRenderer uiRenderer, WebGlSceneRenderer sceneRenderer, HttpAssetTextSource assetSource)
+    public BrowserGameHost(
+        CanvasUIRenderer uiRenderer,
+        WebGlRenderer glRenderer,
+        HttpAssetTextSource assetSource)
     {
         _uiRenderer = uiRenderer;
-        _sceneRenderer = sceneRenderer;
+        _glRenderer = glRenderer;
         _assetSource = assetSource;
+        _gameplayRenderer = new BrowserGameplayRenderer(glRenderer, _meshes);
+
         _assetManager = new AssetManager(GameDataRoot, assetSource);
         _missionLoader = new MissionLoader(_assetManager);
         _missionController = new MissionController(_missionLoader, null, _eventBus);
@@ -58,10 +64,6 @@ public sealed class BrowserGameHost : IDisposable
         _sceneManager.Register(SceneGameplay, () => new BrowserGameplayScene(this));
     }
 
-    public SceneManager SceneManager => _sceneManager;
-    public UIManager UIManager => _uiManager;
-    public ResourceManager? ResourceManager => _resourceManager;
-
     public async Task InitializeAsync(int width, int height)
     {
         _viewportWidth = width;
@@ -69,9 +71,8 @@ public sealed class BrowserGameHost : IDisposable
 
         await PreloadAssetsAsync();
         await _uiRenderer.InitializeAsync("ui-canvas", width, height);
-        await _sceneRenderer.InitializeAsync("gl-canvas", width, height);
-        _sceneRenderer.Camera.Height = 200f;
-        _sceneRenderer.Camera.FocusPoint = Vector2.Zero;
+        await _glRenderer.InitializeAsync("gl-canvas", width, height);
+        await _meshes.InitializeAsync(_glRenderer);
 
         _uiManager.Resize(new Vector2(width, height));
         _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
@@ -84,7 +85,7 @@ public sealed class BrowserGameHost : IDisposable
         _viewportHeight = height;
         _uiManager.Resize(new Vector2(width, height));
         _uiRenderer.Resize(width, height);
-        _sceneRenderer.Resize(width, height);
+        _glRenderer.Resize(width, height);
     }
 
     public void OnFrame(float deltaTime)
@@ -95,7 +96,7 @@ public sealed class BrowserGameHost : IDisposable
         _world?.Update(deltaTime);
 
         if (_sceneManager.State == GameState.Playing && _world != null)
-            _sceneRenderer.Render(_world, _viewportWidth, _viewportHeight);
+            _gameplayRenderer.Render(_world, _viewportWidth, _viewportHeight);
 
         if (_uiManager.Current is GameplayHUD activeHud)
             BindResourceHud(activeHud);
@@ -116,12 +117,13 @@ public sealed class BrowserGameHost : IDisposable
         if (_sceneManager.State != GameState.Playing) return;
 
         float pan = 1f;
+        var cam = _gameplayRenderer.Camera;
         switch (key.ToUpperInvariant())
         {
-            case "W": case "ARROWUP": _sceneRenderer.Camera.Pan(0, -pan, 1f / 60f); break;
-            case "S": case "ARROWDOWN": _sceneRenderer.Camera.Pan(0, pan, 1f / 60f); break;
-            case "A": case "ARROWLEFT": _sceneRenderer.Camera.Pan(-pan, 0, 1f / 60f); break;
-            case "D": case "ARROWRIGHT": _sceneRenderer.Camera.Pan(pan, 0, 1f / 60f); break;
+            case "W": case "ARROWUP": cam.Pan(0, -pan, 1f / 60f); break;
+            case "S": case "ARROWDOWN": cam.Pan(0, pan, 1f / 60f); break;
+            case "A": case "ARROWLEFT": cam.Pan(-pan, 0, 1f / 60f); break;
+            case "D": case "ARROWRIGHT": cam.Pan(pan, 0, 1f / 60f); break;
         }
     }
 
@@ -182,9 +184,9 @@ public sealed class BrowserGameHost : IDisposable
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
         _uiManager.Push(hud);
-        BindResourceHud(hud);
 
         InitializeWorld(_pendingMissionId);
+        BindResourceHud(hud);
     }
 
     private void ShowPauseMenu()
@@ -248,28 +250,42 @@ public sealed class BrowserGameHost : IDisposable
 
         var hero = _world.CreateEntity();
         _world.AddComponent(hero, new TransformComponent { Position = Vector3.Zero, Scale = Vector3.One });
-        _world.AddComponent(hero, new MovementComponent { Speed = 80f, Acceleration = 120f, TurnRate = 180f });
+        var heroMove = new MovementComponent { Speed = 80f, Acceleration = 120f, TurnRate = 180f };
+        heroMove.PathTarget = new Vector3(50f, 0f, 50f);
+        _world.AddComponent(hero, heroMove);
         _world.AddComponent(hero, new SelectionComponent { IsSelected = true, SelectionRadius = 8f });
         _world.AddComponent(hero, new RenderComponent
         {
-            Color = new Vector4(0.2f, 0.8f, 1f, 1f), Visible = true, VertexCount = 3,
+            MeshId = _meshes.Hero,
+            VertexCount = _meshes.HeroCount,
+            Visible = true,
+            PrimitiveType = GlPrimitive.Triangles,
         });
         _world.AddComponent(hero, new HeroComponent());
 
         var rng = new Random(42);
         for (int i = 0; i < 5; i++)
         {
-            var fighter = _world.CreateEntity();
             float x = (rng.NextSingle() - 0.5f) * 400f;
             float z = (rng.NextSingle() - 0.5f) * 400f;
-            _world.AddComponent(fighter, new TransformComponent { Position = new Vector3(x, 0, z), Scale = Vector3.One });
-            _world.AddComponent(fighter, new MovementComponent { Speed = 150f, Acceleration = 220f, TurnRate = 220f });
-            _world.AddComponent(fighter, new SelectionComponent { SelectionRadius = 6f });
-            _world.AddComponent(fighter, new RenderComponent
-            {
-                Color = new Vector4(0.4f, 1f, 0.4f, 1f), Visible = true, VertexCount = 3,
-            });
+            SpawnFighter(new Vector3(x, 0f, z), selected: false);
         }
+    }
+
+    private void SpawnFighter(Vector3 position, bool selected)
+    {
+        var fighter = _world!.CreateEntity();
+        _world.AddComponent(fighter, new TransformComponent { Position = position, Scale = Vector3.One });
+        _world.AddComponent(fighter, new MovementComponent { Speed = 150f, Acceleration = 220f, TurnRate = 220f });
+        _world.AddComponent(fighter, new SelectionComponent { IsSelected = selected, SelectionRadius = 6f });
+        _world.AddComponent(fighter, new RenderComponent
+        {
+            MeshId = _meshes.Fighter,
+            VertexCount = _meshes.FighterCount,
+            Color = new Vector4(0.4f, 1f, 0.4f, 1f),
+            Visible = true,
+            PrimitiveType = GlPrimitive.Triangles,
+        });
     }
 
     private void SpawnMissionFleet(string missionId)
@@ -278,7 +294,7 @@ public sealed class BrowserGameHost : IDisposable
 
         var start = _missionController.CurrentMission.Definition.StartConditions;
         Vector3 spawn = new((start?.PlayerSpawn?[0] ?? 3) * 10f, 0f, (start?.PlayerSpawn?[1] ?? 3) * 10f);
-        _sceneRenderer.Camera.LookAt(new Vector2(spawn.X, spawn.Z));
+        _gameplayRenderer.Camera.Target = spawn;
 
         if (start?.StartingResources != null)
         {
@@ -298,15 +314,20 @@ public sealed class BrowserGameHost : IDisposable
         {
             float angle = MathF.PI * 2f * i / units.Length;
             var pos = spawn + new Vector3(MathF.Cos(angle) * spacing, 0f, MathF.Sin(angle) * spacing);
+            bool isHero = units[i].Contains("hero", StringComparison.OrdinalIgnoreCase);
+
             var entity = _world.CreateEntity();
             _world.AddComponent(entity, new TransformComponent { Position = pos, Scale = Vector3.One });
             _world.AddComponent(entity, new MovementComponent { Speed = 80f, Acceleration = 120f, TurnRate = 180f });
             _world.AddComponent(entity, new SelectionComponent { IsSelected = i == 0, SelectionRadius = 8f });
             _world.AddComponent(entity, new RenderComponent
             {
-                Color = new Vector4(0.2f, 0.8f, 1f, 1f), Visible = true, VertexCount = 3,
+                MeshId = isHero ? _meshes.Hero : _meshes.Fighter,
+                VertexCount = isHero ? _meshes.HeroCount : _meshes.FighterCount,
+                Visible = true,
+                PrimitiveType = GlPrimitive.Triangles,
             });
-            if (units[i].Contains("hero", StringComparison.OrdinalIgnoreCase))
+            if (isHero)
                 _world.AddComponent(entity, new HeroComponent());
         }
     }

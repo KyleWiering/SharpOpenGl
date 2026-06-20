@@ -1,51 +1,6 @@
 using OpenTK.Mathematics;
-using SharpOpenGl.Engine.ECS;
 
 namespace SharpOpenGl.Engine.UI.Widgets;
-
-/// <summary>
-/// Snapshot of stats shown for one selected unit in the info panel.
-/// </summary>
-public sealed class UnitInfo
-{
-    /// <summary>Display name (ship/unit class).</summary>
-    public string Name { get; init; } = string.Empty;
-
-    /// <summary>Current HP fraction 0–1.</summary>
-    public float HPFraction { get; init; }
-
-    /// <summary>Current shield fraction 0–1.</summary>
-    public float ShieldFraction { get; init; }
-
-    /// <summary>Current HP value (display only).</summary>
-    public float CurrentHP { get; init; }
-
-    /// <summary>Max HP.</summary>
-    public float MaxHP { get; init; }
-
-    /// <summary>Current shield value.</summary>
-    public float CurrentShields { get; init; }
-
-    /// <summary>Max shields.</summary>
-    public float MaxShields { get; init; }
-
-    /// <summary>Armour value.</summary>
-    public float Armor { get; init; }
-
-    /// <summary>Build a <see cref="UnitInfo"/> from a <see cref="HealthComponent"/> and entity name.</summary>
-    public static UnitInfo FromHealth(string name, HealthComponent health) =>
-        new()
-        {
-            Name = name,
-            HPFraction = health.HPFraction,
-            ShieldFraction = health.ShieldFraction,
-            CurrentHP = health.CurrentHP,
-            MaxHP = health.MaxHP,
-            CurrentShields = health.CurrentShields,
-            MaxShields = health.MaxShields,
-            Armor = health.Armor,
-        };
-}
 
 /// <summary>
 /// Displays stats for the currently selected unit(s).
@@ -72,9 +27,9 @@ public sealed class UnitInfoPanel : Widget
 
         if (SelectedUnits.Count == 0)
         {
-            renderer.DrawText("Click a ship or building to inspect",
+            UITextDrawing.DrawTextBlock(renderer, "Click a ship, node, or enemy to inspect",
                 position + new Vector2(10f, 10f), FontSize,
-                new Vector4(0.65f, 0.68f, 0.75f, 1f));
+                new Vector4(0.65f, 0.68f, 0.75f, 1f), size.X - 20f);
             return;
         }
 
@@ -92,12 +47,30 @@ public sealed class UnitInfoPanel : Widget
             float barW = size.X - padding * 2f;
             float barX = position.X + padding;
 
-            renderer.DrawText(unit.Name, new Vector2(barX, textY), FontSize + 2f,
-                new Vector4(0.55f, 0.85f, 1f, 1f));
-            renderer.DrawText(
-                $"HP {unit.CurrentHP:0}/{unit.MaxHP:0}   SH {unit.CurrentShields:0}/{unit.MaxShields:0}   AR {unit.Armor:0}",
-                new Vector2(barX, textY + FontSize + 2f), FontSize - 1f,
-                new Vector4(0.88f, 0.9f, 0.95f, 1f));
+            Vector4 nameColor = GameplayEntityDisplay.LabelColor(unit.DisplayKind);
+            float nameSize = UIFontMetrics.FitFontSize(unit.Name, FontSize + 2f, barW);
+            UITextDrawing.DrawTextBlock(renderer, unit.Name, new Vector2(barX, textY),
+                nameSize, nameColor, barW);
+
+            float detailY = textY + nameSize * UITextDrawing.LineHeightFactor + 2f;
+            if (!string.IsNullOrEmpty(unit.Subtitle))
+            {
+                UITextDrawing.DrawTextBlock(renderer, unit.Subtitle, new Vector2(barX, detailY),
+                    FontSize - 1f, new Vector4(0.75f, 0.8f, 0.9f, 1f), barW);
+                detailY += (FontSize - 1f) * UITextDrawing.LineHeightFactor + 2f;
+            }
+
+            if (unit.MaxHP > 0f)
+            {
+                string stats = $"HP {unit.CurrentHP:0}/{unit.MaxHP:0}";
+                if (unit.MaxShields > 0f)
+                    stats += $"   SH {unit.CurrentShields:0}/{unit.MaxShields:0}";
+                if (unit.Armor > 0f)
+                    stats += $"   AR {unit.Armor:0}";
+                UITextDrawing.DrawTextBlock(renderer, stats, new Vector2(barX, detailY),
+                    FontSize - 2f, new Vector4(0.88f, 0.9f, 0.95f, 1f), barW);
+                barY = detailY + (FontSize - 2f) * UITextDrawing.LineHeightFactor + 4f;
+            }
 
             renderer.DrawRect(new Vector2(barX, barY), new Vector2(barW, barH), BarBgColor);
             float hpFill = barW * Math.Clamp(unit.HPFraction, 0f, 1f);

@@ -332,7 +332,7 @@ public partial class EngineWindow : GameWindow
             MeshBuilder.BuildGrid(GridColumns, GridRows, GridCellSize, new Vector3(0.15f, 0.15f, 0.25f));
         // Resource node marker (diamond shape using wireframe cube)
         (_resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount) =
-            MeshBuilder.BuildWireframeCube(new Vector3(0.9f, 0.8f, 0.2f));
+            MeshBuilder.BuildResourceNodeMarker(new Vector3(0.55f, 0.85f, 1f), 3f);
         // Miner ship (uses bomber mesh shape with different color — yellow/gold)
         (_minerVao, _minerVbo, _minerVertCount) =
             ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.8f, 0.2f), 2f);
@@ -401,7 +401,7 @@ public partial class EngineWindow : GameWindow
             var aiShip = _world.CreateEntity();
             _world.AddComponent(aiShip, new TransformComponent
             {
-                Position = new Vector3(x, 0f, z),
+                Position = new Vector3(x, 1f, z),
                 Scale = Vector3.One,
             });
             _world.AddComponent(aiShip, new MovementComponent
@@ -418,11 +418,16 @@ public partial class EngineWindow : GameWindow
                 Visible = true,
                 PrimitiveType = (int)PrimitiveType.Triangles,
             });
-            _world.AddComponent(aiShip, new AIControlledComponent
-            {
-                PlayerId = 2,
-                Aggressiveness = 0.5f,
-            });
+            _world.AddComponent(aiShip, new AIControlledComponent { PlayerId = 2, Aggressiveness = 0.5f });
+            _world.AddComponent(aiShip, new SelectionComponent { IsSelected = false, SelectionRadius = 12f });
+            _world.AddComponent(aiShip, new HealthComponent { MaxHP = 80f, CurrentHP = 80f, MaxShields = 20f, CurrentShields = 20f, Armor = 5f });
+            var aiWeapons = new WeaponListComponent();
+            aiWeapons.Weapons.Add(new WeaponComponent { Slot = 0, Type = "laser", Damage = 8f, Range = 150f, FireRate = 3f });
+            _world.AddComponent(aiShip, aiWeapons);
+            _world.AddComponent(aiShip, new CombatTargetComponent { Faction = 2, Priority = 10 });
+            _world.AddComponent(aiShip, new StanceComponent { CurrentStance = Stance.Aggressive });
+            _world.AddComponent(aiShip, new EntityNameComponent { DisplayName = "Enemy Scout", DefinitionId = "scout_light" });
+            RevealAreaAt(new Vector3(x, 0f, z), 8);
             _aiEntities.Add(aiShip);
         }
     }
@@ -450,16 +455,16 @@ public partial class EngineWindow : GameWindow
             var node = _world.CreateEntity();
             _world.AddComponent(node, new TransformComponent
             {
-                Position = new Vector3(x, 0f, z),
-                Scale = new Vector3(8f, 8f, 8f),
+                Position = new Vector3(x, 1f, z),
+                Scale = new Vector3(6f, 6f, 6f),
             });
             _world.AddComponent(node, new RenderComponent
             {
                 MeshId = _resourceNodeVao,
                 VertexCount = _resourceNodeVertCount,
-                Color = nodeColors[resType],
+                Color = GameplayEntityDisplay.HarvestableColor,
                 Visible = true,
-                PrimitiveType = (int)PrimitiveType.Lines,
+                PrimitiveType = (int)PrimitiveType.Triangles,
             });
             _world.AddComponent(node, new ResourceNodeComponent
             {
@@ -468,6 +473,8 @@ public partial class EngineWindow : GameWindow
                 MaxAmount = 5000f,
                 HarvestRate = 10f,
             });
+                        _world.AddComponent(node, new SelectionComponent { IsSelected = false, SelectionRadius = 14f });
+            RevealAreaAt(new Vector3(x, 0f, z), 6);
             _resourceNodeEntities.Add(node);
         }
     }
@@ -504,7 +511,7 @@ public partial class EngineWindow : GameWindow
             var miner = _world.CreateEntity();
             _world.AddComponent(miner, new TransformComponent
             {
-                Position = new Vector3(x, 0f, z),
+                Position = new Vector3(x, 1f, z),
                 Scale = Vector3.One,
             });
             _world.AddComponent(miner, new MovementComponent
@@ -573,7 +580,8 @@ public partial class EngineWindow : GameWindow
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
         GL.UniformMatrix4(_uniformView, false, ref view);
 
-        _environment.Render(_shaderProgram, _uniformModel, _uniformColor);
+        if (_sceneManager.State != GameState.Playing)
+            _environment.Render(_shaderProgram, _uniformModel, _uniformColor);
 
         // Render gameplay 3D content only when playing
         if (_sceneManager.State == GameState.Playing && _world != null)
@@ -640,10 +648,10 @@ public partial class EngineWindow : GameWindow
 
             Matrix4 model = transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
-            // Use entity color override for resource nodes and AI ships
-            bool useOverride = _world.HasComponent<ResourceNodeComponent>(entity) ||
-                               _world.HasComponent<AIControlledComponent>(entity);
-            GL.Uniform4(_uniformColor, useOverride ? render.Color : new Vector4(0, 0, 0, 0));
+            var displayKind = GameplayEntityDisplay.Classify(_world, entity);
+            Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
+            bool useOverride = tint.W > 0f || render.Color.W > 0f;
+            GL.Uniform4(_uniformColor, useOverride ? (tint.W > 0f ? tint : render.Color) : new Vector4(0, 0, 0, 0));
 
             GL.BindVertexArray(render.MeshId);
             GL.DrawArrays((PrimitiveType)render.PrimitiveType, 0, render.VertexCount);
@@ -658,7 +666,8 @@ public partial class EngineWindow : GameWindow
 
             var ringModel = Matrix4.CreateTranslation(transform.Position);
             GL.UniformMatrix4(_uniformModel, false, ref ringModel);
-            GL.Uniform4(_uniformColor, new Vector4(0, 1, 0, 1));
+            var ringKind = GameplayEntityDisplay.Classify(_world, entity);
+            GL.Uniform4(_uniformColor, GameplayEntityDisplay.SelectionRingColor(ringKind));
             GL.BindVertexArray(_selectionVao);
             GL.DrawArrays(PrimitiveType.Lines, 0, _selectionVertCount);
         }
@@ -725,7 +734,7 @@ public partial class EngineWindow : GameWindow
             _resourceManager?.Tick(dt);
             BindResourceHUD();
             BindBuildPanel();
-            BindUnitInfoPanel();
+            BindUnitInfoPanelExtended();
             BindObjectivePanel();
             BindShipControlBar();
 
@@ -753,42 +762,7 @@ public partial class EngineWindow : GameWindow
     }
 
     // ── Input ─────────────────────────────────────────────────────────────────
-
-        protected override void OnMouseMove(MouseMoveEventArgs e)
-    {
-        base.OnMouseMove(e);
-
-        if (!_selectionDragActive || _sceneManager.State != GameState.Playing)
-            return;
-
-        _selectionDragCurrent = new Vector2(MousePosition.X, MousePosition.Y);
-        if ((_selectionDragCurrent - _selectionDragStart).Length >= SelectionDragThresholdPx)
-            _selectionBoxVisible = true;
-    }
-
-    protected override void OnMouseUp(MouseButtonEventArgs e)
-    {
-        base.OnMouseUp(e);
-
-        if (e.Button != MouseButton.Left || !_selectionDragActive)
-            return;
-
-        if (_sceneManager.State == GameState.Playing && _world != null)
-        {
-            if (_selectionBoxVisible)
-                HandleBoxSelection(_selectionDragStart, _selectionDragCurrent);
-            else
-            {
-                Vector3? worldPos = ScreenToWorldGround(_selectionDragStart);
-                if (worldPos != null)
-                    HandleSelection(worldPos.Value);
-            }
-        }
-
-        CancelSelectionDrag();
-    }
-
-    protected override void OnMouseWheel(MouseWheelEventArgs e)
+protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
         if (_sceneManager.State == GameState.Playing)
@@ -844,18 +818,7 @@ public partial class EngineWindow : GameWindow
         }
         else if (e.Button == MouseButton.Right)
         {
-            CancelSelectionDrag();
-
-            Vector3? worldPos = ScreenToWorldGround(MousePosition);
-            if (worldPos == null) return;
-
-            _attackMoveMode = false;
-            _patrolMode = false;
-            _moveCommandMode = false;
-            _placementBuildingId = null;
-            if (_uiManager.Current is GameplayHUD cancelHud)
-                cancelHud.ShipControlBar.ClearActiveCommand();
-            HandleMoveCommand(worldPos.Value);
+            ProcessMouseDownRight();
         }
     }
 
@@ -982,46 +945,6 @@ public partial class EngineWindow : GameWindow
             case Keys.N:
                 EnterPlacementMode();
                 break;
-        }
-    }
-
-    private void HandleSelection(Vector3 worldPos)
-    {
-        if (_world == null) return;
-
-        bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) ||
-                         KeyboardState.IsKeyDown(Keys.RightShift);
-
-        Entity? hitEntity = null;
-        float closestDist = float.MaxValue;
-
-        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
-        {
-            if (!IsPlayerSelectable(entity)) continue;
-            var transform = _world.GetComponent<TransformComponent>(entity);
-            if (transform == null) continue;
-
-            float dist = (transform.Position - worldPos).Length;
-            // Use selection radius scaled by camera height for easier picking
-            float effectiveRadius = sel.SelectionRadius * (_rtsCamera.Height / 100f + 1f);
-            if (dist < effectiveRadius && dist < closestDist)
-            {
-                closestDist = dist;
-                hitEntity = entity;
-            }
-        }
-
-        if (!shiftHeld)
-        {
-            foreach (var (_, sel) in _world.Query<SelectionComponent>())
-                sel.IsSelected = false;
-        }
-
-        if (hitEntity.HasValue)
-        {
-            var sel = _world.GetComponent<SelectionComponent>(hitEntity.Value);
-            if (sel != null)
-                sel.IsSelected = shiftHeld ? !sel.IsSelected : true;
         }
     }
 

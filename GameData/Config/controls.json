@@ -3,12 +3,10 @@
   "keyboard": {
     "CameraMoveForward":  "W",
     "CameraMoveBack":     "S",
-    "CameraMoveLeft":     "Q",
-    "CameraMoveRight":    "E",
+    "CameraMoveLeft":     "A",
+    "CameraMoveRight":    "D",
     "CameraHeightUp":     "Z",
     "CameraHeightDown":   "X",
-    "CameraRotateLeft":   "A",
-    "CameraRotateRight":  "D",
     "Pause":              "Escape",
     "Ability1":           "D1",
     "Ability2":           "D2",
@@ -21,7 +19,8 @@
   "mouse": {
     "Select":             "LeftButton",
     "MoveCommand":        "RightButton",
-    "AttackCommand":      "RightButton+A"
+    "CameraPan":          "RightButtonDrag",
+    "AttackCommand":      "RightButtonOnEnemy"
   },
   "touch": {
     "Select":             "Tap",

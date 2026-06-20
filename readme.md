@@ -5,7 +5,7 @@
 
 ## 🎮 [Live Demo](https://kylewiering.github.io/SharpOpenGl/)
 
-The GitHub Pages site runs the **same C# game** as the desktop build (`SharpOpenGl.Browser` — Blazor WebAssembly + `SharpOpenGl.Engine`). Menus, mission select, briefing, ECS gameplay, and `GameData/` JSON all come from the shared engine library. CI publishes the WASM build to `docs/` on every push to `master`.
+The GitHub Pages site runs the **same C# game** as the desktop build (`SharpOpenGl.Browser` — Blazor WebAssembly + `SharpOpenGl.Engine`). It uses the same GLSL shader pipeline (`GameShaders`), procedural meshes (`ProceduralMeshes`), RTS camera, and `IRenderer` draw path as desktop — WebGL2 in the browser instead of OpenTK OpenGL. Menus, mission select, briefing, ECS gameplay, and `GameData/` JSON all come from the shared engine library. CI publishes the WASM build to `docs/` on every push to `master`.
 
 ## Introduction
 
@@ -82,17 +82,20 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 | Key / Mouse | Action |
 |-------------|--------|
 | Left drag | Box-select multiple ships |
-| Left click | Select single ship |
-| Right click | Move selected ships |
-| W/S | Move forward/backward |
-| Q/E | Strafe left/right |
-| Z/X | Move up/down |
-| A/D | Rotate left/right |
+| Left click | Select ship, resource node, or enemy (HUD color-coded) |
+| Right click | Move / attack / mine (context-sensitive) |
+| Right drag | Pan the map |
+| W/S | Camera forward/back (Shift overrides unit key conflicts) |
+| A/D | Camera strafe left/right |
+| Q/E | Extra strafe left/right |
+| Z/X | Camera height up/down |
 | M | Move command |
-| S | Stop command |
+| S | Stop command (tap; hold pans camera unless units selected) |
 | P | Patrol command |
-| A | Attack-move command |
-| ESC | Exit |
+| F | Attack-move command |
+| Right-click miner on node | Assign harvest |
+| Right-click armed ship on enemy | Attack target |
+| ESC | Pause / exit |
 
 ## Screenshot Mode (for CI/CD)
 

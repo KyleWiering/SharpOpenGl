@@ -35,22 +35,18 @@ public class RTSCameraController
         Target += new Vector3(dx * PanSpeed * deltaTime, 0f, dz * PanSpeed * deltaTime);
     }
 
+    /// <summary>Pan the camera by screen-space pointer delta (right-drag map scroll).</summary>
+    public void PanByScreenDelta(Vector2 screenDelta, Vector2 viewportSize)
+    {
+        if (viewportSize.X <= 0f || viewportSize.Y <= 0f) return;
+        float scale = Height / viewportSize.Y * 2.2f;
+        Target += new Vector3(-screenDelta.X * scale, 0f, screenDelta.Y * scale);
+    }
+
     /// <summary>Apply zoom by changing height.</summary>
     public void Zoom(float delta)
     {
         Height = MathHelper.Clamp(Height - delta * ZoomSpeed, MinHeight, MaxHeight);
-    }
-
-    /// <summary>Rotate the camera around the Y axis (degrees per second).</summary>
-    public void Rotate(float direction, float deltaTime, float speed = 90f)
-    {
-        if (MathF.Abs(direction) < 0.01f) return;
-        float radians = MathHelper.DegreesToRadians(speed * direction * deltaTime);
-        float cos = MathF.Cos(radians);
-        float sin = MathF.Sin(radians);
-        float x = Target.X * cos - Target.Z * sin;
-        float z = Target.X * sin + Target.Z * cos;
-        Target = new Vector3(x, Target.Y, z);
     }
 
     /// <summary>Raise or lower the camera height.</summary>

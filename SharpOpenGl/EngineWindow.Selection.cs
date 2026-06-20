@@ -14,6 +14,12 @@ public partial class EngineWindow
     private Vector2 _selectionDragCurrent;
     private const float SelectionDragThresholdPx = 6f;
 
+    private bool _cameraPanDragActive;
+    private bool _cameraPanDragMoved;
+    private Vector2 _cameraPanDragLast;
+    private Vector2 _cameraPanDragStart;
+    private const float CameraPanDragThresholdPx = 8f;
+
     private void BeginSelectionDrag(Vector2 screenPoint)
     {
         _selectionDragActive = true;
@@ -26,6 +32,20 @@ public partial class EngineWindow
     {
         _selectionDragActive = false;
         _selectionBoxVisible = false;
+    }
+
+    private void BeginCameraPanDrag(Vector2 screenPoint)
+    {
+        _cameraPanDragActive = true;
+        _cameraPanDragMoved = false;
+        _cameraPanDragStart = screenPoint;
+        _cameraPanDragLast = screenPoint;
+    }
+
+    private void CancelCameraPanDrag()
+    {
+        _cameraPanDragActive = false;
+        _cameraPanDragMoved = false;
     }
 
     private void DrawSelectionBox(IUIRenderer renderer)
@@ -46,10 +66,7 @@ public partial class EngineWindow
                          KeyboardState.IsKeyDown(Keys.RightShift);
 
         if (!shiftHeld)
-        {
-            foreach (var (_, sel) in _world.Query<SelectionComponent>())
-                sel.IsSelected = false;
-        }
+            ClearAllSelections();
 
         Vector2 rectMin = Vector2.ComponentMin(start, end);
         Vector2 rectMax = Vector2.ComponentMax(start, end);
@@ -85,5 +102,21 @@ public partial class EngineWindow
     {
         if (_world == null) return false;
         return _world.HasComponent<MovementComponent>(entity);
+    }
+
+    private void ClearAllSelections()
+    {
+        if (_world == null) return;
+        foreach (var (_, sel) in _world.Query<SelectionComponent>())
+            sel.IsSelected = false;
+    }
+
+    private void UpdateUiPointerState()
+    {
+        if (_uiManager.Current == null) return;
+        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
+        bool pointerDown = MouseState.IsButtonDown(MouseButton.Left) ||
+                           MouseState.IsButtonDown(MouseButton.Right);
+        _uiManager.HandlePointerMove(screenPoint, pointerDown, new Vector2(Size.X, Size.Y));
     }
 }

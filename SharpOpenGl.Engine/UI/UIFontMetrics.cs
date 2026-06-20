@@ -22,6 +22,18 @@ public static class UIFontMetrics
     public static float GetLineThickness(float fontSize) =>
         MathF.Max(MinLineThickness, fontSize * LineThicknessFactor);
 
+    /// <summary>Shrink font size until <paramref name="text"/> fits <paramref name="maxWidth"/>.</summary>
+    public static float FitFontSize(string text, float preferredSize, float maxWidth, float minSize = 10f)
+    {
+        if (string.IsNullOrEmpty(text) || maxWidth <= 0f) return preferredSize;
+
+        float size = preferredSize;
+        while (size > minSize && MeasureTextWidth(text, size) > maxWidth)
+            size -= 1f;
+
+        return size;
+    }
+
     /// <summary>Estimate rendered text width for centering.</summary>
     public static float MeasureTextWidth(string text, float fontSize)
     {
