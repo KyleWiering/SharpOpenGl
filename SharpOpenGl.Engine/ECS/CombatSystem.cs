@@ -1,5 +1,6 @@
 using OpenTK.Mathematics;
-using SharpOpenGl.Engine.Combat;
+using SharpOpenGl.Engine.Audio;
+using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.Events;
 
 namespace SharpOpenGl.Engine.ECS;
@@ -82,7 +83,8 @@ public sealed class CombatSystem : GameSystem
                 if (!weapon.IsReady) continue;
                 if (dist > weapon.Range) continue;
 
-                Fire(world, attacker, ct, weapon, attackerPos, targetPos);
+                Fire(world, attacker, ct, weapon, attackerPos, targetPos);
+                _bus.Publish(new SoundRequestedEvent(WeaponAudioProfiles.FireSoundFor(weapon.Type), attackerPos));
                 weapon.Cooldown = weapon.FireRate > 0f ? 1f / weapon.FireRate : float.MaxValue;
             }
         }
@@ -254,7 +256,9 @@ public sealed class CombatSystem : GameSystem
                     heroComp.XP += xp;
             }
 
-            _bus.Publish(new UnitDiedEvent(entity.Index, killer.Index, xp));
+            var deathPos = world.GetComponent<TransformComponent>(entity)?.Position ?? Vector3.Zero;
+            _bus.Publish(new SoundRequestedEvent(AudioEventType.Explosion, deathPos));
+            _bus.Publish(new UnitDiedEvent(entity.Index, killer.Index, xp));
             world.DestroyEntity(entity);
         }
     }

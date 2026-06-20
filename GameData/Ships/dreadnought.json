@@ -1,0 +1,20 @@
+{
+  "id": "dreadnought",
+  "displayName": "Sovereign Dreadnought",
+  "category": "dreadnought",
+  "mesh": "meshes/dreadnought.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 1200, "shields": 400, "armor": 80 },
+    "movement": { "speed": 28, "acceleration": 18, "turnRate": 35 },
+    "weapons": [
+      { "slot": 0, "type": "railgun", "damage": 200, "range": 550, "fireRate": 0.5 },
+      { "slot": 1, "type": "cannon", "damage": 90, "range": 420, "fireRate": 0.7 },
+      { "slot": 2, "type": "missile", "damage": 150, "range": 650, "fireRate": 0.25 },
+      { "slot": 3, "type": "wave", "damage": 40, "range": 300, "fireRate": 0.15 }
+    ],
+    "sightRadius": 7
+  },
+  "cost": { "energy": 500, "minerals": 700, "data": 120, "crew": 15 },
+  "buildTime": 90
+}

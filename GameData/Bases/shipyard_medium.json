@@ -1,5 +1,5 @@
 {
-  "id": "shipyard",
+  "id": "shipyard_medium",
   "displayName": "Medium Shipyard",
   "category": "base",
   "mesh": "meshes/shipyard_medium.obj",
@@ -7,7 +7,7 @@
   "components": {
     "health": { "maxHP": 1500, "shields": 0, "armor": 75 },
     "building": {
-      "buildingType": "shipyard",
+      "buildingType": "shipyard_medium",
       "productionRate": 1.0,
       "buildQueue": [],
       "footprint": [3, 3]

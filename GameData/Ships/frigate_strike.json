@@ -1,0 +1,18 @@
+{
+  "id": "frigate_strike",
+  "displayName": "Strike Frigate",
+  "category": "frigate",
+  "mesh": "meshes/frigate_strike.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 320, "shields": 80, "armor": 35 },
+    "movement": { "speed": 55, "acceleration": 50, "turnRate": 90 },
+    "weapons": [
+      { "slot": 0, "type": "cannon", "damage": 45, "range": 340, "fireRate": 1.0 },
+      { "slot": 1, "type": "torpedo", "damage": 90, "range": 400, "fireRate": 0.35 }
+    ],
+    "sightRadius": 6
+  },
+  "cost": { "energy": 180, "minerals": 240, "data": 35, "crew": 5 },
+  "buildTime": 38
+}

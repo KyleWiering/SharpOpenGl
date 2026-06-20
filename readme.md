@@ -60,7 +60,9 @@ dotnet test
 
 ## Game Features
 
-- **Ships**: Data-driven ship types (scout, cruiser, transport) with distinct stats
+- **Ships**: 17+ data-driven vessel types (fighters, scouts, corvettes, frigates, gunships, capitals, drones, support)
+- **Shipyards**: Small / medium / large tiers with tier-appropriate build queues
+- **Audio**: OpenAL desktop SFX (weapon fire, launches, explosions, UI clicks) via procedural placeholders
 - **Movement**: A* pathfinding with terrain costs, waypoint queues, patrol mode
 - **Combat**: Stance system (Neutral/Defensive/Aggressive), auto-targeting, projectiles
 - **Fog of War**: Per-player visibility with sight radius, explored/visible states
@@ -95,8 +97,46 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 | F | Attack-move command |
 | Right-click miner on node | Assign harvest |
 | Right-click armed ship on enemy | Attack target |
-| ESC | Pause / exit |
-
+| ESC | Pause / exit |
+| N | Cycle building placement (command center, shipyard tiers) |
+
+## Fleet Roster
+
+Ship definitions live in `GameData/Ships/*.json`. Each has distinct stats, weapons, and a procedural mesh silhouette.
+
+| Class | Examples |
+|-------|----------|
+| Light | Scout, Fighter, Interceptor Mk.II, Swarm Drone |
+| Escort | Corvette, Frigate, Gunship |
+| Heavy | Bomber, Destroyer, Cruiser, Carrier, Dreadnought |
+| Utility | Miner, Transport, Bulk Freighter, Restoration Tender |
+
+## Shipyard Tiers
+
+Place shipyards with **N** (cycles small, medium, large). Each tier limits which hulls appear in the build panel:
+
+| Tier | Footprint | Supply | Typical production |
+|------|-----------|--------|-------------------|
+| Small | 2x2 | +6 | Scouts, fighters, drones, miners |
+| Medium | 3x3 | +10 | Adds corvettes, frigates, destroyers, gunships, transports |
+| Large | 4x4 | +18 | Adds cruisers, carriers, dreadnoughts, freighters, support |
+
+Definitions: `GameData/Bases/shipyard_small.json`, `shipyard_medium.json`, `shipyard_large.json`.
+
+## Audio
+
+Desktop builds initialize **OpenAL** on startup. Headless / CI uses silent `NullAudioManager`.
+
+| Event | Sound |
+|-------|-------|
+| Laser / cannon fire | Weapon fire sweep |
+| Missile / torpedo launch | Launch sweep |
+| Unit destroyed | Explosion noise |
+| UI button click | Short click tone |
+| Building placed | Low placement tone |
+
+Combat publishes `SoundRequestedEvent` from `CombatSystem`; SFX are positional relative to the RTS camera listener.
+
 ## Entity Colors (HUD & Minimap)
 
 Click any world object to inspect it in the unit info panel. Selection rings and labels use these colors:

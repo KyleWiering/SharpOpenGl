@@ -1,0 +1,18 @@
+{
+  "id": "corvette_fast",
+  "displayName": "Swift Corvette",
+  "category": "corvette",
+  "mesh": "meshes/corvette_fast.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 180, "shields": 40, "armor": 20 },
+    "movement": { "speed": 75, "acceleration": 90, "turnRate": 150 },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 28, "range": 260, "fireRate": 2.2 },
+      { "slot": 1, "type": "missile", "damage": 55, "range": 320, "fireRate": 0.4 }
+    ],
+    "sightRadius": 6
+  },
+  "cost": { "energy": 120, "minerals": 160, "data": 20, "crew": 3 },
+  "buildTime": 28
+}

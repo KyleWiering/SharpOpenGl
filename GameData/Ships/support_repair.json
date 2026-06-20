@@ -1,0 +1,17 @@
+{
+  "id": "support_repair",
+  "displayName": "Restoration Tender",
+  "category": "support",
+  "mesh": "meshes/support_repair.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 280, "shields": 100, "armor": 20 },
+    "movement": { "speed": 50, "acceleration": 45, "turnRate": 65 },
+    "weapons": [
+      { "slot": 0, "type": "beam", "damage": 15, "range": 200, "fireRate": 1.5 }
+    ],
+    "sightRadius": 5
+  },
+  "cost": { "energy": 160, "minerals": 180, "data": 60, "crew": 4 },
+  "buildTime": 32
+}

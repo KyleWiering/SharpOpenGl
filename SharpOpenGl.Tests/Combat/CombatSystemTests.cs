@@ -1,4 +1,5 @@
-using OpenTK.Mathematics;
+using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Audio;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Events;
 using Xunit;
@@ -237,6 +238,21 @@ public class CombatSystemTests
         }
 
         Assert.True(found, "Linear weapon should spawn at least one projectile entity.");
+    }
+
+    [Fact]
+    public void CombatSystem_weapon_fire_publishes_sound_requested_event()
+    {
+        var (world, bus, _) = MakeCombatWorld();
+        var sounds = new List<SoundRequestedEvent>();
+        bus.Subscribe<SoundRequestedEvent>(e => sounds.Add(e));
+
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
+        MakeFighter(world, faction: 2, pos: new Vector3(10f, 0, 0));
+
+        world.Update(0.6f);
+
+        Assert.Contains(sounds, s => s.EventType == AudioEventType.WeaponFire);
     }
 
     [Fact]
