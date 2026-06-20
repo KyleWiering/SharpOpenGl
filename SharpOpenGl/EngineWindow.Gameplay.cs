@@ -11,6 +11,7 @@ using SharpOpenGl.Engine.Input;
 using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Persistence;
 using SharpOpenGl.Engine.Scenes;
+using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
 using SharpOpenGl.Engine.UI.Widgets;
 
@@ -340,6 +341,26 @@ public partial class EngineWindow
         if (isEnemy)
         {
             _world.AddComponent(entity, new AIControlledComponent { PlayerId = 2, Aggressiveness = 0.6f });
+            if (!_world.HasComponent<SelectionComponent>(entity))
+            {
+                _world.AddComponent(entity, new SelectionComponent
+                {
+                    IsSelected = false,
+                    SelectionRadius = ResolveSelectionRadius(def),
+                });
+            }
+            var enemyTf = _world.GetComponent<TransformComponent>(entity);
+            if (enemyTf != null) RevealAreaAt(enemyTf.Position, 10);
+            if (!_world.HasComponent<SelectionComponent>(entity))
+            {
+                _world.AddComponent(entity, new SelectionComponent
+                {
+                    IsSelected = false,
+                    SelectionRadius = ResolveSelectionRadius(def),
+                });
+            }
+            var enemyTf = _world.GetComponent<TransformComponent>(entity);
+            if (enemyTf != null) RevealAreaAt(enemyTf.Position, 10);
             _aiEntities.Add(entity);
         }
         else
@@ -425,7 +446,7 @@ public partial class EngineWindow
         EntityDefinition def, bool isEnemy)
     {
         if (isEnemy)
-            return (_fighterVao, _fighterVertCount, new Vector4(1f, 0.2f, 0.2f, 1f));
+            return (_fighterVao, _fighterVertCount, GameplayEntityDisplay.HostileColor);
 
         string id = def.Id.ToLowerInvariant();
         if (id.Contains("hero"))
@@ -550,34 +571,23 @@ public partial class EngineWindow
 
     private void UpdateCameraControls(float dt)
     {
-        float forward = 0f, strafe = 0f, rotate = 0f, height = 0f;
+        bool unitsSelected = HasSelectedUnits();
+        bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) || KeyboardState.IsKeyDown(Keys.RightShift);
 
-        if (KeyboardState.IsKeyDown(Keys.W) || KeyboardState.IsKeyDown(Keys.Up))
-            forward = -1f;
-        if (KeyboardState.IsKeyDown(Keys.S) || KeyboardState.IsKeyDown(Keys.Down))
-            forward = 1f;
-        if (KeyboardState.IsKeyDown(Keys.Q))
-            strafe = -1f;
-        if (KeyboardState.IsKeyDown(Keys.E))
-            strafe = 1f;
+        var axes = CameraInputMapping.Resolve(
+            KeyboardState.IsKeyDown(Keys.W) || KeyboardState.IsKeyDown(Keys.Up),
+            KeyboardState.IsKeyDown(Keys.S) || KeyboardState.IsKeyDown(Keys.Down),
+            KeyboardState.IsKeyDown(Keys.A) || KeyboardState.IsKeyDown(Keys.Left),
+            KeyboardState.IsKeyDown(Keys.D) || KeyboardState.IsKeyDown(Keys.Right),
+            KeyboardState.IsKeyDown(Keys.Q),
+            KeyboardState.IsKeyDown(Keys.E),
+            KeyboardState.IsKeyDown(Keys.Z),
+            KeyboardState.IsKeyDown(Keys.X),
+            unitsSelected,
+            shiftHeld);
 
-        bool unitKeys = HasSelectedUnits();
-        if (!unitKeys || KeyboardState.IsKeyDown(Keys.LeftShift) || KeyboardState.IsKeyDown(Keys.RightShift))
-        {
-            if (KeyboardState.IsKeyDown(Keys.A) || KeyboardState.IsKeyDown(Keys.Left))
-                rotate = -1f;
-            if (KeyboardState.IsKeyDown(Keys.D) || KeyboardState.IsKeyDown(Keys.Right))
-                rotate = 1f;
-        }
-
-        if (KeyboardState.IsKeyDown(Keys.Z))
-            height = 1f;
-        if (KeyboardState.IsKeyDown(Keys.X) && !unitKeys)
-            height = -1f;
-
-        _rtsCamera.Pan(strafe, forward, dt);
-        _rtsCamera.Rotate(rotate, dt);
-        _rtsCamera.AdjustHeight(height, dt);
+        _rtsCamera.Pan(axes.Strafe, axes.Forward, dt);
+        _rtsCamera.AdjustHeight(axes.Height, dt);
     }
 
     private void HandleShipControlCommand(string command)

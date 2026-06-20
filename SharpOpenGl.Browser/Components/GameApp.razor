@@ -22,8 +22,8 @@
 
         var assetSource = new HttpAssetTextSource(Http);
         var uiRenderer = new CanvasUIRenderer(JS);
-        var sceneRenderer = new WebGlSceneRenderer(JS);
-        _host = new BrowserGameHost(uiRenderer, sceneRenderer, assetSource);
+        var glRenderer = new WebGlRenderer(JS);
+        _host = new BrowserGameHost(uiRenderer, glRenderer, assetSource);
 
         int width = await JS.InvokeAsync<int>("eval", "Math.max(1, window.innerWidth)");
         int height = await JS.InvokeAsync<int>("eval", "Math.max(1, window.innerHeight)");

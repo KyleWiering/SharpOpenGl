@@ -128,7 +128,7 @@ public partial class EngineWindow
                 : new Vector4(0.95f, 0.3f, 0.3f, 1f);
 
             if (_world.HasComponent<ResourceNodeComponent>(entity))
-                color = new Vector4(0.95f, 0.85f, 0.2f, 1f);
+                color = GameplayEntityDisplay.HarvestableColor;
             else if (_world.HasComponent<BuildingComponent>(entity))
                 color = new Vector4(0.45f, 0.65f, 0.95f, 1f);
 

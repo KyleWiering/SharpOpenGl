@@ -110,6 +110,48 @@ public static class ProceduralMeshes
         ];
     }
 
+    /// <summary>Filled diamond beacon for harvestable resource nodes.</summary>
+    public static float[] BuildResourceNodeMarker(Vector3 color, float size = 2f)
+    {
+        float r = color.X, g = color.Y, b = color.Z;
+        float s = size;
+        float[] vertices =
+        {
+            0f, s * 1.2f, 0f, r, g, b,
+            -s, 0f, 0f, r, g, b,
+            0f, 0f, s, r, g, b,
+
+            0f, s * 1.2f, 0f, r, g, b,
+            0f, 0f, s, r, g, b,
+            s, 0f, 0f, r, g, b,
+
+            0f, s * 1.2f, 0f, r, g, b,
+            s, 0f, 0f, r, g, b,
+            0f, 0f, -s, r, g, b,
+
+            0f, s * 1.2f, 0f, r, g, b,
+            0f, 0f, -s, r, g, b,
+            -s, 0f, 0f, r, g, b,
+
+            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            0f, 0f, s, r * 0.75f, g * 0.75f, b * 0.75f,
+            -s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+
+            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            0f, 0f, s, r * 0.75f, g * 0.75f, b * 0.75f,
+
+            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            0f, 0f, -s, r * 0.75f, g * 0.75f, b * 0.75f,
+            s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+
+            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            -s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            0f, 0f, -s, r * 0.75f, g * 0.75f, b * 0.75f,
+        };
+        return ClampColors(vertices);
+    }
+
     public static int VertexCount(float[] vertices) => vertices.Length / Stride;
 
     private static float[] ClampColors(float[] vertices)

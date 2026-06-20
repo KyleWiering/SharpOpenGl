@@ -1,5 +1,6 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Rendering;
 
 namespace SharpOpenGl.Rendering;
 
@@ -10,6 +11,13 @@ namespace SharpOpenGl.Rendering;
 /// </summary>
 public static class MeshBuilder
 {
+    /// <summary>Build a filled diamond beacon for resource nodes.</summary>
+    public static (int vao, int vbo, int vertexCount) BuildResourceNodeMarker(Vector3 color, float size = 2f)
+    {
+        float[] v = ProceduralMeshes.BuildResourceNodeMarker(color, size);
+        return Upload(v, 6, PrimitiveType.Triangles);
+    }
+
     /// <summary>
     /// Build a unit wireframe cube centered at the origin.
     /// Vertex layout: vec3 position + vec3 color (stride = 6 floats).

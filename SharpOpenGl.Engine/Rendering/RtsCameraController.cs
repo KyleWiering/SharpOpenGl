@@ -18,6 +18,13 @@ public sealed class RtsCameraController
     public void Pan(float dx, float dz, float deltaTime) =>
         Target += new Vector3(dx * PanSpeed * deltaTime, 0f, dz * PanSpeed * deltaTime);
 
+    public void PanByScreenDelta(Vector2 screenDelta, Vector2 viewportSize)
+    {
+        if (viewportSize.X <= 0f || viewportSize.Y <= 0f) return;
+        float scale = Height / viewportSize.Y * 2.2f;
+        Target += new Vector3(-screenDelta.X * scale, 0f, screenDelta.Y * scale);
+    }
+
     public void Zoom(float delta) =>
         Height = MathHelper.Clamp(Height - delta * ZoomSpeed, MinHeight, MaxHeight);
 

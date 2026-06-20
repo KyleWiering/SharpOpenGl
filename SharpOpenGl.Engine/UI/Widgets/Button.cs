@@ -55,10 +55,8 @@ public sealed class Button : Widget
         return true;
     }
 
-    /// <summary>
-    /// Update hover / press state based on current pointer position.
-    /// </summary>
-    public void UpdatePointerState(
+    /// <inheritdoc/>
+    public override void UpdatePointerState(
         Vector2 pointerPosition, bool isPointerDown,
         Vector2 containerPosition, Vector2 containerSize)
     {
@@ -77,11 +75,21 @@ public sealed class Button : Widget
 
         if (!string.IsNullOrEmpty(Label))
         {
-            float textWidth = UIFontMetrics.MeasureTextWidth(Label, FontSize);
-            Vector2 textPos = new(
-                position.X + (size.X - textWidth) * 0.5f,
-                position.Y + (size.Y - FontSize) * 0.5f);
-            renderer.DrawText(Label, textPos, FontSize, TextColor);
+            float maxWidth = size.X - 8f;
+            float fontSize = UIFontMetrics.FitFontSize(Label, FontSize, maxWidth, 10f);
+            var lines = UITextDrawing.WrapText(Label, maxWidth, fontSize);
+            float lineHeight = fontSize * UITextDrawing.LineHeightFactor;
+            float blockHeight = lines.Count * lineHeight;
+            float startY = position.Y + (size.Y - blockHeight) * 0.5f;
+
+            for (int i = 0; i < lines.Count; i++)
+            {
+                float textWidth = UIFontMetrics.MeasureTextWidth(lines[i], fontSize);
+                Vector2 textPos = new(
+                    position.X + (size.X - textWidth) * 0.5f,
+                    startY + i * lineHeight);
+                renderer.DrawText(lines[i], textPos, fontSize, TextColor);
+            }
         }
     }
 }
