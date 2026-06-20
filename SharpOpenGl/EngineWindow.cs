@@ -341,6 +341,7 @@ public partial class EngineWindow : GameWindow
         (_shipyardVao, _shipyardVbo, _shipyardVertCount) =
             ShipMeshBuilder.BuildShipyardStation(9f);
         LoadMapFeatureMeshes();
+        LoadProjectileMeshes();
         _gameplayMeshesLoaded = true;
     }
 
@@ -491,6 +492,9 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(_baseEntity, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
         _world.AddComponent(_baseEntity, new HealthComponent { MaxHP = 2000f, CurrentHP = 2000f, Armor = 100f });
         _world.AddComponent(_baseEntity, new EntityNameComponent { DisplayName = "Command Center", DefinitionId = "command_center" });
+        AttachStationWeapons(_baseEntity,
+            ("beam", 45f, 480f, 1.2f),
+            ("missile", 95f, 620f, 0.35f));
 
         var shipyard = _world.CreateEntity();
         _world.AddComponent(shipyard, new TransformComponent { Position = new Vector3(50f, 0f, -50f), Scale = new Vector3(2.2f, 2.2f, 2.2f) });
@@ -499,6 +503,9 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(shipyard, new SelectionComponent { IsSelected = false, SelectionRadius = 18f });
         _world.AddComponent(shipyard, new HealthComponent { MaxHP = 1500f, CurrentHP = 1500f, Armor = 75f });
         _world.AddComponent(shipyard, new EntityNameComponent { DisplayName = "Shipyard", DefinitionId = "shipyard" });
+        AttachStationWeapons(shipyard,
+            ("laser", 28f, 360f, 2.5f),
+            ("cannon", 65f, 420f, 0.55f));
     }
     private void SpawnMiners(Random rng)
     {
@@ -624,35 +631,54 @@ public partial class EngineWindow : GameWindow
         GL.BindVertexArray(_gridVao);
         GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
 
+        ResolveProjectileMeshes();
+
         // Render all ships with engine trails
         foreach (var (entity, render) in _world!.Query<RenderComponent>())
         {
-            if (!render.Visible) continue;
+            if (!render.Visible || render.MeshId < 0) continue;
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
+            bool isProjectile = _world.HasComponent<ProjectileComponent>(entity);
+
             // Render engine trail behind moving ships
-            var movement = _world.GetComponent<MovementComponent>(entity);
-            if (movement != null && movement.Velocity.LengthSquared > 1f)
+            if (!isProjectile)
             {
-                float speed = movement.Velocity.Length;
-                float trailScale = MathHelper.Clamp(speed / movement.Speed, 0.3f, 1.0f);
-                // Trail sits behind the ship in its local space, then transforms to world
-                Matrix4 trailModel = Matrix4.CreateScale(trailScale) *
-                                     Matrix4.CreateTranslation(0f, 0f, -0.5f) *
-                                     transform.GetModelMatrix();
-                GL.UniformMatrix4(_uniformModel, false, ref trailModel);
-                GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
-                GL.BindVertexArray(_engineTrailVao);
-                GL.DrawArrays(PrimitiveType.Triangles, 0, _engineTrailVertCount);
+                var movement = _world.GetComponent<MovementComponent>(entity);
+                if (movement != null && movement.Velocity.LengthSquared > 1f)
+                {
+                    float speed = movement.Velocity.Length;
+                    float trailScale = MathHelper.Clamp(speed / movement.Speed, 0.3f, 1.0f);
+                    // Trail sits behind the ship in its local space, then transforms to world
+                    Matrix4 trailModel = Matrix4.CreateScale(trailScale) *
+                                         Matrix4.CreateTranslation(0f, 0f, -0.5f) *
+                                         transform.GetModelMatrix();
+                    GL.UniformMatrix4(_uniformModel, false, ref trailModel);
+                    GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
+                    GL.BindVertexArray(_engineTrailVao);
+                    GL.DrawArrays(PrimitiveType.Triangles, 0, _engineTrailVertCount);
+                }
             }
 
-            Matrix4 model = transform.GetModelMatrix();
+            var projectile = _world.GetComponent<ProjectileComponent>(entity);
+            var visual = _world.GetComponent<ProjectileVisualComponent>(entity);
+            Matrix4 model = isProjectile
+                ? BuildProjectileModelMatrix(transform, projectile, visual)
+                : transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
-            var displayKind = GameplayEntityDisplay.Classify(_world, entity);
-            Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
-            bool useOverride = tint.W > 0f || render.Color.W > 0f;
-            GL.Uniform4(_uniformColor, useOverride ? (tint.W > 0f ? tint : render.Color) : new Vector4(0, 0, 0, 0));
+
+            if (isProjectile)
+            {
+                GL.Uniform4(_uniformColor, render.Color);
+            }
+            else
+            {
+                var displayKind = GameplayEntityDisplay.Classify(_world, entity);
+                Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
+                bool useOverride = tint.W > 0f || render.Color.W > 0f;
+                GL.Uniform4(_uniformColor, useOverride ? (tint.W > 0f ? tint : render.Color) : new Vector4(0, 0, 0, 0));
+            }
 
             GL.BindVertexArray(render.MeshId);
             GL.DrawArrays((PrimitiveType)render.PrimitiveType, 0, render.VertexCount);

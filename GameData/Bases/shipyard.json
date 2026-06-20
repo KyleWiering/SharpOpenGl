@@ -11,16 +11,13 @@
       "productionRate": 1.0,
       "buildQueue": [],
       "footprint": [3, 3]
-    }
+    },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 28, "range": 360, "fireRate": 2.5 },
+      { "slot": 1, "type": "cannon", "damage": 65, "range": 420, "fireRate": 0.55 }
+    ],
+    "sightRadius": 10
   },
-  "cost": { "energy": 200, "minerals": 300, "data": 50, "crew": 5 },
-  "buildTime": 45,
-  "producible": [
-    "fighter_basic",
-    "bomber_heavy",
-    "destroyer_assault",
-    "scout_light",
-    "miner_basic",
-    "transport_cargo"
-  ]
+  "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 0
 }

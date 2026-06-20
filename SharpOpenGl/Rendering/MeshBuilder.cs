@@ -112,6 +112,11 @@ public static class MeshBuilder
     public static (int vao, int vbo, int vertexCount) BuildPointCloud(float[] posColorData)
         => Upload(posColorData, 6, PrimitiveType.Points);
 
+
+    /// <summary>Upload procedural vertex data (pos+col, stride 6).</summary>
+    public static (int vao, int vbo, int vertexCount) UploadProcedural(float[] vertices, bool lines = false)
+        => Upload(vertices, 6, lines ? PrimitiveType.Lines : PrimitiveType.Triangles);
+
     /// <summary>Delete a previously built mesh's GPU resources.</summary>
     public static void DeleteMesh(int vao, int vbo)
     {

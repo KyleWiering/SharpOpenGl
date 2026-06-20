@@ -111,6 +111,20 @@ Click any world object to inspect it in the unit info panel. Selection rings and
 
 Map content is authored in `GameData/Maps/*.json` via `resourceNodes` (diamond markers) and `mapFeatures` (`neutral_planet`, `harvestable_planet`, `scenery`). Sector Alpha includes a neutral hub at the center waypoint, harvestable worlds, and scenery at terrain regions.
 
+## Combat Weapons
+
+Weapon types in `GameData/` map to projectile motion and visuals via `WeaponProfiles`. Override travel with `projectileType` (`linear`, `homing`, `instant`, `aoe`).
+
+| Weapon type | Motion | Visual | Description |
+|-------------|--------|--------|-------------|
+| `laser` | Linear | Laser bolt | Fast direct-fire energy shot |
+| `beam` | Linear | Beam streak | High-velocity beam bolt |
+| `torpedo` | Homing | Torpedo | Slow-tracking warhead |
+| `missile` | Homing | Rocket | Faster homing missile |
+| `bomb` | AoE | Bomb | Area blast on impact |
+| `cannon` | Linear | Energy pulse | Plasma/cannon bolt |
+| `wave` | AoE | Wave ring | EMP/disruptor area effect |
+
 ## Screenshot Mode (for CI/CD)
 
 Run headlessly and capture a rendered frame:

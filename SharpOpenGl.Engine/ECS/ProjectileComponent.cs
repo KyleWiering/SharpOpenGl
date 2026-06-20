@@ -29,6 +29,9 @@ public sealed class ProjectileComponent
     /// <summary>Remaining lifetime in seconds. Projectile is destroyed when this reaches 0.</summary>
     public float Lifetime { get; set; } = 3f;
 
+    /// <summary>Starting lifetime for visual expansion and fade effects.</summary>
+    public float MaxLifetime { get; set; } = 3f;
+
     /// <summary>Current direction of travel (unit vector).</summary>
     public Vector3 Direction { get; set; } = Vector3.UnitZ;
 

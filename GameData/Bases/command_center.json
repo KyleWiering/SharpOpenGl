@@ -11,7 +11,12 @@
       "productionRate": 1.0,
       "buildQueue": [],
       "footprint": [2, 2]
-    }
+    },
+    "weapons": [
+      { "slot": 0, "type": "beam", "damage": 45, "range": 480, "fireRate": 1.2 },
+      { "slot": 1, "type": "missile", "damage": 95, "range": 620, "fireRate": 0.35 }
+    ],
+    "sightRadius": 12
   },
   "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
   "buildTime": 0

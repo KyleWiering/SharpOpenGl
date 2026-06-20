@@ -111,11 +111,19 @@ public class CombatSystemTests
         var system = new CombatSystem(bus);
         var world  = new World();
         world.AddSystem(system);
+        world.AddSystem(new ProjectileSystem(bus));
         return (world, bus, system);
     }
 
+    private static void AdvanceCombatUntil(World world, Func<bool> done, int maxSteps = 80, float dt = 0.1f)
+    {
+        for (int step = 0; step < maxSteps && !done(); step++)
+            world.Update(dt);
+    }
+
     private static Entity MakeFighter(World world, int faction, Vector3 pos, float range = 200f,
-        float hp = 100f, TargetPriority targeting = TargetPriority.Closest, int priority = 10)
+        float hp = 100f, TargetPriority targeting = TargetPriority.Closest, int priority = 10,
+        string projectileType = "linear", float damage = 10f)
     {
         Entity e = world.CreateEntity();
         world.AddComponent(e, new TransformComponent { Position = pos });
@@ -129,8 +137,8 @@ public class CombatSystemTests
         var wl = new WeaponListComponent();
         wl.Weapons.Add(new WeaponComponent
         {
-            Slot = 0, Type = "laser", Damage = 10f, Range = range,
-            FireRate = 2f, ProjectileType = "instant"
+            Slot = 0, Type = "laser", Damage = damage, Range = range,
+            FireRate = 2f, ProjectileType = projectileType
         });
         world.AddComponent(e, wl);
         return e;
@@ -208,37 +216,56 @@ public class CombatSystemTests
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // CombatSystem — instant damage and unit death
+    // CombatSystem — projectiles and unit death
     // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
-    public void CombatSystem_instant_weapon_deals_damage_per_frame()
+    public void CombatSystem_linear_weapon_spawns_projectile()
+    {
+        var (world, _, _) = MakeCombatWorld();
+
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
+        MakeFighter(world, faction: 2, pos: new Vector3(10f, 0, 0));
+
+        world.Update(0.6f); // one shot at FireRate 2 (0.5 s cooldown)
+
+        bool found = false;
+        foreach (var (entity, _) in world.Query<ProjectileComponent>())
+        {
+            Assert.True(world.HasComponent<ProjectileVisualComponent>(entity));
+            found = true;
+        }
+
+        Assert.True(found, "Linear weapon should spawn at least one projectile entity.");
+    }
+
+    [Fact]
+    public void CombatSystem_linear_weapon_deals_damage_on_impact()
     {
         var (world, bus, _) = MakeCombatWorld();
 
-        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
-        Entity target   = MakeFighter(world, faction: 2, pos: new Vector3(10f, 0, 0));
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(10f, 0, 0));
 
         var received = new List<DamageDealtEvent>();
         bus.Subscribe<DamageDealtEvent>(e => received.Add(e));
 
-        // Tick with deltaTime large enough to trigger fire (1s = 2 shots at FireRate 2)
-        world.Update(1f);
+        // Small dt avoids overshooting the target (laser speed 900 u/s).
+        AdvanceCombatUntil(world, () => received.Exists(ev => ev.TargetId == target.Index), dt: 0.01f);
 
-        // At least one hit should have landed on the target (both entities shoot each other).
         Assert.Contains(received, ev => ev.TargetId == target.Index);
     }
 
     [Fact]
     public void CombatSystem_dead_entity_is_removed_from_world()
     {
-        var (world, bus, _) = MakeCombatWorld();
+        var (world, _, _) = MakeCombatWorld();
 
-        // Give target 1 HP so a single shot kills it.
-        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
-        Entity target   = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: 50f);
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
 
-        world.Update(1f);
+        AdvanceCombatUntil(world, () => !world.IsAlive(target));
 
         Assert.False(world.IsAlive(target));
     }
@@ -247,13 +274,15 @@ public class CombatSystemTests
     public void CombatSystem_unit_died_event_is_published()
     {
         var (world, bus, _) = MakeCombatWorld();
-        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
-        Entity target   = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
+
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: 50f);
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
 
         UnitDiedEvent? diedEvent = null;
         bus.Subscribe<UnitDiedEvent>(e => diedEvent = e);
 
-        world.Update(1f);
+        AdvanceCombatUntil(world, () => diedEvent != null);
 
         Assert.NotNull(diedEvent);
         Assert.Equal(target.Index, diedEvent!.VictimId);
@@ -265,11 +294,12 @@ public class CombatSystemTests
         var (world, _, system) = MakeCombatWorld();
         system.BaseXpPerKill = 50;
 
-        Entity hero = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
+        Entity hero = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: 50f);
         world.AddComponent(hero, new HeroComponent { Level = 1, XP = 0 });
         Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
 
-        world.Update(1f);
+        AdvanceCombatUntil(world, () => !world.IsAlive(target));
 
         var heroComp = world.GetComponent<HeroComponent>(hero)!;
         Assert.Equal(50, heroComp.XP);
@@ -279,14 +309,15 @@ public class CombatSystemTests
     public void CombatSystem_target_is_dropped_when_it_dies()
     {
         var (world, _, _) = MakeCombatWorld();
-        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f);
-        MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
 
-        world.Update(1f); // target dies and is destroyed
+        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: 50f);
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
+
+        AdvanceCombatUntil(world, () => !world.IsAlive(target));
         world.Update(0f); // stale target reference is cleared
 
         var ct = world.GetComponent<CombatTargetComponent>(attacker);
-        // attacker may still be alive; its current target should be null now
         if (ct != null)
             Assert.Equal(Entity.Null, ct.CurrentTarget);
     }

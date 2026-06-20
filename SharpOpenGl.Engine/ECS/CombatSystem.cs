@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.Events;
 
 namespace SharpOpenGl.Engine.ECS;
@@ -138,38 +139,87 @@ public sealed class CombatSystem : GameSystem
         World world, Entity attacker, CombatTargetComponent ct,
         WeaponComponent weapon, Vector3 attackerPos, Vector3 targetPos)
     {
-        ProjectileType pType = weapon.ProjectileType switch
-        {
-            "homing"  => ProjectileType.Homing,
-            "missile" => ProjectileType.Homing,
-            "aoe"     => ProjectileType.AoE,
-            "instant" => ProjectileType.Instant,
-            _         => ProjectileType.Linear,
-        };
+        WeaponProfile profile = WeaponProfiles.Resolve(weapon);
+        var dir = targetPos - attackerPos;
+        if (dir.LengthSquared > 0f) dir = Vector3.Normalize(dir);
 
-        if (pType == ProjectileType.Instant)
+        if (profile.Motion == ProjectileType.Instant)
         {
             ApplyInstantDamage(world, attacker, ct.CurrentTarget, weapon.Damage);
+            SpawnBeamFlash(world, attackerPos, targetPos, profile);
             return;
         }
 
-        // Spawn a projectile entity.
         Entity proj = world.CreateEntity();
+        float yaw = MathHelper.RadiansToDegrees(MathF.Atan2(dir.X, dir.Z));
 
-        var dir = (targetPos - attackerPos);
-        if (dir.LengthSquared > 0f) dir = Vector3.Normalize(dir);
-
-        world.AddComponent(proj, new TransformComponent { Position = attackerPos });
+        world.AddComponent(proj, new TransformComponent
+        {
+            Position = attackerPos with { Y = MathF.Max(attackerPos.Y, 1.2f) },
+            Scale = Vector3.One * profile.Scale,
+            EulerAngles = new Vector3(0f, yaw, 0f),
+        });
         world.AddComponent(proj, new ProjectileComponent
         {
-            Owner         = attacker,
-            Target        = ct.CurrentTarget,
-            Type          = pType,
-            Damage        = weapon.Damage,
-            Speed         = 400f,
-            Lifetime      = 5f,
-            Direction     = dir,
-            OwnerFaction  = ct.Faction,
+            Owner        = attacker,
+            Target       = ct.CurrentTarget,
+            Type         = profile.Motion,
+            Damage       = weapon.Damage,
+            Speed        = profile.Speed,
+            Lifetime     = profile.Lifetime,
+            BlastRadius  = profile.BlastRadius,
+            Direction    = dir,
+            OwnerFaction = ct.Faction,
+        });
+        world.AddComponent(proj, new ProjectileVisualComponent
+        {
+            Visual = profile.Visual,
+            Scale = profile.Scale,
+        });
+        world.AddComponent(proj, new RenderComponent
+        {
+            MeshKey = WeaponProfiles.MeshKey(profile.Visual),
+            Color = profile.Color,
+            Visible = true,
+            PrimitiveType = profile.Visual == WeaponVisualKind.Wave ? 1 : 4,
+        });
+    }
+
+    private static void SpawnBeamFlash(World world, Vector3 start, Vector3 end, WeaponProfile profile)
+    {
+        var dir = end - start;
+        float length = dir.Length;
+        if (length < 0.01f) return;
+        dir = Vector3.Normalize(dir);
+        float yaw = MathHelper.RadiansToDegrees(MathF.Atan2(dir.X, dir.Z));
+        Vector3 mid = (start + end) * 0.5f;
+
+        Entity flash = world.CreateEntity();
+        world.AddComponent(flash, new TransformComponent
+        {
+            Position = mid with { Y = MathF.Max(mid.Y, 1.2f) },
+            Scale = new Vector3(profile.Scale * 0.35f, profile.Scale * 0.35f, length * 0.5f),
+            EulerAngles = new Vector3(0f, yaw, 0f),
+        });
+        world.AddComponent(flash, new ProjectileComponent
+        {
+            Type = ProjectileType.Linear,
+            Damage = 0f,
+            Speed = 0f,
+            Lifetime = 0.12f,
+            Direction = dir,
+        });
+        world.AddComponent(flash, new ProjectileVisualComponent
+        {
+            Visual = WeaponVisualKind.Beam,
+            Scale = profile.Scale,
+        });
+        world.AddComponent(flash, new RenderComponent
+        {
+            MeshKey = WeaponProfiles.MeshKey(WeaponVisualKind.Beam),
+            Color = profile.Color,
+            Visible = true,
+            PrimitiveType = 4,
         });
     }
 
@@ -186,7 +236,6 @@ public sealed class CombatSystem : GameSystem
 
     private void ProcessDeaths(World world)
     {
-        // Collect dead entities first to avoid mutating during iteration.
         var dead = new List<(Entity entity, HealthComponent health)>();
         foreach (var (e, hp) in world.Query<HealthComponent>())
         {
@@ -195,7 +244,6 @@ public sealed class CombatSystem : GameSystem
 
         foreach (var (entity, _) in dead)
         {
-            // Award XP to hero if one exists.
             Entity killer = FindKiller(world, entity);
             int xp        = BaseXpPerKill;
 
@@ -211,15 +259,8 @@ public sealed class CombatSystem : GameSystem
         }
     }
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Returns the most recent attacker of <paramref name="victim"/> by scanning projectiles,
-    /// or <see cref="Entity.Null"/> if none can be identified.
-    /// </summary>
     private static Entity FindKiller(World world, Entity victim)
     {
-        // Walk all combat targets to find an entity currently targeting the victim.
         foreach (var (candidate, ct) in world.Query<CombatTargetComponent>())
         {
             if (ct.CurrentTarget == victim) return candidate;

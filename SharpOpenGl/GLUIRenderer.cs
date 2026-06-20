@@ -109,7 +109,8 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
     private void DrawTextLine(string text, Vector2 position, float fontSize, Vector4 color)
     {
         float charWidth = UIFontMetrics.GetCharWidth(fontSize);
-        float charHeight = fontSize;
+        float glyphHeight = UIFontMetrics.GetGlyphHeight(fontSize);
+        float padTop = UIFontMetrics.GetGlyphPadTop(fontSize);
         float spacing = UIFontMetrics.GetCharSpacing(fontSize);
         float lineThickness = UIFontMetrics.GetLineThickness(fontSize);
         var shadow = new Vector4(0f, 0f, 0f, color.W * 0.45f);
@@ -125,14 +126,11 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
             }
 
             float x = position.X + charIndex * (charWidth + spacing);
-            float y = position.Y;
+            float y = position.Y + padTop;
             charIndex++;
 
-            DrawGlyph(c, x + 1f, y + 1f, charWidth, charHeight, lineThickness, shadow);
-
-
-
-            DrawGlyph(c, x, y, charWidth, charHeight, lineThickness, color);
+            DrawGlyph(c, x + 1f, y + 1f, charWidth, glyphHeight, lineThickness, shadow);
+            DrawGlyph(c, x, y, charWidth, glyphHeight, lineThickness, color);
         }
     }
 
@@ -175,6 +173,9 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                 case Seg.CenterVert:
                     DrawRect(new Vector2(x + w * 0.5f - t * 0.5f, y), new Vector2(t, h), color);
                     break;
+                case Seg.BottomCenterStem:
+                    DrawRect(new Vector2(x + w * 0.5f - t * 0.5f, y + halfH), new Vector2(t, halfH), color);
+                    break;
                 case Seg.TopHalfRight:
                     DrawRect(new Vector2(x + w * 0.5f, y), new Vector2(w * 0.5f, t), color);
                     break;
@@ -194,6 +195,21 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                     DrawRect(new Vector2(x + w * 0.33f, y + h * 0.35f), new Vector2(t, h * 0.25f), color);
                     DrawRect(new Vector2(x + w * 0.66f, y + h * 0.6f), new Vector2(t, h * 0.25f), color);
                     break;
+                case Seg.DiagMidLeftTopRight:
+                    DrawRect(new Vector2(x + w * 0.45f, y + halfH - t), new Vector2(t, halfH * 0.5f), color);
+                    DrawRect(new Vector2(x + w * 0.7f, y + t), new Vector2(t, halfH * 0.45f), color);
+                    DrawRect(new Vector2(x + w - t, y), new Vector2(t, t * 1.4f), color);
+                    break;
+                case Seg.DiagMidLeftBottomRight:
+                    DrawRect(new Vector2(x + w * 0.45f, y + halfH), new Vector2(t, halfH * 0.5f), color);
+                    DrawRect(new Vector2(x + w * 0.7f, y + h - halfH * 0.45f - t), new Vector2(t, halfH * 0.45f), color);
+                    DrawRect(new Vector2(x + w - t, y + h - t * 1.4f), new Vector2(t, t * 1.4f), color);
+                    break;
+                case Seg.DiagMidRightBottomRight:
+                    DrawRect(new Vector2(x + w * 0.55f, y + halfH - t * 0.5f), new Vector2(t, halfH * 0.45f), color);
+                    DrawRect(new Vector2(x + w * 0.75f, y + h * 0.62f), new Vector2(t, h * 0.22f), color);
+                    DrawRect(new Vector2(x + w - t, y + h - t), new Vector2(t, t), color);
+                    break;
                 case Seg.TopHalfLeft:
                     DrawRect(new Vector2(x, y), new Vector2(w * 0.5f, t), color);
                     break;
@@ -208,9 +224,10 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
     {
         Top, Bottom, Middle,
         TopLeft, TopRight, BottomLeft, BottomRight,
-        LeftFull, RightFull, CenterVert,
+        LeftFull, RightFull, CenterVert, BottomCenterStem,
         TopHalfRight, BottomHalfLeft, Dot,
         DiagTopRightToBottomLeft, DiagTopLeftToBottomRight,
+        DiagMidLeftTopRight, DiagMidLeftBottomRight, DiagMidRightBottomRight,
         TopHalfLeft, BottomHalfRight
     }
 
@@ -223,27 +240,27 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         'E' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.BottomLeft],
         'F' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.BottomLeft],
         'G' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.BottomLeft, Seg.BottomRight, Seg.Middle],
-        'H' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.BottomRight],
+        'H' => [Seg.LeftFull, Seg.RightFull, Seg.Middle],
         'I' => [Seg.Top, Seg.Bottom, Seg.CenterVert],
         'J' => [Seg.Top, Seg.TopRight, Seg.BottomRight, Seg.Bottom, Seg.BottomLeft],
-        'K' => [Seg.LeftFull, Seg.Middle, Seg.TopRight, Seg.BottomRight],
+        'K' => [Seg.LeftFull, Seg.DiagMidLeftTopRight, Seg.DiagMidLeftBottomRight],
         'L' => [Seg.TopLeft, Seg.BottomLeft, Seg.Bottom],
         'M' => [Seg.LeftFull, Seg.RightFull, Seg.TopHalfLeft, Seg.TopHalfRight],
         'N' => [Seg.LeftFull, Seg.RightFull, Seg.DiagTopRightToBottomLeft],
         'O' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
         'P' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft],
-        'Q' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
-        'R' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
+        'Q' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight, Seg.DiagMidRightBottomRight],
+        'R' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.DiagMidRightBottomRight],
         'S' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.BottomRight],
         'T' => [Seg.Top, Seg.CenterVert],
         'U' => [Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
         'V' => [Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight, Seg.Bottom],
         'W' => [Seg.LeftFull, Seg.RightFull, Seg.BottomHalfLeft, Seg.BottomHalfRight],
-        'X' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.BottomRight],
-        'Y' => [Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.CenterVert],
-        'Z' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopRight, Seg.BottomLeft],
+        'X' => [Seg.DiagTopLeftToBottomRight, Seg.DiagTopRightToBottomLeft],
+        'Y' => [Seg.TopLeft, Seg.TopRight, Seg.BottomCenterStem],
+        'Z' => [Seg.Top, Seg.Bottom, Seg.DiagTopRightToBottomLeft],
         '0' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
-        '1' => [Seg.TopRight, Seg.BottomRight],
+        '1' => [Seg.TopRight, Seg.BottomRight, Seg.Bottom],
         '2' => [Seg.Top, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.Bottom],
         '3' => [Seg.Top, Seg.Middle, Seg.Bottom, Seg.TopRight, Seg.BottomRight],
         '4' => [Seg.TopLeft, Seg.Middle, Seg.TopRight, Seg.BottomRight],
@@ -256,7 +273,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
         ':' => [Seg.Top, Seg.Bottom],
         '-' => [Seg.Middle],
         '+' => [Seg.Middle, Seg.CenterVert],
-        '/' => [Seg.TopRight, Seg.BottomLeft],
+        '/' => [Seg.DiagTopRightToBottomLeft],
         '(' => [Seg.Top, Seg.TopLeft, Seg.BottomLeft, Seg.Bottom],
         ')' => [Seg.Top, Seg.TopRight, Seg.BottomRight, Seg.Bottom],
         '=' => [Seg.Middle, Seg.Bottom],

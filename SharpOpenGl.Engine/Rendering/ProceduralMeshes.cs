@@ -207,6 +207,87 @@ public static class ProceduralMeshes
         return ClampColors(vertices);
     }
 
+    public static float[] BuildLaserBolt(Vector3 color, float length = 1.2f)
+    {
+        float r = color.X, g = color.Y, b = color.Z;
+        float w = length * 0.08f;
+        return ClampColors(
+        [
+            0f, 0f, 0f, r, g, b,
+            0f, w, 0f, r, g, b,
+            0f, 0f, length, r * 1.2f, g * 1.2f, b * 1.2f,
+            0f, 0f, 0f, r, g, b,
+            0f, 0f, length, r * 1.2f, g * 1.2f, b * 1.2f,
+            0f, -w, 0f, r, g, b,
+        ]);
+    }
+
+    public static float[] BuildBeamStreak(Vector3 color, float length = 2f)
+    {
+        float r = color.X, g = color.Y, b = color.Z;
+        float w = length * 0.05f;
+        return ClampColors(
+        [
+            0f, w, -length * 0.5f, r, g, b,
+            0f, -w, -length * 0.5f, r, g, b,
+            0f, w, length * 0.5f, r * 1.3f, g * 1.3f, b * 1.3f,
+            0f, -w, -length * 0.5f, r, g, b,
+            0f, -w, length * 0.5f, r * 1.3f, g * 1.3f, b * 1.3f,
+            0f, w, length * 0.5f, r * 1.3f, g * 1.3f, b * 1.3f,
+        ]);
+    }
+
+    public static float[] BuildTorpedo(Vector3 color, float size = 1.4f)
+    {
+        float r = color.X, g = color.Y, b = color.Z;
+        float s = size;
+        return ClampColors(
+        [
+            0f, 0f, s, r, g, b,
+            -s * 0.25f, 0f, -s * 0.6f, r * 0.8f, g * 0.8f, b * 0.8f,
+            s * 0.25f, 0f, -s * 0.6f, r * 0.8f, g * 0.8f, b * 0.8f,
+            -s * 0.25f, 0f, -s * 0.6f, r * 0.8f, g * 0.8f, b * 0.8f,
+            s * 0.25f, 0f, -s * 0.6f, r * 0.8f, g * 0.8f, b * 0.8f,
+            0f, 0f, -s, r * 0.7f, g * 0.7f, b * 0.7f,
+        ]);
+    }
+
+    public static float[] BuildRocket(Vector3 color, float size = 1f)
+    {
+        float r = color.X, g = color.Y, b = color.Z;
+        float s = size;
+        return ClampColors(
+        [
+            0f, 0f, s * 0.8f, r, g, b,
+            -s * 0.2f, 0f, -s * 0.5f, r * 0.85f, g * 0.85f, b * 0.85f,
+            s * 0.2f, 0f, -s * 0.5f, r * 0.85f, g * 0.85f, b * 0.85f,
+            -s * 0.35f, 0f, -s * 0.2f, r * 0.7f, g * 0.7f, b * 0.7f,
+            s * 0.35f, 0f, -s * 0.2f, r * 0.7f, g * 0.7f, b * 0.7f,
+            0f, 0f, -s * 0.7f, r * 0.6f, g * 0.6f, b * 0.6f,
+        ]);
+    }
+
+    public static float[] BuildBomb(Vector3 color, float radius = 1.2f)
+        => BuildPlanetSphere(color, radius, segments: 6);
+
+    public static float[] BuildEnergyPulse(Vector3 color, float size = 1f)
+    {
+        float r = color.X, g = color.Y, b = color.Z;
+        float s = size;
+        return ClampColors(
+        [
+            0f, s * 0.35f, 0f, r, g, b,
+            -s * 0.45f, 0f, 0f, r * 0.9f, g * 0.9f, b * 0.9f,
+            s * 0.45f, 0f, 0f, r * 0.9f, g * 0.9f, b * 0.9f,
+            -s * 0.45f, 0f, 0f, r * 0.9f, g * 0.9f, b * 0.9f,
+            0f, 0f, s * 0.45f, r * 0.85f, g * 0.85f, b * 0.85f,
+            s * 0.45f, 0f, 0f, r * 0.9f, g * 0.9f, b * 0.9f,
+        ]);
+    }
+
+    public static float[] BuildWaveRing(Vector3 color, float radius = 1.5f, int segments = 16)
+        => BuildSelectionRing(color, radius, segments);
+
     private static void AddTri(List<float> verts, Vector3 a, Vector3 b, Vector3 c, float r, float g, float bl)
     {
         verts.AddRange(new[] { a.X, a.Y, a.Z, r, g, bl });
