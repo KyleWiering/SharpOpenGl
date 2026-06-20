@@ -351,16 +351,6 @@ public partial class EngineWindow
             }
             var enemyTf = _world.GetComponent<TransformComponent>(entity);
             if (enemyTf != null) RevealAreaAt(enemyTf.Position, 10);
-            if (!_world.HasComponent<SelectionComponent>(entity))
-            {
-                _world.AddComponent(entity, new SelectionComponent
-                {
-                    IsSelected = false,
-                    SelectionRadius = ResolveSelectionRadius(def),
-                });
-            }
-            var enemyTf = _world.GetComponent<TransformComponent>(entity);
-            if (enemyTf != null) RevealAreaAt(enemyTf.Position, 10);
             _aiEntities.Add(entity);
         }
         else

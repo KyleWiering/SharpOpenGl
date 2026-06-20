@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI.Screens;
 
 namespace SharpOpenGl;

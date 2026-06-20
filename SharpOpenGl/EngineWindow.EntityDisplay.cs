@@ -1,3 +1,4 @@
+using OpenTK.Mathematics;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.UI;
@@ -84,7 +85,21 @@ public partial class EngineWindow
             string subtitle = kind == EntityDisplayKind.Hostile
                 ? "Hostile — right-click selected ships to attack"
                 : string.Empty;
-            return UnitInfo.FromHealth(name, health, kind) with { Subtitle = subtitle };
+            var info = UnitInfo.FromHealth(name, health, kind);
+            info = new UnitInfo
+            {
+                Name = info.Name,
+                HPFraction = info.HPFraction,
+                ShieldFraction = info.ShieldFraction,
+                CurrentHP = info.CurrentHP,
+                MaxHP = info.MaxHP,
+                CurrentShields = info.CurrentShields,
+                MaxShields = info.MaxShields,
+                Armor = info.Armor,
+                DisplayKind = info.DisplayKind,
+                Subtitle = subtitle,
+            };
+            return info;
         }
 
         if (_world.HasComponent<BuildingComponent>(entity))
