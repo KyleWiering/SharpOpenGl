@@ -29,5 +29,30 @@
     { "type": "minerals", "position": [45, 20], "amount": 3000 },
     { "type": "data",     "position": [32, 48], "amount": 2000 },
     { "type": "crew",     "position": [8,  50], "amount": 1500 }
+  ],
+  "mapFeatures": [
+    {
+      "_comment": "kind: neutral_planet | harvestable_planet | scenery",
+      "kind": "neutral_planet",
+      "name": "Neutral World",
+      "subtitle": "Neutral — no faction allegiance",
+      "position": [32, 32],
+      "scale": 12
+    },
+    {
+      "kind": "harvestable_planet",
+      "name": "Harvest Moon",
+      "position": [48, 28],
+      "scale": 10,
+      "resourceType": "minerals",
+      "amount": 5000
+    },
+    {
+      "kind": "scenery",
+      "featureType": "asteroid_field",
+      "name": "Asteroid Field",
+      "position": [11, 10],
+      "scale": 8
+    }
   ]
 }

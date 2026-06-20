@@ -206,7 +206,7 @@ public partial class EngineWindow
         SpawnDefaultHeroAndFleet();
         RevealAreaAt(Vector3.Zero, 18);
         SpawnAIPlayer(new Random(123));
-        SpawnResourceNodes(new Random(123));
+        SpawnMapContent("sector_alpha");
         SpawnPlayerBase();
         SpawnMiners(new Random(123));
 
@@ -259,7 +259,8 @@ public partial class EngineWindow
             SpawnDefaultHeroAndFleet();
         }
 
-        SpawnResourceNodes(rng);
+        string mapId = string.IsNullOrWhiteSpace(mission.Map) ? "sector_alpha" : mission.Map;
+        SpawnMapContent(mapId);
         SpawnPlayerBase();
     }
 

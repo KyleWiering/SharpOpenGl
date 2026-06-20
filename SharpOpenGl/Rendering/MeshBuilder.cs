@@ -18,6 +18,21 @@ public static class MeshBuilder
         return Upload(v, 6, PrimitiveType.Triangles);
     }
 
+
+    /// <summary>Build a low-poly planet sphere.</summary>
+    public static (int vao, int vbo, int vertexCount) BuildPlanetSphere(Vector3 color, float radius = 4f)
+    {
+        float[] v = ProceduralMeshes.BuildPlanetSphere(color, radius);
+        return Upload(v, 6, PrimitiveType.Triangles);
+    }
+
+    /// <summary>Build a rocky scenery cluster.</summary>
+    public static (int vao, int vbo, int vertexCount) BuildSceneryCluster(Vector3 color, float size = 3f)
+    {
+        float[] v = ProceduralMeshes.BuildSceneryCluster(color, size);
+        return Upload(v, 6, PrimitiveType.Triangles);
+    }
+
     /// <summary>
     /// Build a unit wireframe cube centered at the origin.
     /// Vertex layout: vec3 position + vec3 color (stride = 6 floats).

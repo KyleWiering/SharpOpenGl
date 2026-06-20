@@ -32,6 +32,16 @@ public static class GameplayEntityDisplay
         if (world.HasComponent<ResourceNodeComponent>(entity))
             return EntityDisplayKind.Harvestable;
 
+        var mapFeature = world.GetComponent<MapFeatureComponent>(entity);
+        if (mapFeature != null)
+        {
+            return mapFeature.Kind switch
+            {
+                MapFeatureKind.NeutralPlanet => EntityDisplayKind.Neutral,
+                _ => EntityDisplayKind.Scenery,
+            };
+        }
+
         if (world.HasComponent<AIControlledComponent>(entity))
             return EntityDisplayKind.Hostile;
 

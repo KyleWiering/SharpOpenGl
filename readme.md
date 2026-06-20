@@ -82,7 +82,7 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 | Key / Mouse | Action |
 |-------------|--------|
 | Left drag | Box-select multiple ships |
-| Left click | Select ship, resource node, or enemy (HUD color-coded) |
+| Left click | Select ship, resource node, planet, or enemy (HUD color-coded) |
 | Right click | Move / attack / mine (context-sensitive) |
 | Right drag | Pan the map |
 | W/S | Camera forward/back (Shift overrides unit key conflicts) |
@@ -96,6 +96,20 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 | Right-click miner on node | Assign harvest |
 | Right-click armed ship on enemy | Attack target |
 | ESC | Pause / exit |
+
+## Entity Colors (HUD & Minimap)
+
+Click any world object to inspect it in the unit info panel. Selection rings and labels use these colors:
+
+| Color | Entity type | Interaction |
+|-------|-------------|-------------|
+| Green | Your ships | Move, attack, patrol commands |
+| Red | Hostile units | Right-click selected ships to attack |
+| Yellow | Neutral planets | Inspect only — no faction allegiance |
+| Light blue | Resource nodes & harvestable planets | Right-click miner to harvest |
+| White | Scenery (asteroids, nebulae, debris) | Inspect only |
+
+Map content is authored in `GameData/Maps/*.json` via `resourceNodes` (diamond markers) and `mapFeatures` (`neutral_planet`, `harvestable_planet`, `scenery`). Sector Alpha includes a neutral hub at the center waypoint, harvestable worlds, and scenery at terrain regions.
 
 ## Screenshot Mode (for CI/CD)
 

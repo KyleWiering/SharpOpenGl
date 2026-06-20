@@ -340,6 +340,7 @@ public partial class EngineWindow : GameWindow
             ShipMeshBuilder.BuildCommandCenterStation(8f);
         (_shipyardVao, _shipyardVbo, _shipyardVertCount) =
             ShipMeshBuilder.BuildShipyardStation(9f);
+        LoadMapFeatureMeshes();
         _gameplayMeshesLoaded = true;
     }
 

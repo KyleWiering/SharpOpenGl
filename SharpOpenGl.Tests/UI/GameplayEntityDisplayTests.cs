@@ -37,4 +37,26 @@ public class GameplayEntityDisplayTests
         Assert.Equal(1f, white.Y);
         Assert.Equal(1f, white.Z);
     }
+
+    [Fact]
+    public void Classify_marks_neutral_planet()
+    {
+        using var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new MapFeatureComponent { Kind = MapFeatureKind.NeutralPlanet });
+
+        Assert.Equal(EntityDisplayKind.Neutral, GameplayEntityDisplay.Classify(world, entity));
+        Assert.Equal(GameplayEntityDisplay.NeutralColor, GameplayEntityDisplay.LabelColor(EntityDisplayKind.Neutral));
+    }
+
+    [Fact]
+    public void Classify_marks_scenery_from_map_feature()
+    {
+        using var world = new World();
+        var entity = world.CreateEntity();
+        world.AddComponent(entity, new MapFeatureComponent { Kind = MapFeatureKind.Scenery });
+
+        Assert.Equal(EntityDisplayKind.Scenery, GameplayEntityDisplay.Classify(world, entity));
+        Assert.Equal(GameplayEntityDisplay.SceneryColor, GameplayEntityDisplay.SelectionRingColor(EntityDisplayKind.Scenery));
+    }
 }
