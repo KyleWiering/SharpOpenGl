@@ -1,5 +1,6 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Assets;
+using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.ECS;
 
 namespace SharpOpenGl.Engine.Entities;
@@ -94,6 +95,11 @@ internal static class FactoryHelpers
         var list = new WeaponListComponent();
         foreach (var wd in defs)
         {
+            string projectileType = string.IsNullOrWhiteSpace(wd.ProjectileType)
+                || string.Equals(wd.ProjectileType, "default", StringComparison.OrdinalIgnoreCase)
+                ? WeaponProfiles.DefaultProjectileTypeKey(wd.Type)
+                : wd.ProjectileType;
+
             list.Weapons.Add(new WeaponComponent
             {
                 Slot           = wd.Slot,
@@ -101,7 +107,7 @@ internal static class FactoryHelpers
                 Damage         = wd.Damage,
                 Range          = wd.Range,
                 FireRate        = wd.FireRate,
-                ProjectileType = wd.ProjectileType,
+                ProjectileType = projectileType,
             });
         }
         world.AddComponent(entity, list);
@@ -173,7 +179,7 @@ internal static class FactoryHelpers
         world.AddComponent(entity, new SightRadiusComponent { Radius = radius });
     }
 
-        /// <summary>Apply <see cref="ResourceCollectorComponent"/> from definition.</summary>
+    /// <summary>Apply <see cref="ResourceCollectorComponent"/> from definition.</summary>
     internal static void ApplyResourceCollector(World world, Entity entity, ResourceCollectorDefinition? def)
     {
         if (def == null) return;

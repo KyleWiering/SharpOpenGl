@@ -33,6 +33,9 @@ public sealed class MapDefinition
 
     [JsonPropertyName("resourceNodes")]
     public MapResourceNode[] ResourceNodes { get; set; } = [];
+
+    [JsonPropertyName("mapFeatures")]
+    public MapFeatureDefinition[] MapFeatures { get; set; } = [];
 }
 
 // ── Terrain ───────────────────────────────────────────────────────────────────
@@ -93,4 +96,36 @@ public sealed class MapResourceNode
 
     [JsonPropertyName("amount")]
     public int Amount { get; set; } = 1000;
+}
+
+/// <summary>Inspectable planet or scenery placed on the map.</summary>
+public sealed class MapFeatureDefinition
+{
+    /// <summary><c>neutral_planet</c>, <c>harvestable_planet</c>, or <c>scenery</c>.</summary>
+    [JsonPropertyName("kind")]
+    public string Kind { get; set; } = "scenery";
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [JsonPropertyName("subtitle")]
+    public string? Subtitle { get; set; }
+
+    /// <summary>[x, y] grid coordinate.</summary>
+    [JsonPropertyName("position")]
+    public int[] Position { get; set; } = [0, 0];
+
+    [JsonPropertyName("scale")]
+    public float Scale { get; set; } = 10f;
+
+    /// <summary>For scenery: asteroid_field, nebula, debris, etc.</summary>
+    [JsonPropertyName("featureType")]
+    public string? FeatureType { get; set; }
+
+    /// <summary>For harvestable_planet only.</summary>
+    [JsonPropertyName("resourceType")]
+    public string? ResourceType { get; set; }
+
+    [JsonPropertyName("amount")]
+    public int Amount { get; set; } = 5000;
 }

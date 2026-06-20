@@ -39,5 +39,50 @@
     { "type": "minerals", "position": [45, 20], "amount": 3000 },
     { "type": "data",     "position": [32, 48], "amount": 2000 },
     { "type": "crew",     "position": [8, 50],  "amount": 1500 }
+  ],
+  "mapFeatures": [
+    {
+      "kind": "neutral_planet",
+      "name": "Waypoint Prime",
+      "subtitle": "Neutral hub — mission waypoint sector",
+      "position": [32, 32],
+      "scale": 14
+    },
+    {
+      "kind": "harvestable_planet",
+      "name": "Kethos Minor",
+      "position": [48, 28],
+      "scale": 10,
+      "resourceType": "minerals",
+      "amount": 8000
+    },
+    {
+      "kind": "scenery",
+      "featureType": "asteroid_field",
+      "name": "Outer Belt",
+      "position": [11, 10],
+      "scale": 8
+    },
+    {
+      "kind": "scenery",
+      "featureType": "nebula",
+      "name": "Crimson Veil",
+      "position": [25, 25],
+      "scale": 12
+    },
+    {
+      "kind": "scenery",
+      "featureType": "debris",
+      "name": "Wreckage Drift",
+      "position": [31, 5],
+      "scale": 6
+    },
+    {
+      "kind": "scenery",
+      "featureType": "asteroid_field",
+      "name": "Southern Rocks",
+      "position": [42, 37],
+      "scale": 7
+    }
   ]
 }

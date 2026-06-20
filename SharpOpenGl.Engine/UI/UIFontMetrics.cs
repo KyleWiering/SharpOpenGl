@@ -10,14 +10,24 @@ public static class UIFontMetrics
     public const float SpacingFactor = 0.15f;
 
     /// <summary>Segment stroke thickness relative to font size.</summary>
-    public const float LineThicknessFactor = 0.14f;
+    public const float LineThicknessFactor = 0.11f;
+
+    /// <summary>Rendered glyph height relative to font size (leaves vertical padding).</summary>
+    public const float GlyphHeightFactor = 0.78f;
+
+    /// <summary>Top inset before glyph body, relative to font size.</summary>
+    public const float GlyphPadTopFactor = 0.1f;
 
     /// <summary>Minimum segment stroke thickness in pixels.</summary>
-    public const float MinLineThickness = 2f;
+    public const float MinLineThickness = 1.5f;
 
     public static float GetCharWidth(float fontSize) => fontSize * CharWidthFactor;
 
     public static float GetCharSpacing(float fontSize) => GetCharWidth(fontSize) * SpacingFactor;
+
+    public static float GetGlyphHeight(float fontSize) => fontSize * GlyphHeightFactor;
+
+    public static float GetGlyphPadTop(float fontSize) => fontSize * GlyphPadTopFactor;
 
     public static float GetLineThickness(float fontSize) =>
         MathF.Max(MinLineThickness, fontSize * LineThicknessFactor);

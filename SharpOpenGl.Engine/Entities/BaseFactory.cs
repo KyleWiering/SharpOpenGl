@@ -26,7 +26,7 @@ public sealed class BaseFactory
     /// Buildings have no <see cref="MovementComponent"/> (they are stationary).
     /// </summary>
     /// <returns>The newly created entity handle.</returns>
-    public Entity Create(World world, EntityDefinition def)
+    public Entity Create(World world, EntityDefinition def, int faction = 1)
     {
         Entity entity = world.CreateEntity();
 
@@ -38,7 +38,18 @@ public sealed class BaseFactory
 
         FactoryHelpers.ApplyHealth(world, entity, def.Components?.Health);
         FactoryHelpers.ApplyBuilding(world, entity, def.Components?.Building);
+        FactoryHelpers.ApplyWeapons(world, entity, def.Components?.Weapons);
         FactoryHelpers.ApplySightRadius(world, entity, def.Components);
+
+        if (def.Components?.Weapons is { Length: > 0 })
+        {
+            world.AddComponent(entity, new CombatTargetComponent
+            {
+                Faction = faction,
+                TargetingMode = TargetPriority.Closest,
+                Priority = 50,
+            });
+        }
 
         return entity;
     }

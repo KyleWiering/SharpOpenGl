@@ -206,7 +206,7 @@ public partial class EngineWindow
         SpawnDefaultHeroAndFleet();
         RevealAreaAt(Vector3.Zero, 18);
         SpawnAIPlayer(new Random(123));
-        SpawnResourceNodes(new Random(123));
+        SpawnMapContent("sector_alpha");
         SpawnPlayerBase();
         SpawnMiners(new Random(123));
 
@@ -259,7 +259,8 @@ public partial class EngineWindow
             SpawnDefaultHeroAndFleet();
         }
 
-        SpawnResourceNodes(rng);
+        string mapId = string.IsNullOrWhiteSpace(mission.Map) ? "sector_alpha" : mission.Map;
+        SpawnMapContent(mapId);
         SpawnPlayerBase();
     }
 
@@ -426,9 +427,12 @@ public partial class EngineWindow
     private float ResolveSelectionRadius(EntityDefinition def)
     {
         string id = def.Id.ToLowerInvariant();
-        if (id.Contains("carrier") || id.Contains("cruiser")) return 12f;
-        if (id.Contains("destroyer") || id.Contains("bomber")) return 8f;
-        if (id.Contains("miner")) return 6f;
+        if (id.Contains("dreadnought")) return 14f;
+        if (id.Contains("carrier") || id.Contains("cruiser")) return 12f;
+        if (id.Contains("destroyer") || id.Contains("gunship") || id.Contains("frigate")) return 9f;
+        if (id.Contains("bomber") || id.Contains("corvette")) return 8f;
+        if (id.Contains("drone")) return 5f;
+        if (id.Contains("miner")) return 6f;
         return 7f;
     }
 
@@ -439,19 +443,36 @@ public partial class EngineWindow
             return (_fighterVao, _fighterVertCount, GameplayEntityDisplay.HostileColor);
 
         string id = def.Id.ToLowerInvariant();
+        string cat = def.Category.ToLowerInvariant();
         if (id.Contains("hero"))
             return (_heroVao, _heroVertCount, new Vector4(0.2f, 0.8f, 1f, 1f));
-        if (id.Contains("bomber"))
-            return (_bomberVao, _bomberVertCount, new Vector4(0.9f, 0.5f, 0.2f, 1f));
-        if (id.Contains("destroyer"))
-            return (_destroyerVao, _destroyerVertCount, new Vector4(0.7f, 0.2f, 0.9f, 1f));
-        if (id.Contains("carrier") || id.Contains("cruiser"))
+        if (id.Contains("dreadnought") || cat.Contains("dreadnought"))
+            return (_dreadnoughtVao, _dreadnoughtVertCount, new Vector4(0.85f, 0.3f, 0.55f, 1f));
+        if (id.Contains("carrier"))
             return (_carrierVao, _carrierVertCount, new Vector4(0.6f, 0.6f, 0.8f, 1f));
-        if (id.Contains("miner"))
+        if (id.Contains("cruiser") || cat.Contains("cruiser"))
+            return (_cruiserVao, _cruiserVertCount, new Vector4(0.55f, 0.5f, 0.9f, 1f));
+        if (id.Contains("gunship") || cat.Contains("gunship"))
+            return (_gunshipVao, _gunshipVertCount, new Vector4(0.95f, 0.45f, 0.25f, 1f));
+        if (id.Contains("destroyer") || cat.Contains("destroyer"))
+            return (_destroyerVao, _destroyerVertCount, new Vector4(0.7f, 0.2f, 0.9f, 1f));
+        if (id.Contains("frigate") || cat.Contains("frigate"))
+            return (_frigateVao, _frigateVertCount, new Vector4(0.5f, 0.7f, 0.95f, 1f));
+        if (id.Contains("corvette") || cat.Contains("corvette"))
+            return (_corvetteVao, _corvetteVertCount, new Vector4(0.45f, 0.8f, 1f, 1f));
+        if (id.Contains("bomber") || cat.Contains("bomber"))
+            return (_bomberVao, _bomberVertCount, new Vector4(0.9f, 0.5f, 0.2f, 1f));
+        if (id.Contains("miner") || cat.Contains("miner"))
             return (_minerVao, _minerVertCount, new Vector4(0.9f, 0.8f, 0.2f, 1f));
-        if (id.Contains("transport") || id.Contains("hauler"))
-            return (_carrierVao, _carrierVertCount, new Vector4(0.55f, 0.75f, 0.95f, 1f));
-        if (id.Contains("scout") || id.Contains("fighter"))
+        if (id.Contains("transport") || id.Contains("freighter") || id.Contains("hauler") || cat.Contains("transport"))
+            return (_transportVao, _transportVertCount, new Vector4(0.55f, 0.75f, 0.95f, 1f));
+        if (id.Contains("drone") || cat.Contains("drone"))
+            return (_droneVao, _droneVertCount, new Vector4(0.75f, 0.9f, 1f, 1f));
+        if (id.Contains("support") || cat.Contains("support"))
+            return (_transportVao, _transportVertCount, new Vector4(0.65f, 0.85f, 0.75f, 1f));
+        if (id.Contains("scout") || cat.Contains("scout"))
+            return (_scoutVao, _scoutVertCount, new Vector4(0.55f, 0.95f, 1f, 1f));
+        if (id.Contains("fighter") || id.Contains("interceptor") || cat.Contains("fighter"))
             return (_fighterVao, _fighterVertCount, new Vector4(0.4f, 1f, 0.4f, 1f));
         return (_fighterVao, _fighterVertCount, new Vector4(0.5f, 0.8f, 1f, 1f));
     }
@@ -658,7 +679,7 @@ public partial class EngineWindow
     private static string FormatBuildingName(string buildingType) => buildingType switch
     {
         "command_center" => "Command Center",
-        "shipyard"       => "Shipyard",
+        "shipyard_small" => "Small Shipyard",
         _                => buildingType.Replace('_', ' '),
     };
 
@@ -721,7 +742,9 @@ public partial class EngineWindow
         }
 
         _assetManager.RegisterProceduralMesh("meshes/command_center.obj");
-        _assetManager.RegisterProceduralMesh("meshes/shipyard.obj");
+        _assetManager.RegisterProceduralMesh("meshes/shipyard_small.obj");
+        _assetManager.RegisterProceduralMesh("meshes/shipyard_medium.obj");
+        _assetManager.RegisterProceduralMesh("meshes/shipyard_large.obj");
     }
 
 }

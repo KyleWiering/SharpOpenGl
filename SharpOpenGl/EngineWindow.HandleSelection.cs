@@ -28,12 +28,19 @@ public partial class EngineWindow
         }
 
         if (_world.HasComponent<ResourceNodeComponent>(hitEntity.Value) ||
-            _world.HasComponent<AIControlledComponent>(hitEntity.Value))
+            _world.HasComponent<AIControlledComponent>(hitEntity.Value) ||
+            _world.HasComponent<MapFeatureComponent>(hitEntity.Value))
         {
+            float radius = 12f;
+            if (_world.HasComponent<ResourceNodeComponent>(hitEntity.Value))
+                radius = 14f;
+            else if (_world.GetComponent<MapFeatureComponent>(hitEntity.Value) is { } feat)
+                radius = feat.Kind == MapFeatureKind.NeutralPlanet ? 18f : 14f;
+
             _world.AddComponent(hitEntity.Value, new SelectionComponent
             {
                 IsSelected = true,
-                SelectionRadius = _world.HasComponent<ResourceNodeComponent>(hitEntity.Value) ? 14f : 12f,
+                SelectionRadius = radius,
             });
         }
     }

@@ -122,15 +122,11 @@ public partial class EngineWindow
             bool isEnemy = _world.HasComponent<AIControlledComponent>(entity);
             if (isEnemy && !IsVisibleToPlayer(tf.Position)) continue;
 
-            bool isFriendly = !isEnemy;
-            Vector4 color = isFriendly
-                ? new Vector4(0.35f, 0.9f, 0.45f, 1f)
-                : new Vector4(0.95f, 0.3f, 0.3f, 1f);
-
-            if (_world.HasComponent<ResourceNodeComponent>(entity))
-                color = GameplayEntityDisplay.HarvestableColor;
-            else if (_world.HasComponent<BuildingComponent>(entity))
-                color = new Vector4(0.45f, 0.65f, 0.95f, 1f);
+            var kind = GameplayEntityDisplay.Classify(_world, entity);
+            Vector4 color = kind == EntityDisplayKind.Friendly
+                ? GameplayEntityDisplay.FriendlyColor
+                : GameplayEntityDisplay.LabelColor(kind);
+            bool isFriendly = kind == EntityDisplayKind.Friendly;
 
             units.Add(new MinimapUnit(WorldToNormalized(tf.Position), color, isFriendly));
         }

@@ -4,7 +4,8 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Audio;
+using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
@@ -81,7 +82,20 @@ public partial class EngineWindow : GameWindow
     private int _minerVao, _minerVbo, _minerVertCount;
     private int _commandCenterVao, _commandCenterVbo, _commandCenterVertCount;
     private int _shipyardVao, _shipyardVbo, _shipyardVertCount;
+    private int _shipyardSmallVao, _shipyardSmallVbo, _shipyardSmallVertCount;
+    private int _shipyardMediumVao, _shipyardMediumVbo, _shipyardMediumVertCount;
+    private int _shipyardLargeVao, _shipyardLargeVbo, _shipyardLargeVertCount;
+    private int _scoutVao, _scoutVbo, _scoutVertCount;
+    private int _droneVao, _droneVbo, _droneVertCount;
+    private int _corvetteVao, _corvetteVbo, _corvetteVertCount;
+    private int _frigateVao, _frigateVbo, _frigateVertCount;
+    private int _gunshipVao, _gunshipVbo, _gunshipVertCount;
+    private int _cruiserVao, _cruiserVbo, _cruiserVertCount;
+    private int _transportVao, _transportVbo, _transportVertCount;
+    private int _dreadnoughtVao, _dreadnoughtVbo, _dreadnoughtVertCount;
     private bool _gameplayMeshesLoaded;
+
+    private IAudioManager _audio = new NullAudioManager();
 
     // Game entities
     private Entity _heroEntity;
@@ -157,7 +171,8 @@ public partial class EngineWindow : GameWindow
         _uiRenderer.Initialize(Size.X, Size.Y);
 
         // Event bus & managers
-        _eventBus = new EventBus();
+        _eventBus = new EventBus();
+        InitializeAudio();
         _sceneManager = new SceneManager(_eventBus);
         _uiManager = new UIManager(_eventBus);
         _uiManager.Resize(new Vector2(Size.X, Size.Y));
@@ -313,9 +328,25 @@ public partial class EngineWindow : GameWindow
     private void LoadGameplayMeshes()
     {
         (_heroVao, _heroVbo, _heroVertCount) =
-            ShipMeshBuilder.BuildShipMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f);
+            ShipMeshExtensions.BuildFighterMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f);
         (_fighterVao, _fighterVbo, _fighterVertCount) =
-            ShipMeshBuilder.BuildShipMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f);
+            ShipMeshExtensions.BuildFighterMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f);
+        (_scoutVao, _scoutVbo, _scoutVertCount) =
+            ShipMeshExtensions.BuildScoutMesh(new Vector3(0.5f, 0.95f, 1f), 1.4f);
+        (_droneVao, _droneVbo, _droneVertCount) =
+            ShipMeshExtensions.BuildDroneMesh(new Vector3(0.7f, 0.85f, 0.95f), 0.9f);
+        (_corvetteVao, _corvetteVbo, _corvetteVertCount) =
+            ShipMeshExtensions.BuildCorvetteMesh(new Vector3(0.45f, 0.75f, 1f), 2.2f);
+        (_frigateVao, _frigateVbo, _frigateVertCount) =
+            ShipMeshExtensions.BuildFrigateMesh(new Vector3(0.55f, 0.65f, 0.95f), 3f);
+        (_gunshipVao, _gunshipVbo, _gunshipVertCount) =
+            ShipMeshExtensions.BuildGunshipMesh(new Vector3(0.85f, 0.45f, 0.35f), 3.2f);
+        (_cruiserVao, _cruiserVbo, _cruiserVertCount) =
+            ShipMeshExtensions.BuildCruiserMesh(new Vector3(0.6f, 0.55f, 0.85f), 4.2f);
+        (_transportVao, _transportVbo, _transportVertCount) =
+            ShipMeshExtensions.BuildTransportMesh(new Vector3(0.55f, 0.75f, 0.95f), 3.8f);
+        (_dreadnoughtVao, _dreadnoughtVbo, _dreadnoughtVertCount) =
+            ShipMeshExtensions.BuildDreadnoughtMesh(new Vector3(0.75f, 0.35f, 0.55f), 5.5f);
         (_bomberVao, _bomberVbo, _bomberVertCount) =
             ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.5f, 0.2f), 2.5f);
         (_destroyerVao, _destroyerVbo, _destroyerVertCount) =
@@ -335,11 +366,19 @@ public partial class EngineWindow : GameWindow
             MeshBuilder.BuildResourceNodeMarker(new Vector3(0.55f, 0.85f, 1f), 3f);
         // Miner ship (uses bomber mesh shape with different color — yellow/gold)
         (_minerVao, _minerVbo, _minerVertCount) =
-            ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.8f, 0.2f), 2f);
+            ShipMeshExtensions.BuildMinerMesh(new Vector3(0.9f, 0.8f, 0.2f), 2.2f);
         (_commandCenterVao, _commandCenterVbo, _commandCenterVertCount) =
             ShipMeshBuilder.BuildCommandCenterStation(8f);
+        (_shipyardSmallVao, _shipyardSmallVbo, _shipyardSmallVertCount) =
+            ShipMeshExtensions.BuildShipyardSmall(6f);
+        (_shipyardMediumVao, _shipyardMediumVbo, _shipyardMediumVertCount) =
+            ShipMeshExtensions.BuildShipyardMedium(9f);
+        (_shipyardLargeVao, _shipyardLargeVbo, _shipyardLargeVertCount) =
+            ShipMeshExtensions.BuildShipyardLarge(12f);
         (_shipyardVao, _shipyardVbo, _shipyardVertCount) =
-            ShipMeshBuilder.BuildShipyardStation(9f);
+            (_shipyardMediumVao, _shipyardMediumVbo, _shipyardMediumVertCount);
+        LoadMapFeatureMeshes();
+        LoadProjectileMeshes();
         _gameplayMeshesLoaded = true;
     }
 
@@ -490,14 +529,28 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(_baseEntity, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
         _world.AddComponent(_baseEntity, new HealthComponent { MaxHP = 2000f, CurrentHP = 2000f, Armor = 100f });
         _world.AddComponent(_baseEntity, new EntityNameComponent { DisplayName = "Command Center", DefinitionId = "command_center" });
+        AttachStationWeapons(_baseEntity,
+            ("beam", 45f, 480f, 1.2f),
+            ("missile", 95f, 620f, 0.35f));
 
         var shipyard = _world.CreateEntity();
         _world.AddComponent(shipyard, new TransformComponent { Position = new Vector3(50f, 0f, -50f), Scale = new Vector3(2.2f, 2.2f, 2.2f) });
-        _world.AddComponent(shipyard, new RenderComponent { MeshId = _shipyardVao, VertexCount = _shipyardVertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
-        _world.AddComponent(shipyard, new BuildingComponent { BuildingType = "shipyard", ProductionRate = 1f, Footprint = [3, 3], PlayerId = 1, RallyPoint = new Vector3(80f, 0f, -50f), Producible = ["fighter_basic", "bomber_heavy", "destroyer_assault", "scout_light", "miner_basic", "transport_cargo"] });
+        _world.AddComponent(shipyard, new RenderComponent { MeshId = _shipyardMediumVao, VertexCount = _shipyardMediumVertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
+        _world.AddComponent(shipyard, new BuildingComponent
+        {
+            BuildingType = "shipyard_medium",
+            ProductionRate = 1f,
+            Footprint = [3, 3],
+            PlayerId = 1,
+            RallyPoint = new Vector3(80f, 0f, -50f),
+            Producible = GetDefaultProducible("shipyard_medium"),
+        });
         _world.AddComponent(shipyard, new SelectionComponent { IsSelected = false, SelectionRadius = 18f });
         _world.AddComponent(shipyard, new HealthComponent { MaxHP = 1500f, CurrentHP = 1500f, Armor = 75f });
-        _world.AddComponent(shipyard, new EntityNameComponent { DisplayName = "Shipyard", DefinitionId = "shipyard" });
+        _world.AddComponent(shipyard, new EntityNameComponent { DisplayName = "Medium Shipyard", DefinitionId = "shipyard_medium" });
+        AttachStationWeapons(shipyard,
+            ("laser", 28f, 360f, 2.5f),
+            ("cannon", 65f, 420f, 0.55f));
     }
     private void SpawnMiners(Random rng)
     {
@@ -623,35 +676,54 @@ public partial class EngineWindow : GameWindow
         GL.BindVertexArray(_gridVao);
         GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
 
+        ResolveProjectileMeshes();
+
         // Render all ships with engine trails
         foreach (var (entity, render) in _world!.Query<RenderComponent>())
         {
-            if (!render.Visible) continue;
+            if (!render.Visible || render.MeshId < 0) continue;
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
+            bool isProjectile = _world.HasComponent<ProjectileComponent>(entity);
+
             // Render engine trail behind moving ships
-            var movement = _world.GetComponent<MovementComponent>(entity);
-            if (movement != null && movement.Velocity.LengthSquared > 1f)
+            if (!isProjectile)
             {
-                float speed = movement.Velocity.Length;
-                float trailScale = MathHelper.Clamp(speed / movement.Speed, 0.3f, 1.0f);
-                // Trail sits behind the ship in its local space, then transforms to world
-                Matrix4 trailModel = Matrix4.CreateScale(trailScale) *
-                                     Matrix4.CreateTranslation(0f, 0f, -0.5f) *
-                                     transform.GetModelMatrix();
-                GL.UniformMatrix4(_uniformModel, false, ref trailModel);
-                GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
-                GL.BindVertexArray(_engineTrailVao);
-                GL.DrawArrays(PrimitiveType.Triangles, 0, _engineTrailVertCount);
+                var movement = _world.GetComponent<MovementComponent>(entity);
+                if (movement != null && movement.Velocity.LengthSquared > 1f)
+                {
+                    float speed = movement.Velocity.Length;
+                    float trailScale = MathHelper.Clamp(speed / movement.Speed, 0.3f, 1.0f);
+                    // Trail sits behind the ship in its local space, then transforms to world
+                    Matrix4 trailModel = Matrix4.CreateScale(trailScale) *
+                                         Matrix4.CreateTranslation(0f, 0f, -0.5f) *
+                                         transform.GetModelMatrix();
+                    GL.UniformMatrix4(_uniformModel, false, ref trailModel);
+                    GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
+                    GL.BindVertexArray(_engineTrailVao);
+                    GL.DrawArrays(PrimitiveType.Triangles, 0, _engineTrailVertCount);
+                }
             }
 
-            Matrix4 model = transform.GetModelMatrix();
+            var projectile = _world.GetComponent<ProjectileComponent>(entity);
+            var visual = _world.GetComponent<ProjectileVisualComponent>(entity);
+            Matrix4 model = isProjectile
+                ? BuildProjectileModelMatrix(transform, projectile, visual)
+                : transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
-            var displayKind = GameplayEntityDisplay.Classify(_world, entity);
-            Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
-            bool useOverride = tint.W > 0f || render.Color.W > 0f;
-            GL.Uniform4(_uniformColor, useOverride ? (tint.W > 0f ? tint : render.Color) : new Vector4(0, 0, 0, 0));
+
+            if (isProjectile)
+            {
+                GL.Uniform4(_uniformColor, render.Color);
+            }
+            else
+            {
+                var displayKind = GameplayEntityDisplay.Classify(_world, entity);
+                Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
+                bool useOverride = tint.W > 0f || render.Color.W > 0f;
+                GL.Uniform4(_uniformColor, useOverride ? (tint.W > 0f ? tint : render.Color) : new Vector4(0, 0, 0, 0));
+            }
 
             GL.BindVertexArray(render.MeshId);
             GL.DrawArrays((PrimitiveType)render.PrimitiveType, 0, render.VertexCount);
@@ -736,8 +808,11 @@ public partial class EngineWindow : GameWindow
             BindBuildPanel();
             BindUnitInfoPanelExtended();
             BindObjectivePanel();
-            BindShipControlBar();
-
+            BindShipControlBar();
+
+            UpdateAudioListener();
+            _audio.Update(dt);
+
             // Fade move target indicator
             if (_moveTargetTimer > 0f)
                 _moveTargetTimer -= dt;
@@ -775,8 +850,11 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
         var viewportSize = new Vector2(Size.X, Size.Y);
-        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
-            return;
+        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
+        {
+            PlayUiClick();
+            return;
+        }
 
         if (_sceneManager.State != GameState.Playing || _world == null)
             return;
@@ -1342,7 +1420,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
     /// <summary>Available buildings the player can place.</summary>
     private static readonly string[] PlaceableBuildings =
-        ["command_center", "shipyard"];
+        ["command_center", "shipyard_small", "shipyard_medium", "shipyard_large"];
 
     private int _placementIndex;
 
@@ -1359,9 +1437,19 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     /// <summary>Place a building at the given world position.</summary>
     private (int meshId, int vertCount, Vector3 scale) ResolveBuildingMesh(string buildingType) => buildingType switch
     {
-        "shipyard" => (_shipyardVao, _shipyardVertCount, new Vector3(2.2f, 2.2f, 2.2f)),
+        "shipyard_small" => (_shipyardSmallVao, _shipyardSmallVertCount, new Vector3(1.6f, 1.6f, 1.6f)),
+        "shipyard_medium" or "shipyard" => (_shipyardMediumVao, _shipyardMediumVertCount, new Vector3(2.2f, 2.2f, 2.2f)),
+        "shipyard_large" => (_shipyardLargeVao, _shipyardLargeVertCount, new Vector3(2.8f, 2.8f, 2.8f)),
         _ => (_commandCenterVao, _commandCenterVertCount, new Vector3(2f, 2f, 2f)),
     };
+
+
+    private List<string> GetDefaultProducible(string buildingId)
+    {
+        if (_definitions.TryGetValue(buildingId, out var def) && def.Producible is { Count: > 0 })
+            return def.Producible.ToList();
+        return [];
+    }
 
     private void HandlePlaceBuilding(Vector3 worldPos)
     {
@@ -1409,6 +1497,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             DefinitionId = def.Id,
         });
 
+        PlayBuildingPlaced(worldPos);
         Console.WriteLine($"[Place] Built {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
     }
 
@@ -1584,7 +1673,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         _environment.Dispose();
         _shaderManager.Dispose();
         _uiRenderer.Dispose();
-        _sceneManager.Dispose();
+        _sceneManager.Dispose();
+        DisposeAudio();
 
         if (_gameplayMeshesLoaded)
         {

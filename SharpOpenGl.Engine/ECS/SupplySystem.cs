@@ -15,6 +15,9 @@ public sealed class SupplySystem : GameSystem
     private static readonly Dictionary<string, int> SupplyPerBuilding = new()
     {
         ["command_center"] = 20,
+        ["shipyard_small"] = 6,
+        ["shipyard_medium"] = 10,
+        ["shipyard_large"] = 18,
         ["shipyard"] = 10,
         ["supply_depot"] = 15,
     };

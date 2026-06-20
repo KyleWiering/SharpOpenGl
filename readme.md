@@ -60,7 +60,9 @@ dotnet test
 
 ## Game Features
 
-- **Ships**: Data-driven ship types (scout, cruiser, transport) with distinct stats
+- **Ships**: 17+ data-driven vessel types (fighters, scouts, corvettes, frigates, gunships, capitals, drones, support)
+- **Shipyards**: Small / medium / large tiers with tier-appropriate build queues
+- **Audio**: OpenAL desktop SFX (weapon fire, launches, explosions, UI clicks) via procedural placeholders
 - **Movement**: A* pathfinding with terrain costs, waypoint queues, patrol mode
 - **Combat**: Stance system (Neutral/Defensive/Aggressive), auto-targeting, projectiles
 - **Fog of War**: Per-player visibility with sight radius, explored/visible states
@@ -82,7 +84,7 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 | Key / Mouse | Action |
 |-------------|--------|
 | Left drag | Box-select multiple ships |
-| Left click | Select ship, resource node, or enemy (HUD color-coded) |
+| Left click | Select ship, resource node, planet, or enemy (HUD color-coded) |
 | Right click | Move / attack / mine (context-sensitive) |
 | Right drag | Pan the map |
 | W/S | Camera forward/back (Shift overrides unit key conflicts) |
@@ -95,7 +97,73 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 | F | Attack-move command |
 | Right-click miner on node | Assign harvest |
 | Right-click armed ship on enemy | Attack target |
-| ESC | Pause / exit |
+| ESC | Pause / exit |
+| N | Cycle building placement (command center, shipyard tiers) |
+
+## Fleet Roster
+
+Ship definitions live in `GameData/Ships/*.json`. Each has distinct stats, weapons, and a procedural mesh silhouette.
+
+| Class | Examples |
+|-------|----------|
+| Light | Scout, Fighter, Interceptor Mk.II, Swarm Drone |
+| Escort | Corvette, Frigate, Gunship |
+| Heavy | Bomber, Destroyer, Cruiser, Carrier, Dreadnought |
+| Utility | Miner, Transport, Bulk Freighter, Restoration Tender |
+
+## Shipyard Tiers
+
+Place shipyards with **N** (cycles small, medium, large). Each tier limits which hulls appear in the build panel:
+
+| Tier | Footprint | Supply | Typical production |
+|------|-----------|--------|-------------------|
+| Small | 2x2 | +6 | Scouts, fighters, drones, miners |
+| Medium | 3x3 | +10 | Adds corvettes, frigates, destroyers, gunships, transports |
+| Large | 4x4 | +18 | Adds cruisers, carriers, dreadnoughts, freighters, support |
+
+Definitions: `GameData/Bases/shipyard_small.json`, `shipyard_medium.json`, `shipyard_large.json`.
+
+## Audio
+
+Desktop builds initialize **OpenAL** on startup. Headless / CI uses silent `NullAudioManager`.
+
+| Event | Sound |
+|-------|-------|
+| Laser / cannon fire | Weapon fire sweep |
+| Missile / torpedo launch | Launch sweep |
+| Unit destroyed | Explosion noise |
+| UI button click | Short click tone |
+| Building placed | Low placement tone |
+
+Combat publishes `SoundRequestedEvent` from `CombatSystem`; SFX are positional relative to the RTS camera listener.
+
+## Entity Colors (HUD & Minimap)
+
+Click any world object to inspect it in the unit info panel. Selection rings and labels use these colors:
+
+| Color | Entity type | Interaction |
+|-------|-------------|-------------|
+| Green | Your ships | Move, attack, patrol commands |
+| Red | Hostile units | Right-click selected ships to attack |
+| Yellow | Neutral planets | Inspect only — no faction allegiance |
+| Light blue | Resource nodes & harvestable planets | Right-click miner to harvest |
+| White | Scenery (asteroids, nebulae, debris) | Inspect only |
+
+Map content is authored in `GameData/Maps/*.json` via `resourceNodes` (diamond markers) and `mapFeatures` (`neutral_planet`, `harvestable_planet`, `scenery`). Sector Alpha includes a neutral hub at the center waypoint, harvestable worlds, and scenery at terrain regions.
+
+## Combat Weapons
+
+Weapon types in `GameData/` map to projectile motion and visuals via `WeaponProfiles`. Override travel with `projectileType` (`linear`, `homing`, `instant`, `aoe`).
+
+| Weapon type | Motion | Visual | Description |
+|-------------|--------|--------|-------------|
+| `laser` | Linear | Laser bolt | Fast direct-fire energy shot |
+| `beam` | Linear | Beam streak | High-velocity beam bolt |
+| `torpedo` | Homing | Torpedo | Slow-tracking warhead |
+| `missile` | Homing | Rocket | Faster homing missile |
+| `bomb` | AoE | Bomb | Area blast on impact |
+| `cannon` | Linear | Energy pulse | Plasma/cannon bolt |
+| `wave` | AoE | Wave ring | EMP/disruptor area effect |
 
 ## Screenshot Mode (for CI/CD)
 

@@ -6,7 +6,7 @@ namespace SharpOpenGl.Engine.UI;
 public static class UITextDrawing
 {
     /// <summary>Line height multiplier relative to font size.</summary>
-    public const float LineHeightFactor = 1.4f;
+    public const float LineHeightFactor = 1.55f;
 
     /// <summary>Wrap <paramref name="text"/> to fit within <paramref name="maxWidth"/> pixels.</summary>
     public static IReadOnlyList<string> WrapText(string text, float maxWidth, float fontSize)

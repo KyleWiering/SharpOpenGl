@@ -1,0 +1,17 @@
+{
+  "id": "freighter_bulk",
+  "displayName": "Bulk Freighter",
+  "category": "transport",
+  "mesh": "meshes/freighter_bulk.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 350, "shields": 80, "armor": 25 },
+    "movement": { "speed": 45, "acceleration": 30, "turnRate": 45 },
+    "weapons": [
+      { "slot": 0, "type": "point_defense", "damage": 12, "range": 180, "fireRate": 2.5 }
+    ],
+    "sightRadius": 4
+  },
+  "cost": { "energy": 140, "minerals": 220, "data": 10, "crew": 4 },
+  "buildTime": 35
+}

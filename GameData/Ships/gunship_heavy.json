@@ -1,0 +1,19 @@
+{
+  "id": "gunship_heavy",
+  "displayName": "Aegis Gunship",
+  "category": "gunship",
+  "mesh": "meshes/gunship_heavy.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 450, "shields": 120, "armor": 45 },
+    "movement": { "speed": 42, "acceleration": 35, "turnRate": 70 },
+    "weapons": [
+      { "slot": 0, "type": "cannon", "damage": 60, "range": 380, "fireRate": 0.9 },
+      { "slot": 1, "type": "flak", "damage": 25, "range": 220, "fireRate": 3.5 },
+      { "slot": 2, "type": "missile", "damage": 75, "range": 450, "fireRate": 0.3 }
+    ],
+    "sightRadius": 5
+  },
+  "cost": { "energy": 220, "minerals": 300, "data": 40, "crew": 6 },
+  "buildTime": 42
+}

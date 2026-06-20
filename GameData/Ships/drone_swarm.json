@@ -1,0 +1,17 @@
+{
+  "id": "drone_swarm",
+  "displayName": "Swarm Drone",
+  "category": "drone",
+  "mesh": "meshes/drone_swarm.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 40, "shields": 0, "armor": 3 },
+    "movement": { "speed": 110, "acceleration": 200, "turnRate": 320 },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 6, "range": 120, "fireRate": 4.0 }
+    ],
+    "sightRadius": 4
+  },
+  "cost": { "energy": 20, "minerals": 25, "data": 5, "crew": 1 },
+  "buildTime": 6
+}

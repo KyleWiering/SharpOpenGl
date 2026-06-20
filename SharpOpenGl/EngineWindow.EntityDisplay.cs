@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
 using SharpOpenGl.Engine.UI.Widgets;
@@ -36,7 +37,21 @@ public partial class EngineWindow
             if (transform == null) continue;
 
             float dist = HorizontalDistance(transform.Position, worldPos);
-            if (dist < 14f && dist < closestDist)
+            if (dist < 18f && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = entity;
+            }
+        }
+
+        foreach (var (entity, feature) in _world.Query<MapFeatureComponent>())
+        {
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = HorizontalDistance(transform.Position, worldPos);
+            float radius = feature.Kind == MapFeatureKind.NeutralPlanet ? 22f : 16f;
+            if (dist < radius && dist < closestDist)
             {
                 closestDist = dist;
                 closest = entity;
@@ -69,13 +84,38 @@ public partial class EngineWindow
         if (_world.HasComponent<ResourceNodeComponent>(entity))
         {
             var node = _world.GetComponent<ResourceNodeComponent>(entity)!;
+            var named = _world.GetComponent<EntityNameComponent>(entity);
+            string displayName = named != null && !string.IsNullOrWhiteSpace(named.DisplayName)
+                ? named.DisplayName
+                : $"{node.ResourceType} Deposit";
+
+            bool isPlanet = named?.DefinitionId == "harvestable_planet";
             return new UnitInfo
             {
-                Name = $"{node.ResourceType} Deposit",
+                Name = displayName,
                 Subtitle = node.IsDepleted
                     ? "Depleted — right-click miner to reassign"
-                    : $"Harvestable — {node.Amount:0}/{node.MaxAmount:0} (right-click miner)",
+                    : isPlanet
+                        ? $"Harvestable world — {node.Amount:0}/{node.MaxAmount:0} {node.ResourceType} (right-click miner)"
+                        : $"Harvestable — {node.Amount:0}/{node.MaxAmount:0} (right-click miner)",
                 DisplayKind = EntityDisplayKind.Harvestable,
+            };
+        }
+
+        var mapFeature = _world.GetComponent<MapFeatureComponent>(entity);
+        if (mapFeature != null)
+        {
+            return new UnitInfo
+            {
+                Name = name,
+                Subtitle = string.IsNullOrWhiteSpace(mapFeature.Subtitle)
+                    ? (mapFeature.Kind == MapFeatureKind.NeutralPlanet
+                        ? "Neutral — no faction allegiance"
+                        : "Scenery — inspect only")
+                    : mapFeature.Subtitle,
+                DisplayKind = mapFeature.Kind == MapFeatureKind.NeutralPlanet
+                    ? EntityDisplayKind.Neutral
+                    : EntityDisplayKind.Scenery,
             };
         }
 
@@ -86,7 +126,7 @@ public partial class EngineWindow
                 ? "Hostile — right-click selected ships to attack"
                 : string.Empty;
             var info = UnitInfo.FromHealth(name, health, kind);
-            info = new UnitInfo
+            return new UnitInfo
             {
                 Name = info.Name,
                 HPFraction = info.HPFraction,
@@ -99,7 +139,6 @@ public partial class EngineWindow
                 DisplayKind = info.DisplayKind,
                 Subtitle = subtitle,
             };
-            return info;
         }
 
         if (_world.HasComponent<BuildingComponent>(entity))
