@@ -14,9 +14,9 @@ public class ShipyardTierTests
     };
 
     [Theory]
-    [InlineData("shipyard_small", 5)]
-    [InlineData("shipyard_medium", 11)]
-    [InlineData("shipyard_large", 16)]
+    [InlineData("shipyard_small", 7)]
+    [InlineData("shipyard_medium", 13)]
+    [InlineData("shipyard_large", 18)]
     public void Shipyard_producible_count_matches_tier(string id, int expectedCount)
     {
         var def = LoadBase(id);

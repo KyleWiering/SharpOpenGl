@@ -35,10 +35,12 @@ public partial class EngineWindow
         EntityDefinition def, int playerId, bool isEnemy)
     {
         string raceId = ResolveFactionRaceId(playerId, isEnemy);
-        ShipDesignSpec design = ShipDesignCatalog.Resolve(def.Id, raceId);
+        ShipDesignSpec design = isEnemy
+            ? ShipDesignCatalog.ResolveForEnemy(def.Id)
+            : ShipDesignCatalog.Resolve(def.Id, raceId);
 
         var (vao, vertCount) = GetDesignMesh(design);
-        Vector4 color = ResolveFactionTeamColor(raceId, playerId == _humanPlayerId);
+        Vector4 color = ResolveFactionTeamColor(design.RaceId, playerId == _humanPlayerId);
         return (vao, vertCount, color);
     }
 

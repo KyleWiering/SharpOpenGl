@@ -243,6 +243,8 @@ public partial class EngineWindow
                 {
                     bool isEnemy = !string.IsNullOrEmpty(tag) && tag.Contains("enemy", StringComparison.OrdinalIgnoreCase);
                     FinalizeSpawnedUnit(spawned, def, isEnemy ? 2 : 1, isEnemy);
+                    if (isEnemy && tag?.Contains("gallery", StringComparison.OrdinalIgnoreCase) == true)
+                        ConfigureGalleryShowcaseUnit(spawned);
                     if (!string.IsNullOrEmpty(tag))
                         state.RegisterEntityTag(tag, spawned);
                 },
@@ -572,7 +574,10 @@ public partial class EngineWindow
 
         if (start?.StartingUnits is { Length: > 0 })
         {
-            float spacing = 18f;
+            bool gallery = missionId.Equals("ship_gallery", StringComparison.OrdinalIgnoreCase);
+            int columns = gallery ? 5 : start.StartingUnits.Length;
+            float spacing = gallery ? 22f : 18f;
+
             for (int i = 0; i < start.StartingUnits.Length; i++)
             {
                 string unitId = start.StartingUnits[i];
@@ -580,10 +585,17 @@ public partial class EngineWindow
                     def = _assetManager?.Load<EntityDefinition>($"Ships/{unitId}");
                 if (def == null) continue;
 
-                float angle = MathF.PI * 2f * i / start.StartingUnits.Length;
-                var offset = new Vector3(MathF.Cos(angle) * spacing, 0f, MathF.Sin(angle) * spacing);
+                Vector3 offset = gallery
+                    ? GalleryGridOffset(i, columns, spacing)
+                    : new Vector3(
+                        MathF.Cos(MathF.PI * 2f * i / start.StartingUnits.Length) * spacing,
+                        0f,
+                        MathF.Sin(MathF.PI * 2f * i / start.StartingUnits.Length) * spacing);
                 SpawnPlayerUnit(def, spawnCenter + offset, selectFirst: i == 0);
             }
+
+            if (gallery)
+                RevealAreaAt(spawnCenter + new Vector3(columns * spacing * 0.5f, 0f, 0f), 40);
         }
         else
         {
@@ -597,6 +609,27 @@ public partial class EngineWindow
 
     private static Vector3 GridCellToWorld(int[] cell) =>
         MapCoordinates.GridToWorld(cell[0], cell.Length > 1 ? cell[1] : 0);
+
+    private static Vector3 GalleryGridOffset(int index, int columns, float spacing)
+    {
+        int col = index % columns;
+        int row = index / columns;
+        float x = (col - (columns - 1) * 0.5f) * spacing;
+        float z = row * spacing;
+        return new Vector3(x, 0f, z);
+    }
+
+    private void ConfigureGalleryShowcaseUnit(Entity entity)
+    {
+        if (_world == null) return;
+
+        if (_world.HasComponent<AIControlledComponent>(entity))
+            _world.RemoveComponent<AIControlledComponent>(entity);
+
+        var stance = _world.GetComponent<StanceComponent>(entity);
+        if (stance != null)
+            stance.CurrentStance = Stance.Neutral;
+    }
 
     private static Vector3 ShipDisplayScale => Vector3.One * VisualBalance.ShipScaleMultiplier;
 
