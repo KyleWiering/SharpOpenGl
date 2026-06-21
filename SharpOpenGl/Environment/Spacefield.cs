@@ -54,7 +54,7 @@ public class Spacefield : IEnvironment
         GL.EnableVertexAttribArray(1);
 
         GL.BindVertexArray(0);
-        Console.WriteLine("Spacefield initialized with 1000 stars.");
+
     }
 
     public void Render(int shaderProgram, int modelUniform, int colorUniform)

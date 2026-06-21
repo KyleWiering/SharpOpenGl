@@ -76,7 +76,7 @@ dotnet test
 
 ## Game Features
 
-- **Ships**: 17+ data-driven vessel types (fighters, scouts, corvettes, frigates, gunships, capitals, drones, support)
+- **Ships**: 19 data-driven vessel types (fighters, scouts, corvettes, frigates, gunships, capitals, drones, support)
 - **Shipyards**: Small / medium / large tiers with tier-appropriate build queues
 - **Audio**: OpenAL desktop SFX (weapon fire, launches, explosions, UI clicks) via procedural placeholders
 - **Movement**: A* pathfinding with terrain costs, waypoint queues, patrol mode

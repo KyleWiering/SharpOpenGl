@@ -29,6 +29,7 @@ public class EnvironmentController : IDisposable
 
     public void Update(double elapsedTime)
     {
+        _spacefield?.Update(elapsedTime);
         _model?.Update(elapsedTime);
     }
 

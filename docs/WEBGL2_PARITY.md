@@ -1,9 +1,11 @@
 # WebGL2 Parity Plan
 
+> **Note:** Browser build is Blazor WebAssembly (`SharpOpenGl.Browser/`), sharing `SharpOpenGl.Engine` with desktop.
+
 ## Overview
 
 The SharpOpenGL desktop engine targets OpenGL 3.3 Core via OpenTK.
-The WebGL2 browser target (`docs/engine.js`) must provide equivalent functionality
+The WebGL2 browser target (`SharpOpenGl.Browser`) must provide equivalent functionality
 using the WebGL2 API, which is a subset of OpenGL ES 3.0.
 
 This document defines which engine features require special handling in the
@@ -77,32 +79,24 @@ out vec4 outputColor;  // location 0 is implicit
 | Desktop | Browser |
 |---------|---------|
 | `File.ReadAllText` (synchronous) | `fetch()` (async) — preload all assets before game loop starts |
-| JSON deserialization via `System.Text.Json` | `JSON.parse()` |
+| JSON deserialization via `System.Text.Json` | `System.Text.Json` via `HttpAssetTextSource` |
 
-**Strategy**: preload all required JSON assets during a loading screen phase,
-storing them in a JavaScript Map keyed by asset path.
+**Strategy**: preload all required JSON assets during a loading screen phase.
 
 ---
 
 ## Build Pipeline
 
-The WebGL2 build in `docs/` is currently a manual JavaScript file.
-Future tooling options:
-1. **Blazor WebAssembly** — compile C# directly to WASM, reuse Engine library unchanged
-2. **Manual JS port** — maintain `engine.js` in parallel (current approach)
-3. **Fable/Bridge.NET** — transpile C# to JS (not recommended, limited OpenTK support)
-
-**Recommended path**: Blazor WebAssembly (Phase 9+) — allows full C# reuse.
-The `docs/engine.js` file serves as a working prototype until then.
+CI (`deploy-pages.yml`) publishes `SharpOpenGl.Browser` to `docs/` on every push to `master`. Local dev: `dotnet run --project SharpOpenGl.Browser`.
 
 ---
 
 ## Current Status
 
-- `docs/engine.js` — standalone WebGL2 prototype (not yet in sync with desktop engine)
-- Desktop engine now uses `SharpOpenGl.Engine` shared library (Phase 0 complete)
-- Blazor WASM integration planned for Phase 9
+- **Blazor WASM** — full menus, missions, and gameplay via shared `SharpOpenGl.Engine`
+- **Desktop** — OpenTK 4.8 via `SharpOpenGl` exe
+- Legacy standalone `docs/engine.js` removed; shader notes above still apply
 
 ---
 
-*Last updated: Phase 0 complete*
+*Last updated: Blazor WASM browser build*

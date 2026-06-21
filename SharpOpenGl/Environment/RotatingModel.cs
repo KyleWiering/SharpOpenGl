@@ -55,7 +55,7 @@ public class RotatingModel : IEnvironment
         GL.EnableVertexAttribArray(1);
 
         GL.BindVertexArray(0);
-        Console.WriteLine("Rotating model initialized.");
+
     }
 
     public void Render(int shaderProgram, int modelUniform, int colorUniform)

@@ -128,7 +128,7 @@ public sealed class EntityDefinition
 
     /// <summary>
     /// Fallback mesh key used when <see cref="Mesh"/> cannot be loaded.
-    /// Defaults to "default", which maps to the engine's built-in DefaultObject.
+    /// Defaults to "default", resolved via <see cref="Rendering.MeshRegistry"/> fallback.
     /// </summary>
     public string FallbackMesh { get; set; } = "default";
 
