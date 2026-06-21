@@ -174,7 +174,7 @@ public sealed class TriggerSystem : GameSystem
                 int row = i / columns;
                 float x = (col - (columns - 1) * 0.5f) * spacing;
                 float z = row * spacing;
-                tf.Position = pos + new System.Numerics.Vector3(x, 0f, z);
+                tf.Position = pos + new Vector3(x, 0f, z);
             }
 
             if (!string.IsNullOrEmpty(action.Tag))
@@ -182,6 +182,7 @@ public sealed class TriggerSystem : GameSystem
 
             OnUnitSpawned?.Invoke(world, spawned, def, action.Tag);
         }
+    }
 
     private void ExecuteDialog(TriggerActionDefinition action)
     {
