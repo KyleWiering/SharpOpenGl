@@ -15,6 +15,7 @@ public partial class EngineWindow
 {
     private GridSystem? _gridSystem;
     private FogOfWar? _fogOfWar;
+    private readonly CombatFogGate _combatFogGate = new();
     private AutoMoveSystem? _autoMoveSystem;
     private int _fogQuadVao, _fogQuadVbo, _fogQuadVertCount;
     private readonly List<Vector3> _objectiveWaypoints = new();
@@ -26,6 +27,10 @@ public partial class EngineWindow
         float halfMap = MapWorldSize * 0.5f;
         _gridSystem = new GridSystem(GridColumns, GridRows, GridCellSize, new Vector2(-halfMap, -halfMap));
         _fogOfWar = new FogOfWar(_gridSystem, playerCount: 2);
+
+        _combatFogGate.Grid = _gridSystem;
+        _combatFogGate.Fog = _fogOfWar;
+        _combatFogGate.FogPlayerId = 0;
 
         _autoMoveSystem = new AutoMoveSystem(_eventBus);
         _squadSystem = new SquadSystem();

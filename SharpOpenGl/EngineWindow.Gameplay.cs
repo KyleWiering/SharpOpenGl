@@ -175,8 +175,8 @@ public partial class EngineWindow
         _world = new World();
         _movementSystem = new MovementSystem();
         _aiSystem = new AIPlayerSystem(MapWorldSize);
-        _world.AddSystem(new StanceSystem());
-        _world.AddSystem(new CombatSystem(_eventBus));
+        _world.AddSystem(new StanceSystem(_combatFogGate));
+        _world.AddSystem(new CombatSystem(_eventBus, _combatFogGate));
         _world.AddSystem(new ShieldRegenSystem());
         _world.AddSystem(new ProjectileSystem(_eventBus));
         _abilitySystem = new AbilitySystem(_eventBus);

@@ -1,8 +1,6 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Audio;
-
 using SharpOpenGl.Engine.Combat;
-
 using SharpOpenGl.Engine.Events;
 
 namespace SharpOpenGl.Engine.ECS;
@@ -22,11 +20,16 @@ namespace SharpOpenGl.Engine.ECS;
 public sealed class CombatSystem : GameSystem
 {
     private readonly EventBus _bus;
+    private readonly CombatFogGate _fogGate;
 
     /// <summary>XP awarded to the killer when a unit dies (future: drive from balance.json).</summary>
     public int BaseXpPerKill { get; set; } = 25;
 
-    public CombatSystem(EventBus bus) => _bus = bus;
+    public CombatSystem(EventBus bus, CombatFogGate? fogGate = null)
+    {
+        _bus = bus;
+        _fogGate = fogGate ?? new CombatFogGate();
+    }
 
     /// <inheritdoc/>
     public override void Update(World world, float deltaTime)
@@ -62,10 +65,12 @@ public sealed class CombatSystem : GameSystem
             var wl = world.GetComponent<WeaponListComponent>(attacker);
             if (wl == null || wl.Weapons.Count == 0) continue;
 
-            // Drop stale target.
+            // Drop stale or fog-hidden target.
             if (!world.IsAlive(ct.CurrentTarget) ||
                 world.GetComponent<HealthComponent>(ct.CurrentTarget) == null ||
-                world.GetComponent<HealthComponent>(ct.CurrentTarget)!.IsDead)
+                world.GetComponent<HealthComponent>(ct.CurrentTarget)!.IsDead ||
+                (ct.CurrentTarget != Entity.Null
+                    && !_fogGate.CanEngage(world, attacker, ct.CurrentTarget)))
             {
                 ct.CurrentTarget = Entity.Null;
             }
@@ -77,6 +82,9 @@ public sealed class CombatSystem : GameSystem
             }
 
             if (ct.CurrentTarget == Entity.Null) continue;
+
+            if (!_fogGate.CanEngage(world, attacker, ct.CurrentTarget))
+                continue;
 
             // Try to fire each weapon.
             var attackerPos = world.GetComponent<TransformComponent>(attacker)?.Position ?? Vector3.Zero;
@@ -99,7 +107,7 @@ public sealed class CombatSystem : GameSystem
 
     // ── Target acquisition ────────────────────────────────────────────────────
 
-    private static Entity AcquireTarget(
+    private Entity AcquireTarget(
         World world, Entity attacker, CombatTargetComponent ct, float range)
     {
         var attackerPos = world.GetComponent<TransformComponent>(attacker)?.Position ?? Vector3.Zero;
@@ -114,6 +122,7 @@ public sealed class CombatSystem : GameSystem
         {
             if (candidate == attacker) continue;
             if (health.IsDead) continue;
+            if (!_fogGate.CanEngage(world, attacker, candidate)) continue;
 
             // Skip friendlies.
             var candidateCt = world.GetComponent<CombatTargetComponent>(candidate);

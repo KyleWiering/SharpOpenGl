@@ -13,6 +13,10 @@ namespace SharpOpenGl.Engine.ECS;
 public sealed class StanceSystem : GameSystem
 {
     private const float DefensiveRadius = 150f;
+    private readonly CombatFogGate _fogGate;
+
+    public StanceSystem(CombatFogGate? fogGate = null) =>
+        _fogGate = fogGate ?? new CombatFogGate();
 
     /// <inheritdoc/>
     public override void Update(World world, float deltaTime)
@@ -21,6 +25,12 @@ public sealed class StanceSystem : GameSystem
         {
             var ct = world.GetComponent<CombatTargetComponent>(entity);
             if (ct == null) continue;
+
+            if (ct.CurrentTarget != Entity.Null
+                && !_fogGate.CanEngage(world, entity, ct.CurrentTarget))
+            {
+                ct.CurrentTarget = Entity.Null;
+            }
 
             switch (stance.CurrentStance)
             {
@@ -48,8 +58,8 @@ public sealed class StanceSystem : GameSystem
         }
     }
 
-    private static Entity FindDefensiveTarget(World world, Entity self,
-                                               CombatTargetComponent selfCt)
+    private Entity FindDefensiveTarget(World world, Entity self,
+                                     CombatTargetComponent selfCt)
     {
         var selfPos = world.GetComponent<TransformComponent>(self)?.Position ?? Vector3.Zero;
 
@@ -57,6 +67,7 @@ public sealed class StanceSystem : GameSystem
         {
             if (candidate == self) continue;
             if (candidateCt.Faction == selfCt.Faction) continue;
+            if (!_fogGate.CanEngage(world, self, candidate)) continue;
 
             var health = world.GetComponent<HealthComponent>(candidate);
             if (health == null || health.IsDead) continue;
@@ -72,9 +83,9 @@ public sealed class StanceSystem : GameSystem
         return Entity.Null;
     }
 
-    private static Entity FindAggressiveTarget(World world, Entity self,
-                                                CombatTargetComponent selfCt,
-                                                float range)
+    private Entity FindAggressiveTarget(World world, Entity self,
+                                        CombatTargetComponent selfCt,
+                                        float range)
     {
         var selfPos = world.GetComponent<TransformComponent>(self)?.Position ?? Vector3.Zero;
         Entity closest = Entity.Null;
@@ -83,6 +94,7 @@ public sealed class StanceSystem : GameSystem
         foreach (var (candidate, health) in world.Query<HealthComponent>())
         {
             if (candidate == self || health.IsDead) continue;
+            if (!_fogGate.CanEngage(world, self, candidate)) continue;
 
             var candidateCt = world.GetComponent<CombatTargetComponent>(candidate);
             if (candidateCt != null && candidateCt.Faction == selfCt.Faction) continue;
