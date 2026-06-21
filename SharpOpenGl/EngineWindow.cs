@@ -31,7 +31,7 @@ namespace SharpOpenGl;
 /// </summary>
 public partial class EngineWindow : GameWindow
 {
-    private RTSCameraController _rtsCamera = null!;
+    private RtsCameraController _rtsCamera = null!;
     private EnvironmentController _environment = null!;
     private int _frameCount;
     private readonly bool _screenshotMode;
@@ -183,7 +183,7 @@ public partial class EngineWindow : GameWindow
         _environment.Initialize();
 
         // RTS Camera (adjusted for larger map)
-        _rtsCamera = new RTSCameraController
+        _rtsCamera = new RtsCameraController
         {
             Target = new Vector3(0f, 0f, 0f),
             Height = 200f,

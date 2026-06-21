@@ -35,7 +35,7 @@ public sealed class MeshRegistry
 
     /// <summary>
     /// Register a mesh from already-uploaded tuple data
-    /// (e.g. from <see cref="ObjMeshLoader.Upload"/> or <see cref="MeshBuilder"/>).
+    /// (e.g. from desktop mesh builders or procedural mesh upload).
     /// </summary>
     public void Register(string key, (int vao, int vbo, int vertexCount) mesh) =>
         Register(key, mesh.vao, mesh.vbo, mesh.vertexCount);

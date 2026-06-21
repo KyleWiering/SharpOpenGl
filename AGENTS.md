@@ -5,7 +5,7 @@
 > See `.cursor/rules/ai-documentation.mdc` for maintenance rules.
 
 **Repo:** [KyleWiering/SharpOpenGl](https://github.com/KyleWiering/SharpOpenGl)  
-**Stack:** .NET 8 · OpenTK 4.8 · xUnit · WebGL2 (GitHub Pages)  
+**Stack:** .NET 8 · OpenTK 4.8 · Blazor WASM · xUnit · WebGL2 (GitHub Pages)
 **Default window:** 1024×768 · **UI reference resolution:** 1920×1080
 
 ---
@@ -16,7 +16,7 @@ All build/test/release runs through **GitHub Actions** on push to `master`:
 
 | Workflow | Trigger | What it does |
 |----------|---------|--------------|
-| `ci.yml` | push/PR → `master` | `dotnet test`, cross-platform publish, WebGL2 minify, GitHub Release |
+| `ci.yml` | push/PR → `master` | `dotnet test`, cross-platform publish, GitHub Release |
 | `build-and-screenshot.yml` | push → `master` | Headless screenshot + gameplay demo MP4 via `--demo-recording` |
 | `deploy-pages.yml` | push → `master` | Deploy `docs/` → [Live Demo](https://kylewiering.github.io/SharpOpenGl/) |
 
@@ -36,9 +36,10 @@ dotnet run --project SharpOpenGl
 SharpOpenGl.sln
 ├── SharpOpenGl/              # Desktop exe — GameWindow, rendering, input
 ├── SharpOpenGl.Engine/       # Shared library — ECS, UI, missions, economy
-├── SharpOpenGl.Tests/        # xUnit (~776 tests)
+├── SharpOpenGl.Browser/      # Blazor WASM — same engine, WebGL2 + canvas UI
+├── SharpOpenGl.Tests/        # xUnit test suite
 ├── GameData/                 # JSON content (ships, missions, maps, config)
-├── docs/                     # WebGL2 browser build (index.html + engine.js)
+├── docs/                     # GitHub Pages deploy target (WASM publish + guides)
 ├── .github/workflows/        # CI/CD
 ├── GAME_PLAN.md              # 12-phase master development plan
 ├── IMPLEMENTATION_PLAN.md    # Feature checklist
@@ -52,7 +53,7 @@ SharpOpenGl.sln
 | `SharpOpenGl/Program.cs` | Creates `EngineWindow` 1024×768; `--screenshot` for CI |
 | `SharpOpenGl/EngineWindow.cs` | Game loop, scenes, ECS init, UI routing, gameplay input |
 | `SharpOpenGl/GLUIRenderer.cs` | OpenGL 2D UI (ortho quads + segment font) |
-| `docs/index.html` + `docs/engine.js` | Browser WebGL2 preview (no menus; direct sim) |
+| `SharpOpenGl.Browser/` | Blazor WASM browser build; CI publishes to `docs/` |
 
 ---
 
@@ -71,8 +72,9 @@ Gameplay + PauseScreen overlay
 ### ECS (`SharpOpenGl.Engine.ECS`)
 
 - **World** — entity slots, sparse-set component pools, system registry
-- **27 components** — Transform, Movement, Render, Health, Race, Weapon, Building, etc.
-- **20 systems** — Movement, Combat, ShieldRegen, Build, Resource, AI, FogOfWar, Supply, Squad, etc.
+- **~33 components** — Transform, Movement, Render, Health, Race, Weapon, Building, Projectile, Squad, etc.
+- **~20 systems** — Movement, Combat, ShieldRegen, Build, Resource, AI, FogOfWar, Supply, Squad, etc.
+- **Camera** — shared `RtsCameraController` in Engine (desktop + browser)
 - **Squads** — `SquadSystem` + `SquadMemberComponent`; formations (line/wedge/box/column); G key / ShipControlBar
 - **Move routes** — `RouteCommands` → `WaypointQueueComponent` → `AutoMoveSystem` → `DestinationComponent` → `PathFollowingSystem` → `MovementSystem`; shift+right-click appends waypoints
 - **Map:** 200×200 grid @ 10f cell = 2000-unit world (`GridColumns/Rows` in `EngineWindow`)
@@ -109,7 +111,7 @@ Loaded via `JsonLoader` (case-insensitive, comments allowed).
 | `GameData/Maps/*.json` | `MapDefinition` |
 | `GameData/Config/*.json` | balance, controls, resources, race_visuals, race_shields, race_ultimates |
 
-Ship types: `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_light`, `carrier_command`, `cruiser_heavy`, `hero_default`, `miner_basic`, `transport_cargo`.
+Ship types (19): `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_light`, `carrier_command`, `cruiser_heavy`, `hero_default`, `miner_basic`, `miner_eva`, `miner_tractor`, `transport_cargo`, `interceptor_mk2`, `corvette_fast`, `frigate_strike`, `gunship_heavy`, `dreadnought`, `drone_swarm`, `freighter_bulk`, `support_repair`.
 
 ### Economy
 
@@ -125,11 +127,11 @@ Ship types: `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_light`,
 
 | Topic | Status |
 |-------|--------|
-| Menu buttons at non-1080p | **Fixed** — `UIScaler` wired in `UIManager` (branch `copilot/fix-menu-button-issues`) |
+| Menu buttons at non-1080p | **Fixed** — `UIScaler` wired in `UIManager` |
 | Start Mission disabled | Auto-selects first **unlocked** mission in `SetMissions()` |
 | `UIScaler` in tests | Pass **physical** coords to `UIManager.HandlePointerTapped`; pass **logical** coords to `UIScreen`/`Widget` directly |
 | Hover feedback | **Fixed** — `EngineWindow.UpdateUiPointerState` calls `UIManager.HandlePointerMove` each frame; hover SFX on button enter |
-| WebGL2 | No menu screens; hardcoded scenario; see `docs/WEBGL2_PARITY.md` |
+| Browser build | Blazor WASM with menus, missions, and gameplay; see `docs/WEBGL2_PARITY.md` for shader notes |
 | Screenshot mode | `dotnet run --project SharpOpenGl -- --screenshot --screenshot-path out.png` |
 | Demo recording | `dotnet run --project SharpOpenGl -- --demo-recording --mission example_scenario` → `docs/gameplay-demo.mp4` + poster PNG |
 
@@ -162,7 +164,7 @@ Ship types: `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_light`,
 1. Canonical assets — `docs/gameplay-demo.mp4` (H.264, &lt;15 MB) + `docs/gameplay-demo-poster.png`
 2. `place_building` demo step + updated `example_scenario` script (select, move, combat, base build, HUD)
 3. CI — `build-and-screenshot.yml` and `deploy-pages.yml` record via xvfb + ffmpeg on push to `master`
-4. Embeds — HTML5 `<video controls playsinline poster=…>` in `readme.md`, `docs/index.html`, Blazor `wwwroot/index.html`
+4. Embeds — HTML5 `<video controls playsinline poster=…>` in `readme.md` and Blazor `wwwroot/index.html`
 
 **Backlog item #14 (done):** Mission playthrough agent for demo recordings.
 
