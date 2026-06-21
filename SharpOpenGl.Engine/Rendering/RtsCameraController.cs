@@ -28,6 +28,12 @@ public sealed class RtsCameraController
     public void Zoom(float delta) =>
         Height = MathHelper.Clamp(Height - delta * ZoomSpeed, MinHeight, MaxHeight);
 
+    public void AdjustHeight(float direction, float deltaTime, float speed = 80f)
+    {
+        if (MathF.Abs(direction) < 0.01f) return;
+        Height = MathHelper.Clamp(Height + direction * speed * deltaTime, MinHeight, MaxHeight);
+    }
+
     public Matrix4 GetViewMatrix()
     {
         float tiltRad = MathHelper.DegreesToRadians(TiltAngle);
