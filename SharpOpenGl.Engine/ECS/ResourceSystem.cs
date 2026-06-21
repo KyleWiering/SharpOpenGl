@@ -14,7 +14,7 @@ namespace SharpOpenGl.Engine.ECS;
 /// </summary>
 public sealed class ResourceSystem : GameSystem
 {
-    /// <summary>World-unit radius within which a collector is considered "at" its target.</summary>
+    /// <summary>World-unit radius within which a collector docks (legacy fallback).</summary>
     public const float ArrivalRadius = 2f;
 
     private readonly ResourceManager _resources;
@@ -58,7 +58,7 @@ public sealed class ResourceSystem : GameSystem
                     break;
 
                 case CollectorState.Collecting:
-                    HandleCollecting(world, collector, deltaTime);
+                    HandleCollecting(world, entity, collector, deltaTime);
                     break;
 
                 case CollectorState.Returning:
@@ -90,16 +90,16 @@ public sealed class ResourceSystem : GameSystem
             return;
         }
 
-        if (!IsWithinRadius(world, entity, collector.AssignedNode)) return;
+        if (!IsWithinHarvestRange(world, entity, collector.AssignedNode, collector)) return;
 
-        // Arrived at the node.
-        collector.State    = CollectorState.Collecting;
+        collector.State = CollectorState.Collecting;
         collector.CarryType = node.ResourceType;
+        collector.TractorPulseTimer = 0f;
         node.AssignedCollectors++;
     }
 
     private static void HandleCollecting(
-        World world, ResourceCollectorComponent collector, float deltaTime)
+        World world, Entity entity, ResourceCollectorComponent collector, float deltaTime)
     {
         if (!world.IsAlive(collector.AssignedNode))
         {
@@ -115,13 +115,42 @@ public sealed class ResourceSystem : GameSystem
             return;
         }
 
-        // Extract up to harvestRate * dt, capped by remaining node amount and free carry space.
-        float extract = node.HarvestRate * deltaTime;
-        float space   = collector.CarryCapacity - collector.CarryAmount;
-        float actual  = Math.Min(extract, Math.Min(node.Amount, space));
+        if (!IsWithinHarvestRange(world, entity, collector.AssignedNode, collector))
+        {
+            node.AssignedCollectors = Math.Max(0, node.AssignedCollectors - 1);
+            collector.State = CollectorState.MovingToNode;
+            return;
+        }
 
-        node.Amount          -= actual;
+        // Drone mode: cargo increments when drones return (handled by MiningVisualSystem).
+        if (collector.HarvestMode == HarvestMode.Drones)
+        {
+            if (collector.IsFull || node.IsDepleted)
+            {
+                if (!node.IsDepleted)
+                    node.AssignedCollectors = Math.Max(0, node.AssignedCollectors - 1);
+                collector.State = CollectorState.Returning;
+            }
+            return;
+        }
+
+        float extractDt = deltaTime;
+        if (collector.HarvestMode == HarvestMode.TractorBeam)
+        {
+            collector.TractorPulseTimer += deltaTime;
+            if (collector.TractorPulseTimer < MiningVisualSystem.TractorPulseInterval)
+                return;
+            extractDt = collector.TractorPulseTimer;
+            collector.TractorPulseTimer = 0f;
+        }
+
+        float extract = collector.HarvestRate * extractDt;
+        float space = collector.CarryCapacity - collector.CarryAmount;
+        float actual = Math.Min(extract, Math.Min(node.Amount, space));
+
+        node.Amount -= actual;
         collector.CarryAmount += actual;
+        collector.CarryType ??= node.ResourceType;
 
         if (node.IsDepleted)
         {
@@ -143,7 +172,6 @@ public sealed class ResourceSystem : GameSystem
     {
         if (collector.CarryAmount <= 0f)
         {
-            // Nothing to deposit; go idle or back to node.
             TryReturnToNode(world, collector);
             return;
         }
@@ -172,10 +200,6 @@ public sealed class ResourceSystem : GameSystem
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// After depositing (or with empty cargo), return to the assigned node if it still has
-    /// resources, otherwise go idle.
-    /// </summary>
     private static void TryReturnToNode(World world, ResourceCollectorComponent collector)
     {
         if (world.IsAlive(collector.AssignedNode))
@@ -184,12 +208,24 @@ public sealed class ResourceSystem : GameSystem
             if (node != null && !node.IsDepleted)
             {
                 collector.State = CollectorState.MovingToNode;
+                collector.TractorPulseTimer = 0f;
                 return;
             }
         }
 
-        collector.State        = CollectorState.Idle;
+        collector.State = CollectorState.Idle;
         collector.AssignedNode = Entity.Null;
+    }
+
+    private static bool IsWithinHarvestRange(
+        World world, Entity collector, Entity node, ResourceCollectorComponent comp)
+    {
+        var tc = world.GetComponent<TransformComponent>(collector);
+        var tn = world.GetComponent<TransformComponent>(node);
+        if (tc == null || tn == null) return true;
+
+        float range = comp.HarvestRange > 0f ? comp.HarvestRange : ArrivalRadius;
+        return (tc.Position - tn.Position).Length <= range;
     }
 
     /// <summary>
@@ -201,7 +237,6 @@ public sealed class ResourceSystem : GameSystem
         var ta = world.GetComponent<TransformComponent>(a);
         var tb = world.GetComponent<TransformComponent>(b);
 
-        // No position data → treat as co-located.
         if (ta == null || tb == null) return true;
 
         return (ta.Position - tb.Position).Length <= ArrivalRadius;

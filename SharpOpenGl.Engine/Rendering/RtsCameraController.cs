@@ -22,7 +22,7 @@ public sealed class RtsCameraController
     {
         if (viewportSize.X <= 0f || viewportSize.Y <= 0f) return;
         float scale = Height / viewportSize.Y * 2.2f;
-        Target += new Vector3(-screenDelta.X * scale, 0f, screenDelta.Y * scale);
+        Target += new Vector3(-screenDelta.X * scale, 0f, -screenDelta.Y * scale);
     }
 
     public void Zoom(float delta) =>

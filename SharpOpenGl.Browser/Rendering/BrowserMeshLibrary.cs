@@ -18,6 +18,7 @@ public sealed class BrowserMeshLibrary
     public int EngineTrailCount { get; private set; }
     public int MoveTarget { get; private set; }
     public int MoveTargetCount { get; private set; }
+    public int ParticleBuffer { get; private set; }
 
     public int LaserBolt { get; private set; }
     public int LaserBoltCount { get; private set; }
@@ -37,21 +38,28 @@ public sealed class BrowserMeshLibrary
     private const int GridColumns = 200;
     private const int GridRows = 200;
     private const float GridCellSize = 10f;
+    private readonly Dictionary<int, (int meshId, int vertexCount)> _gridByStep = new();
 
     public async Task InitializeAsync(WebGlRenderer renderer)
     {
-        float[] hero = ProceduralMeshes.BuildShipMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f);
+        float[] hero = ProceduralMeshes.BuildRaceShip(RaceShipMeshes.DefaultRace, "hero_default", new Vector3(0.2f, 0.8f, 1.0f));
         Hero = await renderer.UploadMeshAsync(hero);
         HeroCount = ProceduralMeshes.VertexCount(hero);
 
-        float[] fighter = ProceduralMeshes.BuildShipMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f);
+        float[] fighter = ProceduralMeshes.BuildRaceShip(RaceShipMeshes.DefaultRace, "fighter_basic", new Vector3(0.4f, 1.0f, 0.4f));
         Fighter = await renderer.UploadMeshAsync(fighter);
         FighterCount = ProceduralMeshes.VertexCount(fighter);
 
-        float[] grid = ProceduralMeshes.BuildGrid(GridColumns, GridRows, GridCellSize,
-            new Vector3(0.15f, 0.15f, 0.25f));
-        Grid = await renderer.UploadMeshAsync(grid);
-        GridCount = ProceduralMeshes.VertexCount(grid);
+        var gridColor = new Vector3(0.15f, 0.15f, 0.25f);
+        foreach (int step in new[] { 1, 2, 5, 10, 20 })
+        {
+            float[] grid = ProceduralMeshes.BuildGrid(GridColumns, GridRows, GridCellSize, gridColor, step);
+            int meshId = await renderer.UploadMeshAsync(grid);
+            int count = ProceduralMeshes.VertexCount(grid);
+            _gridByStep[step] = (meshId, count);
+        }
+
+        (Grid, GridCount) = _gridByStep[1];
 
         float[] ring = ProceduralMeshes.BuildSelectionRing(new Vector3(0f, 1f, 0f), 3f);
         SelectionRing = await renderer.UploadMeshAsync(ring);
@@ -64,6 +72,8 @@ public sealed class BrowserMeshLibrary
         float[] target = ProceduralMeshes.BuildMoveTarget(new Vector3(0f, 1f, 0.5f), 2f);
         MoveTarget = await renderer.UploadMeshAsync(target);
         MoveTargetCount = ProceduralMeshes.VertexCount(target);
+
+        ParticleBuffer = await renderer.UploadMeshAsync(new float[4096 * 6]);
 
         float[] laser = ProceduralMeshes.BuildLaserBolt(new Vector3(1f, 0.4f, 0.3f));
         LaserBolt = await renderer.UploadMeshAsync(laser);
@@ -112,4 +122,10 @@ public sealed class BrowserMeshLibrary
     }
 
     public static float MapWorldSize => GridColumns * GridCellSize;
+
+    public (int meshId, int vertexCount) GetGridForHeight(float height, float minHeight, float maxHeight)
+    {
+        int step = GridRenderLod.ResolveLineStep(height, minHeight, maxHeight);
+        return _gridByStep.TryGetValue(step, out var mesh) ? mesh : (Grid, GridCount);
+    }
 }

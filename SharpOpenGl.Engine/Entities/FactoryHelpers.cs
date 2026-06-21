@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Assets;
 using SharpOpenGl.Engine.Combat;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
 
 namespace SharpOpenGl.Engine.Entities;
@@ -105,7 +106,7 @@ internal static class FactoryHelpers
                 Slot           = wd.Slot,
                 Type           = wd.Type,
                 Damage         = wd.Damage,
-                Range          = wd.Range,
+                Range          = CombatBalance.ScaleRange(wd.Range),
                 FireRate        = wd.FireRate,
                 ProjectileType = projectileType,
             });
@@ -133,9 +134,31 @@ internal static class FactoryHelpers
                 comp.AbilitySlots[ab.Slot]     = ab.Id;
                 comp.AbilityCooldowns[ab.Slot] = 0f;
             }
+
+            ApplyAbilityList(world, entity, abilities);
         }
 
         world.AddComponent(entity, comp);
+    }
+
+    /// <summary>Attach <see cref="AbilityListComponent"/> from JSON ability entries.</summary>
+    internal static void ApplyAbilityList(World world, Entity entity, AbilityDefinition[] abilities)
+    {
+        if (abilities.Length == 0) return;
+
+        var list = new AbilityListComponent();
+        foreach (var ab in abilities)
+        {
+            list.Abilities.Add(new AbilityComponent
+            {
+                Slot = ab.Slot,
+                Id = ab.Id,
+                MaxCooldown = ab.Cooldown,
+                CurrentCooldown = 0f,
+            });
+        }
+
+        world.AddComponent(entity, list);
     }
 
     /// <summary>Apply <see cref="SquadMemberComponent"/> from definition.</summary>
@@ -184,9 +207,23 @@ internal static class FactoryHelpers
     {
         if (def == null) return;
 
+        var mode = HarvestModeDefaults.Parse(def.HarvestMode);
+        float range = def.HarvestRange > 0f
+            ? def.HarvestRange
+            : HarvestModeDefaults.DefaultRange(mode);
+        float rateMult = def.HarvestRateMultiplier > 0f
+            ? def.HarvestRateMultiplier
+            : HarvestModeDefaults.DefaultRateMultiplier(mode);
+        float capacity = def.CarryCapacity > 0f
+            ? HarvestModeDefaults.DefaultCarryCapacity(mode, def.CarryCapacity)
+            : HarvestModeDefaults.DefaultCarryCapacity(mode, 50f);
+
         world.AddComponent(entity, new ResourceCollectorComponent
         {
-            CarryCapacity = def.CarryCapacity,
+            HarvestMode = mode,
+            HarvestRange = range,
+            HarvestRate = def.HarvestRate * rateMult,
+            CarryCapacity = capacity,
         });
     }
 }

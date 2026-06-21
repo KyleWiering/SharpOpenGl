@@ -1,0 +1,108 @@
+{
+  "_comment": "Visual schema for 8 playable races. Drives procedural ship silhouettes only — no gameplay stats.",
+  "version": 1,
+  "races": [
+    {
+      "id": "terran",
+      "displayName": "Terran Coalition",
+      "style": "angular",
+      "palette": { "primary": [0.32, 0.55, 0.78], "secondary": [0.18, 0.32, 0.52], "accent": [1.0, 0.85, 0.35], "engine": [0.2, 0.65, 1.0] },
+      "modifiers": { "wingSweep": 0.38, "wingSpan": 1.0, "hullLength": 1.0, "hullWidth": 1.0, "protrusion": 0.22, "asymmetry": 0.0, "facetSharpness": 0.15, "engineCount": 2, "superstructure": 0.35 }
+    },
+    {
+      "id": "vesper",
+      "displayName": "Vesper Syndicate",
+      "style": "sleek",
+      "palette": { "primary": [0.72, 0.78, 0.88], "secondary": [0.45, 0.5, 0.58], "accent": [0.2, 0.95, 1.0], "engine": [0.15, 0.85, 0.95] },
+      "modifiers": { "wingSweep": 0.12, "wingSpan": 0.55, "hullLength": 1.25, "hullWidth": 0.65, "protrusion": 0.08, "asymmetry": 0.05, "facetSharpness": 0.05, "engineCount": 1, "superstructure": 0.15 }
+    },
+    {
+      "id": "korath",
+      "displayName": "Korath Dominion",
+      "style": "blocky",
+      "palette": { "primary": [0.55, 0.28, 0.22], "secondary": [0.35, 0.18, 0.14], "accent": [1.0, 0.45, 0.12], "engine": [0.95, 0.35, 0.1] },
+      "modifiers": { "wingSweep": 0.08, "wingSpan": 0.85, "hullLength": 0.95, "hullWidth": 1.35, "protrusion": 0.45, "asymmetry": 0.1, "facetSharpness": 0.55, "engineCount": 4, "superstructure": 0.5 }
+    },
+    {
+      "id": "aetherian",
+      "displayName": "Aetherian Collective",
+      "style": "organic",
+      "palette": { "primary": [0.42, 0.28, 0.72], "secondary": [0.28, 0.18, 0.48], "accent": [0.35, 1.0, 0.85], "engine": [0.55, 0.25, 1.0] },
+      "modifiers": { "wingSweep": 0.55, "wingSpan": 1.15, "hullLength": 1.05, "hullWidth": 0.9, "protrusion": 0.3, "asymmetry": 0.12, "facetSharpness": 0.0, "engineCount": 3, "superstructure": 0.4 }
+    },
+    {
+      "id": "nexar",
+      "displayName": "Nexar Hive",
+      "style": "asymmetric",
+      "palette": { "primary": [0.62, 0.48, 0.18], "secondary": [0.42, 0.32, 0.12], "accent": [0.95, 0.75, 0.15], "engine": [1.0, 0.55, 0.08] },
+      "modifiers": { "wingSweep": 0.42, "wingSpan": 1.2, "hullLength": 0.9, "hullWidth": 1.1, "protrusion": 0.38, "asymmetry": 0.55, "facetSharpness": 0.2, "engineCount": 3, "superstructure": 0.25 }
+    },
+    {
+      "id": "solari",
+      "displayName": "Solari Ascendancy",
+      "style": "radiant",
+      "palette": { "primary": [0.92, 0.78, 0.35], "secondary": [0.72, 0.55, 0.22], "accent": [1.0, 0.95, 0.55], "engine": [1.0, 0.82, 0.25] },
+      "modifiers": { "wingSweep": 0.28, "wingSpan": 1.35, "hullLength": 1.1, "hullWidth": 1.05, "protrusion": 0.5, "asymmetry": 0.08, "facetSharpness": 0.1, "engineCount": 3, "superstructure": 0.65 }
+    },
+    {
+      "id": "voidborn",
+      "displayName": "Voidborn Exiles",
+      "style": "spiny",
+      "palette": { "primary": [0.22, 0.12, 0.38], "secondary": [0.12, 0.06, 0.22], "accent": [0.65, 0.15, 0.95], "engine": [0.45, 0.05, 0.75] },
+      "modifiers": { "wingSweep": 0.62, "wingSpan": 1.05, "hullLength": 1.15, "hullWidth": 0.85, "protrusion": 0.72, "asymmetry": 0.45, "facetSharpness": 0.35, "engineCount": 2, "superstructure": 0.55 }
+    },
+    {
+      "id": "cryo",
+      "displayName": "Cryo Legion",
+      "style": "crystalline",
+      "palette": { "primary": [0.55, 0.82, 0.95], "secondary": [0.32, 0.58, 0.78], "accent": [0.85, 0.98, 1.0], "engine": [0.4, 0.9, 1.0] },
+      "modifiers": { "wingSweep": 0.18, "wingSpan": 0.95, "hullLength": 1.0, "hullWidth": 0.95, "protrusion": 0.35, "asymmetry": 0.06, "facetSharpness": 0.85, "engineCount": 2, "superstructure": 0.3 }
+    }
+  ],
+  "hullClasses": {
+    "scout":           { "size": 1.4,  "lengthRatio": 1.35, "widthRatio": 0.55, "heightRatio": 0.18, "engineScale": 0.7 },
+    "fighter":         { "size": 1.75, "lengthRatio": 1.2,  "widthRatio": 0.7,  "heightRatio": 0.22, "engineScale": 0.85 },
+    "interceptor":     { "size": 1.6,  "lengthRatio": 1.45, "widthRatio": 0.6,  "heightRatio": 0.2,  "engineScale": 0.9 },
+    "drone":           { "size": 0.9,  "lengthRatio": 0.85, "widthRatio": 0.85, "heightRatio": 0.25, "engineScale": 0.5 },
+    "corvette":        { "size": 2.2,  "lengthRatio": 1.15, "widthRatio": 0.8,  "heightRatio": 0.24, "engineScale": 1.0 },
+    "frigate":         { "size": 3.0,  "lengthRatio": 1.25, "widthRatio": 0.75, "heightRatio": 0.28, "engineScale": 1.1 },
+    "gunship":         { "size": 3.2,  "lengthRatio": 1.05, "widthRatio": 1.15, "heightRatio": 0.35, "engineScale": 1.15 },
+    "bomber":          { "size": 2.5,  "lengthRatio": 1.0,  "widthRatio": 1.25, "heightRatio": 0.3,  "engineScale": 1.2 },
+    "destroyer":       { "size": 3.5,  "lengthRatio": 1.4,  "widthRatio": 0.7,  "heightRatio": 0.26, "engineScale": 1.25 },
+    "cruiser":         { "size": 4.2,  "lengthRatio": 1.2,  "widthRatio": 0.85, "heightRatio": 0.32, "engineScale": 1.35 },
+    "carrier":         { "size": 4.0,  "lengthRatio": 1.15, "widthRatio": 1.2,  "heightRatio": 0.38, "engineScale": 1.4 },
+    "dreadnought":     { "size": 5.5,  "lengthRatio": 1.3,  "widthRatio": 1.05, "heightRatio": 0.42, "engineScale": 1.5 },
+    "miner":           { "size": 2.2,  "lengthRatio": 1.05, "widthRatio": 0.95, "heightRatio": 0.28, "engineScale": 0.9 },
+    "transport":       { "size": 3.8,  "lengthRatio": 1.1,  "widthRatio": 1.1,  "heightRatio": 0.3,  "engineScale": 1.1 },
+    "freighter":       { "size": 4.5,  "lengthRatio": 1.25, "widthRatio": 1.35, "heightRatio": 0.32, "engineScale": 1.3 },
+    "support":         { "size": 3.5,  "lengthRatio": 1.05, "widthRatio": 1.0,  "heightRatio": 0.34, "engineScale": 1.0 },
+    "hero":            { "size": 3.0,  "lengthRatio": 1.35, "widthRatio": 0.75, "heightRatio": 0.3,  "engineScale": 1.2 }
+  },
+  "definitionToHull": {
+    "scout_light": "scout",
+    "fighter_basic": "fighter",
+    "interceptor_mk2": "interceptor",
+    "drone_swarm": "drone",
+    "corvette_fast": "corvette",
+    "frigate_strike": "frigate",
+    "gunship_heavy": "gunship",
+    "bomber_heavy": "bomber",
+    "destroyer_assault": "destroyer",
+    "cruiser_heavy": "cruiser",
+    "carrier_command": "carrier",
+    "dreadnought": "dreadnought",
+    "miner_basic": "miner",
+    "miner_tractor": "miner",
+    "miner_eva": "miner",
+    "transport_cargo": "transport",
+    "freighter_bulk": "freighter",
+    "support_repair": "support",
+    "hero_default": "hero"
+  },
+  "designCatalog": {
+    "totalDesigns": 500,
+    "distribution": "8 races x 62-63 variants (17 hulls x mk1/mk2/mk3 + 11-12 special archetypes)",
+    "generator": "SharpOpenGl.Engine.Rendering.ShipDesignCatalog",
+    "specialArchetypes": ["strike", "patrol", "elite", "veteran", "prototype", "ace", "phantom", "bulwark", "spear", "storm", "eclipse", "sovereign"]
+  }
+}

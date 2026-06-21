@@ -12,6 +12,12 @@ public interface IUIRenderer
     /// <summary>Current viewport dimensions in pixels.</summary>
     Vector2 ViewportSize { get; }
 
+    /// <summary>Convert a logical (reference-resolution) length to physical pixels.</summary>
+    float ScaleToPhysical(float logicalPixels) => logicalPixels;
+
+    /// <summary>Resolve the physical font size that will be used when drawing logical text.</summary>
+    float ResolveFontSize(float logicalFontSize) => logicalFontSize;
+
     /// <summary>Draw a filled rectangle.</summary>
     /// <param name="position">Top-left corner in screen-space pixels.</param>
     /// <param name="size">Width and height in pixels.</param>

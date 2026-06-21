@@ -40,7 +40,7 @@ public class RTSCameraController
     {
         if (viewportSize.X <= 0f || viewportSize.Y <= 0f) return;
         float scale = Height / viewportSize.Y * 2.2f;
-        Target += new Vector3(-screenDelta.X * scale, 0f, screenDelta.Y * scale);
+        Target += new Vector3(-screenDelta.X * scale, 0f, -screenDelta.Y * scale);
     }
 
     /// <summary>Apply zoom by changing height.</summary>

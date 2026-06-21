@@ -15,6 +15,14 @@ public sealed class MapDefinition
     [JsonPropertyName("displayName")]
     public string DisplayName { get; set; } = string.Empty;
 
+    /// <summary>When true, map is offered in multiplayer skirmish setup.</summary>
+    [JsonPropertyName("skirmish")]
+    public bool Skirmish { get; set; }
+
+    /// <summary>Recommended player count for skirmish (2, 4, 8, etc.).</summary>
+    [JsonPropertyName("playerCount")]
+    public int PlayerCount { get; set; }
+
     /// <summary>[width, height] in cells.</summary>
     [JsonPropertyName("gridSize")]
     public int[] GridSize { get; set; } = [64, 64];
@@ -82,6 +90,25 @@ public sealed class MapSpawnPoint
 
     [JsonPropertyName("layer")]
     public string Layer { get; set; } = "surface";
+
+    /// <summary>Flat buildable zone: [minX, minY, maxX, maxY] (inclusive grid cells).</summary>
+    [JsonPropertyName("baseArea")]
+    public int[]? BaseArea { get; set; }
+
+    /// <summary>Buildings spawned inside <see cref="BaseArea"/> at skirmish start.</summary>
+    [JsonPropertyName("starterBuildings")]
+    public MapStarterBuilding[] StarterBuildings { get; set; } = [];
+}
+
+/// <summary>Starter building placement relative to a spawn <see cref="MapSpawnPoint.BaseArea"/>.</summary>
+public sealed class MapStarterBuilding
+{
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Grid offset from baseArea min corner: [x, y].</summary>
+    [JsonPropertyName("offset")]
+    public int[]? Offset { get; set; }
 }
 
 /// <summary>A resource node placed on the map.</summary>

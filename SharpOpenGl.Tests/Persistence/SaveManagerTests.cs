@@ -113,6 +113,25 @@ public class SaveManagerTests : IDisposable
     }
 
     [Fact]
+    public void SlotExists_returns_false_for_missing_slot()
+    {
+        var mgr = new SaveManager(_dir);
+        Assert.False(mgr.SlotExists("Missing"));
+    }
+
+    [Fact]
+    public void ListSaveSlots_includes_manual_and_autosave_entries()
+    {
+        var mgr = new SaveManager(_dir);
+        mgr.Save(MakeSave(SaveSlotNames.ManualSlots[2]));
+
+        var slots = mgr.ListSaveSlots();
+        Assert.Contains(slots, s => s.SlotName == SaveSlotNames.Autosave && !s.HasData);
+        Assert.Contains(slots, s => s.SlotName == SaveSlotNames.ManualSlots[2] && s.HasData);
+        Assert.Equal(6, slots.Count);
+    }
+
+    [Fact]
     public void SavedAt_timestamp_is_populated()
     {
         var mgr  = new SaveManager(_dir);

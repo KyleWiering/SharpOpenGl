@@ -1,0 +1,19 @@
+{
+  "id": "sensor_array",
+  "displayName": "Sensor Array",
+  "category": "base",
+  "mesh": "meshes/sensor_array.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 450, "shields": 0, "armor": 25 },
+    "building": {
+      "buildingType": "sensor_array",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [2, 2]
+    },
+    "sightRadius": 18
+  },
+  "cost": { "energy": 80, "minerals": 70, "data": 15, "crew": 1 },
+  "buildTime": 22
+}

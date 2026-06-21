@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
 
 namespace SharpOpenGl.Engine.Combat;
@@ -33,7 +34,7 @@ public static class WeaponProfiles
         var profile = ForWeaponType(weapon.Type);
         if (IsExplicitProjectileOverride(weapon.ProjectileType))
             profile = profile with { Motion = ParseMotion(weapon.ProjectileType) };
-        return profile;
+        return profile with { Scale = CombatBalance.ScaleProjectile(profile.Scale) };
     }
 
     public static string DefaultProjectileTypeKey(string weaponType) =>
@@ -75,34 +76,34 @@ public static class WeaponProfiles
     {
         "laser" or "flak" or "point_defense" or "turret" or "station_laser" =>
             new(ProjectileType.Linear, WeaponVisualKind.LaserBolt, 900f, 2.2f, 0f,
-                new Vector4(1f, 0.35f, 0.25f, 1f), 0.55f),
+                new Vector4(1f, 0.45f, 0.3f, 1f), 0.85f),
 
         "beam" or "laser_beam" or "railgun" =>
             new(ProjectileType.Linear, WeaponVisualKind.Beam, 1400f, 1.4f, 0f,
-                new Vector4(0.45f, 0.85f, 1f, 1f), 0.7f),
+                new Vector4(0.55f, 0.95f, 1f, 1f), 1.05f),
 
         "torpedo" =>
             new(ProjectileType.Homing, WeaponVisualKind.Torpedo, 160f, 9f, 0f,
-                new Vector4(0.75f, 0.8f, 0.85f, 1f), 1.1f),
+                new Vector4(0.85f, 0.9f, 0.95f, 1f), 1.35f),
 
         "missile" or "rocket" =>
             new(ProjectileType.Homing, WeaponVisualKind.Rocket, 300f, 7f, 0f,
-                new Vector4(1f, 0.65f, 0.15f, 1f), 0.85f),
+                new Vector4(1f, 0.75f, 0.2f, 1f), 1.15f),
 
         "bomb" or "mega_bomb" =>
             new(ProjectileType.AoE, WeaponVisualKind.Bomb, 110f, 12f, 28f,
-                new Vector4(0.95f, 0.45f, 0.1f, 1f), 1.6f),
+                new Vector4(1f, 0.55f, 0.15f, 1f), 1.9f),
 
         "cannon" or "plasma" or "pulse" =>
             new(ProjectileType.Linear, WeaponVisualKind.EnergyPulse, 520f, 3.5f, 0f,
-                new Vector4(0.55f, 0.35f, 1f, 1f), 0.95f),
+                new Vector4(0.7f, 0.45f, 1f, 1f), 1.2f),
 
         "wave" or "emp" or "disruptor" =>
             new(ProjectileType.AoE, WeaponVisualKind.Wave, 220f, 5f, 32f,
-                new Vector4(0.35f, 1f, 0.85f, 1f), 1.4f),
+                new Vector4(0.45f, 1f, 0.9f, 1f), 1.65f),
 
         _ =>
             new(ProjectileType.Linear, WeaponVisualKind.LaserBolt, 700f, 2.5f, 0f,
-                new Vector4(1f, 0.5f, 0.3f, 1f), 0.6f),
+                new Vector4(1f, 0.6f, 0.35f, 1f), 0.9f),
     };
 }

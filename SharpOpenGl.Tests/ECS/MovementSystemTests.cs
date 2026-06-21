@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
 using Xunit;
 
@@ -6,6 +7,16 @@ namespace SharpOpenGl.Tests.ECS;
 
 public class MovementSystemTests
 {
+    public MovementSystemTests()
+    {
+        MovementBalance.ResetForTests();
+        MovementBalance.Apply(new MovementConfig
+        {
+            GlobalSpeedMultiplier = 1f,
+            GlobalAccelerationMultiplier = 1f,
+        });
+    }
+
     [Fact]
     public void EntityMovesTowardTarget()
     {

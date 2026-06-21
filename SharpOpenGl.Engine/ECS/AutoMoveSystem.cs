@@ -23,10 +23,21 @@ public sealed class AutoMoveSystem : GameSystem
         {
             if (queue.Waypoints.Count == 0) continue;
 
-            // If entity already has a destination, let PathFollowingSystem handle it
-            if (world.HasComponent<DestinationComponent>(entity)) continue;
+            if (world.HasComponent<DestinationComponent>(entity))
+            {
+                queue.LegInProgress = true;
+                continue;
+            }
 
-            // Advance to next waypoint
+            if (queue.LegInProgress)
+            {
+                queue.LegInProgress = false;
+                queue.CurrentIndex++;
+
+                if (queue.CurrentIndex < queue.Waypoints.Count)
+                    _bus.Publish(new ShipArrivedEvent(entity.Index));
+            }
+
             if (queue.CurrentIndex >= queue.Waypoints.Count)
             {
                 if (queue.Patrol)
@@ -35,29 +46,20 @@ public sealed class AutoMoveSystem : GameSystem
                 }
                 else
                 {
-                    // All waypoints completed — remove queue and fire event
                     _bus.Publish(new ShipArrivedEvent(entity.Index));
                     world.RemoveComponent<WaypointQueueComponent>(entity);
                     continue;
                 }
             }
 
-            // Assign destination from current waypoint
             Vector3 target = queue.Waypoints[queue.CurrentIndex];
             world.AddComponent(entity, new DestinationComponent
             {
                 Target = target,
                 GridX = (int)target.X,
-                GridY = (int)target.Z
+                GridY = (int)target.Z,
             });
-
-            queue.CurrentIndex++;
-
-            // Fire arrival event for intermediate waypoints
-            if (queue.CurrentIndex > 1)
-            {
-                _bus.Publish(new ShipArrivedEvent(entity.Index));
-            }
+            queue.LegInProgress = true;
         }
     }
 }

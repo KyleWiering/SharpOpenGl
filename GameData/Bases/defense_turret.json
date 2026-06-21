@@ -1,0 +1,22 @@
+{
+  "id": "defense_turret",
+  "displayName": "Defense Turret",
+  "category": "base",
+  "mesh": "meshes/defense_turret.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 600, "shields": 0, "armor": 40 },
+    "building": {
+      "buildingType": "defense_turret",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [1, 1]
+    },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 35, "range": 320, "fireRate": 3.0 }
+    ],
+    "sightRadius": 9
+  },
+  "cost": { "energy": 60, "minerals": 90, "data": 0, "crew": 1 },
+  "buildTime": 18
+}

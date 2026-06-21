@@ -6,6 +6,7 @@ window.sharpGl = (() => {
     let locView = null;
     let locModel = null;
     let locColor = null;
+    let locPointSize = null;
     let meshes = {};
     let nextMeshId = 1;
 
@@ -61,6 +62,8 @@ void main() { outputColor = vec4(fragColor, 1.0); }`;
         locView = gl.getUniformLocation(program, 'view');
         locModel = gl.getUniformLocation(program, 'model');
         locColor = gl.getUniformLocation(program, 'overrideColor');
+        locPointSize = gl.getUniformLocation(program, 'pointSize');
+        gl.uniform1f(locPointSize, 2.0);
 
         gl.enable(gl.DEPTH_TEST);
         gl.depthFunc(gl.LEQUAL);
@@ -133,5 +136,22 @@ void main() { outputColor = vec4(fragColor, 1.0); }`;
         gl.bindVertexArray(null);
     }
 
-    return { init, resize, clear, uploadMesh, beginFrame, drawMesh };
+    function drawPoints(meshId, vertices, pointCount, model, pointSize) {
+        if (!gl || meshId <= 0 || pointCount <= 0) return;
+        const mesh = meshes[meshId];
+        if (!mesh) return;
+
+        gl.uniformMatrix4fv(locModel, false, model);
+        gl.uniform4fv(locColor, [0, 0, 0, 0]);
+        gl.uniform1f(locPointSize, pointSize || 5.0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(vertices));
+
+        gl.bindVertexArray(mesh.vao);
+        gl.drawArrays(gl.POINTS, 0, pointCount);
+        gl.bindVertexArray(null);
+    }
+
+    return { init, resize, clear, uploadMesh, beginFrame, drawMesh, drawPoints };
 })();

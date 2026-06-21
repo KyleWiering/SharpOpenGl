@@ -100,6 +100,28 @@ public sealed class ParticleEmitter
         return idx / 3;
     }
 
+    /// <summary>
+    /// Write live particles as interleaved position + RGB into <paramref name="buffer"/>
+    /// starting at <paramref name="startIndex"/> (float index). Returns particle count written.
+    /// </summary>
+    public int WriteColoredPoints(float[] buffer, int startIndex)
+    {
+        int idx = startIndex;
+        foreach (var p in _pool)
+        {
+            if (!p.IsAlive) continue;
+            if (idx + 6 > buffer.Length) break;
+            buffer[idx++] = p.Position.X;
+            buffer[idx++] = p.Position.Y;
+            buffer[idx++] = p.Position.Z;
+            buffer[idx++] = p.Color.X;
+            buffer[idx++] = p.Color.Y;
+            buffer[idx++] = p.Color.Z;
+        }
+
+        return (idx - startIndex) / 6;
+    }
+
     // ── Internal ──────────────────────────────────────────────────────────────
 
     private static readonly Random _rng = new(42);

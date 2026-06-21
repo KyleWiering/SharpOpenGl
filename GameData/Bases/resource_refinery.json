@@ -1,0 +1,19 @@
+{
+  "id": "resource_refinery",
+  "displayName": "Resource Refinery",
+  "category": "base",
+  "mesh": "meshes/resource_refinery.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 900, "shields": 0, "armor": 55 },
+    "building": {
+      "buildingType": "resource_refinery",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 2]
+    },
+    "sightRadius": 7
+  },
+  "cost": { "energy": 140, "minerals": 200, "data": 10, "crew": 2 },
+  "buildTime": 35
+}

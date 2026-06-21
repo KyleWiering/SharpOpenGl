@@ -1,5 +1,6 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl.Engine.UI;
 
@@ -97,6 +98,12 @@ public sealed class UIManager
         Vector2 logicalPoint = _scaler.UnscalePosition(screenPoint);
         Current?.UpdatePointerState(logicalPoint, isPointerDown, UIScaler.ReferenceSize);
     }
+
+    /// <summary>Route a navigation key to the active screen.</summary>
+    public bool HandleKey(UIKey key) => Current?.HandleKey(key) ?? false;
+
+    /// <summary>Return the hovered button on the active screen, if any.</summary>
+    public Button? FindHoveredButton() => Current?.FindHoveredButton();
 
     private int GetLowestVisibleIndex()
     {

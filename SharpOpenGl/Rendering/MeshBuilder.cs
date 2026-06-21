@@ -33,6 +33,20 @@ public static class MeshBuilder
         return Upload(v, 6, PrimitiveType.Triangles);
     }
 
+    /// <summary>Build a chunky asteroid field rock swarm.</summary>
+    public static (int vao, int vbo, int vertexCount) BuildAsteroidFieldCluster(Vector3 color, float size = 3f)
+    {
+        float[] v = ProceduralMeshes.BuildAsteroidFieldCluster(color, size);
+        return Upload(v, 6, PrimitiveType.Triangles);
+    }
+
+    /// <summary>Build a soft volumetric-style nebula cloud.</summary>
+    public static (int vao, int vbo, int vertexCount) BuildNebulaCloud(float size = 3f)
+    {
+        float[] v = ProceduralMeshes.BuildNebulaCloud(size);
+        return Upload(v, 6, PrimitiveType.Triangles);
+    }
+
     /// <summary>
     /// Build a unit wireframe cube centered at the origin.
     /// Vertex layout: vec3 position + vec3 color (stride = 6 floats).
@@ -84,33 +98,65 @@ public static class MeshBuilder
 
     /// <summary>Build a flat grid of lines in the XZ plane.</summary>
     public static (int vao, int vbo, int vertexCount) BuildGrid(
-        int columns, int rows, float cellSize, Vector3 color)
+        int columns, int rows, float cellSize, Vector3 color, int lineStep = 1)
     {
-        float r = color.X, g = color.Y, b = color.Z;
-        float totalW = columns * cellSize;
-        float totalH = rows * cellSize;
-        var verts = new List<float>();
-
-        for (int x = 0; x <= columns; x++)
-        {
-            float px = x * cellSize;
-            verts.AddRange(new[] { px, 0f, 0f, r, g, b });
-            verts.AddRange(new[] { px, 0f, totalH, r, g, b });
-        }
-
-        for (int z = 0; z <= rows; z++)
-        {
-            float pz = z * cellSize;
-            verts.AddRange(new[] { 0f, 0f, pz, r, g, b });
-            verts.AddRange(new[] { totalW, 0f, pz, r, g, b });
-        }
-
-        return Upload(verts.ToArray(), 6, PrimitiveType.Lines);
+        float[] data = ProceduralMeshes.BuildGrid(columns, rows, cellSize, color, lineStep);
+        return Upload(data, 6, PrimitiveType.Lines);
     }
 
     /// <summary>Build a point-cloud mesh from pre-built vertex data (pos+col, stride 6).</summary>
     public static (int vao, int vbo, int vertexCount) BuildPointCloud(float[] posColorData)
         => Upload(posColorData, 6, PrimitiveType.Points);
+
+    /// <summary>Build vertex data for a world-space line strip on the XZ plane.</summary>
+    public static float[] BuildLineStripVertices(
+        IReadOnlyList<Vector3> points, Vector3 color, float y = 0.25f)
+    {
+        if (points.Count == 0) return Array.Empty<float>();
+
+        var result = new float[points.Count * 6];
+        for (int i = 0; i < points.Count; i++)
+        {
+            result[i * 6 + 0] = points[i].X;
+            result[i * 6 + 1] = y;
+            result[i * 6 + 2] = points[i].Z;
+            result[i * 6 + 3] = color.X;
+            result[i * 6 + 4] = color.Y;
+            result[i * 6 + 5] = color.Z;
+        }
+
+        return result;
+    }
+
+    /// <summary>Upload or resize dynamic vertex data for a line strip.</summary>
+    public static (int vao, int vbo, int vertexCount) CreateDynamicLineStrip()
+    {
+        int vao = GL.GenVertexArray();
+        GL.BindVertexArray(vao);
+
+        int vbo = GL.GenBuffer();
+        GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
+
+        const int stride = 6;
+        GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false,
+            stride * sizeof(float), 0);
+        GL.EnableVertexAttribArray(0);
+        GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false,
+            stride * sizeof(float), 3 * sizeof(float));
+        GL.EnableVertexAttribArray(1);
+
+        GL.BindVertexArray(0);
+        return (vao, vbo, 0);
+    }
+
+    /// <summary>Update a dynamic line-strip buffer created by <see cref="CreateDynamicLineStrip"/>.</summary>
+    public static int UpdateDynamicLineStrip(int vbo, float[] vertices)
+    {
+        GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
+        GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float),
+            vertices, BufferUsageHint.DynamicDraw);
+        return vertices.Length / 6;
+    }
 
 
     /// <summary>Upload procedural vertex data (pos+col, stride 6).</summary>

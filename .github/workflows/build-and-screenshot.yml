@@ -21,10 +21,10 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Install Mesa and OpenGL dependencies
+      - name: Install Mesa, OpenGL, and ffmpeg dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y mesa-utils libgl1-mesa-dev libglu1-mesa-dev xvfb libopengl0 libglfw3
+          sudo apt-get install -y mesa-utils libgl1-mesa-dev libglu1-mesa-dev xvfb libopengl0 libglfw3 ffmpeg
 
       - name: Restore dependencies
         run: dotnet restore
@@ -47,9 +47,44 @@ jobs:
             exit 1
           fi
 
+      - name: Record gameplay demo video
+        run: |
+          xvfb-run -a -s "-screen 0 1024x768x24" \
+            dotnet run --project SharpOpenGl --configuration Release --no-build -- \
+            --demo-recording --mission example_scenario
+
+      - name: Verify gameplay demo assets
+        run: |
+          if [ ! -f docs/gameplay-demo.mp4 ]; then
+            echo "❌ docs/gameplay-demo.mp4 was not generated"
+            exit 1
+          fi
+          if [ ! -f docs/gameplay-demo-poster.png ]; then
+            echo "❌ docs/gameplay-demo-poster.png was not generated"
+            exit 1
+          fi
+          size=$(stat -c%s docs/gameplay-demo.mp4)
+          max=$((15 * 1024 * 1024))
+          if [ "$size" -gt "$max" ]; then
+            echo "❌ gameplay demo exceeds 15 MB ($size bytes)"
+            exit 1
+          fi
+          echo "✅ Gameplay demo captured ($(du -h docs/gameplay-demo.mp4 | cut -f1))"
+          file docs/gameplay-demo.mp4
+          file docs/gameplay-demo-poster.png
+
       - name: Upload screenshot artifact
         uses: actions/upload-artifact@v4
         with:
           name: render-screenshot
           path: screenshot.png
+          retention-days: 30
+
+      - name: Upload gameplay demo artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gameplay-demo
+          path: |
+            docs/gameplay-demo.mp4
+            docs/gameplay-demo-poster.png
           retention-days: 30

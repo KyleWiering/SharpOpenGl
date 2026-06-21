@@ -25,6 +25,9 @@ public sealed class PauseScreen : UIScreen
     /// <summary>Fired when the player opens settings from pause.</summary>
     public event Action? SettingsRequested;
 
+    /// <summary>Fired when the player opens the save-game slot picker.</summary>
+    public event Action? SaveGameRequested;
+
     /// <summary>Fired when the player quits to the main menu.</summary>
     public event Action? QuitToMenuRequested;
 
@@ -50,7 +53,7 @@ public sealed class PauseScreen : UIScreen
             Name = "PauseCard",
             Anchor = Anchor.Center,
             Position = Vector2.Zero,
-            Size = new Vector2(360f, 320f),
+            Size = new Vector2(360f, 390f),
             BackgroundColor = new Vector4(0.08f, 0.08f, 0.14f, 0.97f),
         };
         AddWidget(card);
@@ -64,6 +67,7 @@ public sealed class PauseScreen : UIScreen
         (string Label, Action Raise)[] items =
         [
             ("Resume",        () => ResumeRequested?.Invoke()),
+            ("Save Game",     () => SaveGameRequested?.Invoke()),
             ("Settings",      () => SettingsRequested?.Invoke()),
             ("Quit to Menu",  () => QuitToMenuRequested?.Invoke()),
         ];

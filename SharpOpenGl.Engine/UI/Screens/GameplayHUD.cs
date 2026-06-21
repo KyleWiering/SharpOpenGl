@@ -16,11 +16,15 @@ public sealed class GameplayHUD : UIScreen
     public Minimap Minimap { get; }
     public UnitInfoPanel UnitInfoPanel { get; }
     public BuildPanel BuildPanel { get; }
+    public BuildMapPanel BuildMapPanel { get; }
     public ShipControlBar ShipControlBar { get; }
     public ObjectivePanel ObjectivePanel { get; }
 
     /// <summary>Fired when the pause button is clicked.</summary>
     public event Action? PauseRequested;
+
+    /// <summary>Fired when the build-map button is clicked.</summary>
+    public event Action? BuildMapRequested;
 
     /// <summary>Fired when the minimap is clicked. Argument is normalised 0..1.</summary>
     public event Action<Vector2>? MinimapClicked;
@@ -77,12 +81,30 @@ public sealed class GameplayHUD : UIScreen
         };
         AddWidget(BuildPanel);
 
+        BuildMapPanel = new BuildMapPanel
+        {
+            Name = "BuildMapPanel",
+            Anchor = Anchor.MiddleLeft,
+            Position = new Vector2(12f, -220f),
+            Size = new Vector2(420f, 640f),
+            Visible = false,
+        };
+        AddWidget(BuildMapPanel);
+
+        var buildMapBtn = new Button
+        {
+            Name = "BuildMapButton",
+            Label = "B",
+            Anchor = Anchor.TopRight,
+            Position = new Vector2(-136f, 8f),
+            Size = new Vector2(56f, 40f),
+            FontSize = 20f,
+        };
+        AddWidget(buildMapBtn);
+
         ShipControlBar = new ShipControlBar
         {
             Name = "ShipControlBar",
-            Anchor = Anchor.BottomCenter,
-            Position = new Vector2(-200f, -80f),
-            Size = new Vector2(400f, 60f),
             Visible = false,
         };
         AddWidget(ShipControlBar);
@@ -107,6 +129,10 @@ public sealed class GameplayHUD : UIScreen
     {
         if (!Visible) return false;
 
+        if (BuildMapPanel.Visible &&
+            BuildMapPanel.HandlePointerTapped(screenPoint, button, Vector2.Zero, viewportSize))
+            return true;
+
         if (BuildPanel.Visible &&
             BuildPanel.HandlePointerTapped(screenPoint, button, Vector2.Zero, viewportSize))
             return true;
@@ -120,19 +146,29 @@ public sealed class GameplayHUD : UIScreen
 
         foreach (var root in Roots)
         {
-            if (root is Button btn &&
-                btn.HandlePointerTapped(screenPoint, button, Vector2.Zero, viewportSize))
+            if (root is not Button btn) continue;
+            if (btn.HandlePointerTapped(screenPoint, button, Vector2.Zero, viewportSize))
+            {
+                if (btn.Name == "BuildMapButton")
+                    BuildMapRequested?.Invoke();
                 return true;
+            }
         }
 
         return false;
     }
 
     /// <summary>Update ship control bar visibility from selected units.</summary>
-    public void BindShipControlBar(bool hasWeapons, bool hasMovement, Stance? stance, bool anySelected)
+    public void BindShipControlBar(
+        bool hasWeapons,
+        bool hasMovement,
+        Stance? stance,
+        bool anySelected,
+        FormationType? formation,
+        bool showFormation)
     {
         ShipControlBar.Visible = anySelected && (hasWeapons || hasMovement);
         if (ShipControlBar.Visible)
-            ShipControlBar.UpdateForShip(hasWeapons, hasMovement, stance);
+            ShipControlBar.UpdateForShip(hasWeapons, hasMovement, stance, formation, showFormation);
     }
 }

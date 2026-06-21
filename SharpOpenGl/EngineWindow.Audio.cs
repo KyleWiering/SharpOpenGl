@@ -32,6 +32,8 @@ public partial class EngineWindow
 
     private void PlayUiClick() => _audio.PlaySound(AudioEventType.UIClick);
 
+    private void PlayUiHover() => _audio.PlaySound(AudioEventType.UIHover);
+
     private void PlayBuildingPlaced(Vector3 worldPos) =>
         _eventBus.Publish(new SoundRequestedEvent(AudioEventType.BuildingPlaced, worldPos));
 

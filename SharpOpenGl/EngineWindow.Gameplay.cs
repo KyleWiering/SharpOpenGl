@@ -2,6 +2,9 @@ using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.Assets;
+using SharpOpenGl.Engine.Build;
+using SharpOpenGl.Engine.Combat;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
@@ -27,6 +30,7 @@ public partial class EngineWindow
     private SettingsManager? _settingsManager;
     private SaveManager? _saveManager;
     private string? _pendingMissionId;
+    private MultiplayerSetupResult? _pendingSkirmishSetup;
     private bool _gameplayEventsHooked;
 
     private string ResolveGameDataPath()
@@ -52,6 +56,57 @@ public partial class EngineWindow
         _missionLoader ??= new MissionLoader(_assetManager);
         _missionController ??= new MissionController(_missionLoader, _resourceManager, _eventBus);
     }
+
+    private IEnumerable<MissionEntry> LoadMissionEntriesFromData()
+    {
+        EnsureAssets();
+        string missionsPath = Path.Combine(ResolveGameDataPath(), "Missions");
+
+        if (!Directory.Exists(missionsPath))
+        {
+            Console.WriteLine("[Mission] No missions directory found, using defaults");
+            return DefaultMissionEntries();
+        }
+
+        var entries = new List<MissionEntry>();
+        foreach (var definition in _missionLoader!.LoadAll(missionsPath))
+            entries.Add(ToMissionEntry(definition));
+
+        return entries.Count > 0 ? entries : DefaultMissionEntries();
+    }
+
+    private static IEnumerable<MissionEntry> DefaultMissionEntries() =>
+    [
+        new MissionEntry
+        {
+            Id = "tutorial_01",
+            Title = "Tutorial - First Steps",
+            Description = "Learn the basics of fleet command.",
+            MapId = "sector_alpha",
+            BriefingText = "Commander, sensors have detected an enemy scout in Sector Alpha.",
+            ObjectivesPreview = ["Destroy the enemy scout", "Protect your base"],
+            PlanetName = "Helios Prime",
+            StarMapPosition = new Vector2(0.15f, 0.55f),
+            PlanetColor = new Vector4(0.3f, 0.65f, 1f, 1f),
+        },
+        new MissionEntry
+        {
+            Id = "example_scenario",
+            Title = "First Contact",
+            Description = "Encounter unknown hostiles in Sector Alpha.",
+            MapId = "sector_alpha",
+            BriefingText = "Move your fleet to the waypoint and eliminate hostile scouts.",
+            ObjectivesPreview = ["Reach the sector center", "Destroy enemy scouts"],
+            PlanetName = "Sigma Drift",
+            StarMapPosition = new Vector2(0.35f, 0.78f),
+            PlanetColor = new Vector4(0.53f, 0.8f, 1f, 1f),
+            PrerequisiteMissionId = "tutorial_01",
+            IsLocked = true,
+        },
+    ];
+
+    private static MissionEntry ToMissionEntry(MissionDefinition definition) =>
+        MissionEntryMapper.FromDefinition(definition);
 
     private void EnsureGameplayEventHooks()
     {
@@ -106,28 +161,7 @@ public partial class EngineWindow
         _uiManager.Push(designer);
     }
 
-    internal void ContinueSavedGame()
-    {
-        EnsurePersistence();
-        var saves = _saveManager!.ListSaveFiles();
-        if (saves.Length == 0)
-        {
-            Console.WriteLine("[Save] No save files found.");
-            return;
-        }
-
-        var data = _saveManager.Load(saves[0]);
-        if (data == null)
-        {
-            Console.WriteLine("[Save] Failed to load latest save.");
-            return;
-        }
-
-        _pendingMissionId = string.IsNullOrWhiteSpace(data.MissionId) ? null : data.MissionId;
-        _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
-    }
-
-    private void InitializeWorldCore(string? missionId)
+    private void InitializeWorldCore(string? missionId, bool skipWorldSpawn = false)
     {
         _world?.Dispose();
         _fighterEntities.Clear();
@@ -141,9 +175,12 @@ public partial class EngineWindow
         _world = new World();
         _movementSystem = new MovementSystem();
         _aiSystem = new AIPlayerSystem(MapWorldSize);
-        _world.AddSystem(new StanceSystem());
-        _world.AddSystem(new CombatSystem(_eventBus));
+        _world.AddSystem(new StanceSystem(_combatFogGate));
+        _world.AddSystem(new CombatSystem(_eventBus, _combatFogGate));
+        _world.AddSystem(new ShieldRegenSystem());
         _world.AddSystem(new ProjectileSystem(_eventBus));
+        _abilitySystem = new AbilitySystem(_eventBus);
+        _world.AddSystem(_abilitySystem);
         _world.AddSystem(_aiSystem);
         InitializeMapSystems();
 
@@ -157,6 +194,17 @@ public partial class EngineWindow
         playerRes.AddIncome(ResourceType.Minerals, 3f);
 
         _world.AddSystem(new ResourceSystem(_resourceManager));
+        _miningVisualSystem = new MiningVisualSystem
+        {
+            Meshes = new MiningVisualMeshHandles
+            {
+                DroneMeshId = _miningDroneVao,
+                DroneVertexCount = _miningDroneVertCount,
+                EvaMeshId = _evaCrewVao,
+                EvaVertexCount = _evaCrewVertCount,
+            },
+        };
+        _world.AddSystem(_miningVisualSystem);
 
         LoadEntityDefinitions();
         EnsureAssets();
@@ -171,10 +219,15 @@ public partial class EngineWindow
         _supplySystem = new SupplySystem(_resourceManager);
         _world.AddSystem(_supplySystem);
 
-        if (!string.IsNullOrEmpty(missionId) && _missionController?.CurrentMission != null)
-            SetupMissionWorld(missionId);
-        else
-            SetupSandboxWorld();
+        if (!skipWorldSpawn)
+        {
+            if (!string.IsNullOrEmpty(missionId) && _missionController?.CurrentMission != null)
+                SetupMissionWorld(missionId);
+            else if (_pendingSkirmishSetup != null)
+                SetupSkirmishWorld(_pendingSkirmishSetup);
+            else
+                SetupSandboxWorld();
+        }
 
         _missionController?.BeginGameplay();
 
@@ -203,6 +256,7 @@ public partial class EngineWindow
     {
         if (_world == null) return;
 
+        ConfigureDefaultFactionRaces();
         SpawnDefaultHeroAndFleet();
         RevealAreaAt(Vector3.Zero, 18);
         SpawnAIPlayer(new Random(123));
@@ -215,10 +269,287 @@ public partial class EngineWindow
             heroMovement.PathTarget = new Vector3(50f, 0f, 50f);
     }
 
+    private void SetupSkirmishWorld(MultiplayerSetupResult setup)
+    {
+        if (_world == null) return;
+
+        ConfigureFactionRaces(setup.Players);
+        MapDefinition? map = LoadSkirmishMapDefinition(setup.MapId);
+        IReadOnlyList<MapSpawnPoint> spawns = map != null
+            ? SkirmishMapLogic.ResolveActiveSpawns(map, setup.Players.Count)
+            : [];
+
+        if (spawns.Count == 0)
+        {
+            Console.WriteLine(
+                $"[Skirmish] Map '{setup.MapId}' unavailable or missing spawns — using legacy ring layout.");
+            SetupSkirmishWorldLegacyRing(setup);
+            return;
+        }
+
+        int factionIndex = 0;
+        foreach (var player in setup.Players.OrderBy(p => p.SlotIndex))
+        {
+            int playerId = factionIndex + 1;
+            MapSpawnPoint spawn = spawns[factionIndex];
+            Vector3 spawnCenter = GridCellToWorld(spawn.Position);
+
+            if (player.IsHuman)
+            {
+                SpawnSkirmishHumanFaction(playerId, spawnCenter);
+                _rtsCamera.Target = spawnCenter;
+                RevealAreaAt(spawnCenter, 18);
+            }
+            else
+            {
+                SpawnSkirmishAiFaction(playerId, spawnCenter);
+                RevealAreaAt(spawnCenter, 10);
+            }
+
+            SpawnSkirmishPlayerBase(playerId, spawn, player.IsHuman);
+            factionIndex++;
+        }
+
+        SpawnMapContent(setup.MapId);
+    }
+
+    private MapDefinition? LoadSkirmishMapDefinition(string mapId)
+    {
+        EnsureAssets();
+        var map = _assetManager?.Load<MapDefinition>($"Maps/{mapId}");
+        if (map == null)
+            return null;
+
+        if (!map.Skirmish || SkirmishMapLogic.Validate(map).Count > 0)
+        {
+            Console.WriteLine($"[Skirmish] Map '{mapId}' failed validation; see SkirmishMapLogic.Validate.");
+            return null;
+        }
+
+        return map;
+    }
+
+    private void SetupSkirmishWorldLegacyRing(MultiplayerSetupResult setup)
+    {
+        var spawnPositions = ComputeSkirmishSpawnPositions(setup.Players.Count);
+        int factionIndex = 0;
+
+        foreach (var player in setup.Players.OrderBy(p => p.SlotIndex))
+        {
+            int playerId = factionIndex + 1;
+            Vector3 spawnCenter = spawnPositions[factionIndex];
+            if (player.IsHuman)
+            {
+                SpawnSkirmishHumanFaction(playerId, spawnCenter);
+                _rtsCamera.Target = spawnCenter;
+                RevealAreaAt(spawnCenter, 18);
+            }
+            else
+            {
+                SpawnSkirmishAiFaction(playerId, spawnCenter);
+                RevealAreaAt(spawnCenter, 10);
+            }
+
+            factionIndex++;
+        }
+
+        SpawnMapContent("sector_alpha");
+        SpawnResourceNodes(new Random(setup.Players.Count * 17 + 42));
+        SpawnPlayerBase();
+    }
+
+    private static Vector3[] ComputeSkirmishSpawnPositions(int playerCount)
+    {
+        float radius = MapWorldSize * 0.22f;
+        var positions = new Vector3[playerCount];
+        for (int i = 0; i < playerCount; i++)
+        {
+            float angle = MathF.PI * 2f * i / Math.Max(1, playerCount);
+            positions[i] = new Vector3(
+                MathF.Cos(angle) * radius,
+                0f,
+                MathF.Sin(angle) * radius);
+        }
+
+        return positions;
+    }
+
+    private void SpawnSkirmishPlayerBase(int playerId, MapSpawnPoint spawn, bool isHumanPlayer)
+    {
+        if (_world == null || _gridSystem == null) return;
+
+        Vector3 spawnCenter = GridCellToWorld(spawn.Position);
+        foreach (var (buildingId, gridX, gridY) in SkirmishMapLogic.ResolveStarterPlacements(spawn))
+        {
+            Vector3 worldPos = GridCellToWorld([gridX, gridY]);
+            Entity? building = SpawnSkirmishBuilding(playerId, buildingId, worldPos, spawnCenter);
+            if (building == null) continue;
+
+            if (isHumanPlayer &&
+                buildingId.Equals("command_center", StringComparison.OrdinalIgnoreCase))
+            {
+                _baseEntity = building.Value;
+            }
+        }
+    }
+
+    private Entity? SpawnSkirmishBuilding(
+        int playerId,
+        string buildingId,
+        Vector3 worldPos,
+        Vector3 rallyOrigin)
+    {
+        if (_world == null || _gridSystem == null) return null;
+        if (!_definitions.TryGetValue(buildingId, out var def))
+        {
+            def = _assetManager?.Load<EntityDefinition>($"Bases/{buildingId}");
+            if (def != null)
+                _definitions[buildingId] = def;
+        }
+
+        if (def == null)
+        {
+            Console.WriteLine($"[Skirmish] Unknown starter building '{buildingId}'.");
+            return null;
+        }
+
+        string buildingType = def.Components?.Building?.BuildingType ?? buildingId;
+        var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType);
+
+        var building = _world.CreateEntity();
+        _world.AddComponent(building, new TransformComponent { Position = worldPos, Scale = scale });
+        _world.AddComponent(building, new RenderComponent
+        {
+            MeshId = meshId,
+            VertexCount = vertCount,
+            Visible = true,
+            PrimitiveType = (int)PrimitiveType.Triangles,
+        });
+        _world.AddComponent(building, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
+
+        var healthDef = def.Components?.Health;
+        _world.AddComponent(building, new HealthComponent
+        {
+            MaxHP = healthDef?.MaxHP ?? 1000f,
+            CurrentHP = healthDef?.MaxHP ?? 1000f,
+            Armor = healthDef?.Armor ?? 50f,
+        });
+
+        var buildingDef = def.Components?.Building;
+        Vector3 rallyDir = rallyOrigin - worldPos;
+        if (rallyDir.LengthSquared < 1f)
+            rallyDir = Vector3.UnitX;
+        rallyDir.Y = 0f;
+        rallyDir = Vector3.Normalize(rallyDir);
+
+        _world.AddComponent(building, new BuildingComponent
+        {
+            BuildingType = buildingDef?.BuildingType ?? buildingId,
+            ProductionRate = buildingDef?.ProductionRate ?? 1f,
+            Footprint = buildingDef?.Footprint ?? [2, 2],
+            PlayerId = playerId,
+            RallyPoint = worldPos + rallyDir * 30f,
+            Producible = def.Producible?.ToList() ?? GetDefaultProducible(buildingType),
+        });
+        _world.AddComponent(building, new EntityNameComponent
+        {
+            DisplayName = string.IsNullOrWhiteSpace(def.DisplayName)
+                ? buildingType.Replace('_', ' ')
+                : def.DisplayName,
+            DefinitionId = def.Id,
+        });
+
+        if (def.Components?.Weapons is { Length: > 0 })
+        {
+            var wl = new WeaponListComponent();
+            foreach (var weapon in def.Components.Weapons)
+            {
+                wl.Weapons.Add(new WeaponComponent
+                {
+                    Slot = weapon.Slot,
+                    Type = weapon.Type,
+                    Damage = weapon.Damage,
+                    Range = CombatBalance.ScaleRange(weapon.Range),
+                    FireRate = weapon.FireRate,
+                    ProjectileType = WeaponProfiles.DefaultProjectileTypeKey(weapon.Type),
+                });
+            }
+
+            _world.AddComponent(building, wl);
+            _world.AddComponent(building, new CombatTargetComponent
+            {
+                Faction = playerId,
+                TargetingMode = TargetPriority.Closest,
+                Priority = 50,
+            });
+        }
+
+        int sight = def.Components?.SightRadius > 0 ? def.Components.SightRadius : 10;
+        _world.AddComponent(building, new SightRadiusComponent { Radius = sight });
+
+        BuildingFootprint.Occupy(
+            _gridSystem,
+            building,
+            worldPos,
+            buildingDef?.Footprint ?? [2, 2]);
+
+        return building;
+    }
+
+    private void SpawnSkirmishHumanFaction(int playerId, Vector3 spawnCenter)
+    {
+        if (_world == null) return;
+
+        if (_definitions.TryGetValue("hero_default", out var heroDef))
+        {
+            SpawnPlayerUnit(heroDef, spawnCenter, selectFirst: true);
+        }
+        else
+        {
+            SpawnDefaultHeroAndFleet();
+            var heroTf = _world.GetComponent<TransformComponent>(_heroEntity);
+            if (heroTf != null)
+                heroTf.Position = spawnCenter;
+        }
+
+        if (_definitions.TryGetValue("fighter_basic", out var fighterDef))
+        {
+            for (int i = 0; i < 4; i++)
+            {
+                float angle = MathF.PI * 2f * i / 4f;
+                var offset = new Vector3(MathF.Cos(angle) * 24f, 0f, MathF.Sin(angle) * 24f);
+                SpawnPlayerUnit(fighterDef, spawnCenter + offset, selectFirst: false);
+            }
+        }
+    }
+
+    private void SpawnSkirmishAiFaction(int playerId, Vector3 spawnCenter)
+    {
+        if (_world == null || _unitFactory == null) return;
+
+        if (!_definitions.TryGetValue("scout_light", out var scoutDef))
+            scoutDef = _definitions.GetValueOrDefault("fighter_basic");
+        if (scoutDef == null) return;
+
+        var rng = new Random(playerId * 97);
+        for (int i = 0; i < 4; i++)
+        {
+            float x = spawnCenter.X + (rng.NextSingle() - 0.5f) * 120f;
+            float z = spawnCenter.Z + (rng.NextSingle() - 0.5f) * 120f;
+            Entity entity = _unitFactory.Create(_world, scoutDef);
+            var tf = _world.GetComponent<TransformComponent>(entity);
+            if (tf != null)
+                tf.Position = new Vector3(x, 1f, z);
+
+            FinalizeSpawnedUnit(entity, scoutDef, playerId, isEnemy: true);
+        }
+    }
+
     private void SetupMissionWorld(string missionId)
     {
         if (_world == null || _missionController?.CurrentMission == null) return;
 
+        ConfigureDefaultFactionRaces();
         var mission = _missionController.CurrentMission.Definition;
         var start = mission.StartConditions;
         var rng = new Random(missionId.GetHashCode());
@@ -267,12 +598,20 @@ public partial class EngineWindow
     private static Vector3 GridCellToWorld(int[] cell) =>
         MapCoordinates.GridToWorld(cell[0], cell.Length > 1 ? cell[1] : 0);
 
+    private static Vector3 ShipDisplayScale => Vector3.One * VisualBalance.ShipScaleMultiplier;
+
+    private static void ApplyShipDisplayScale(TransformComponent? transform)
+    {
+        if (transform != null)
+            transform.Scale = ShipDisplayScale;
+    }
+
     private void SpawnDefaultHeroAndFleet()
     {
         if (_world == null) return;
 
         _heroEntity = _world.CreateEntity();
-        _world.AddComponent(_heroEntity, new TransformComponent { Position = Vector3.Zero, Scale = Vector3.One });
+        _world.AddComponent(_heroEntity, new TransformComponent { Position = Vector3.Zero, Scale = ShipDisplayScale });
         _world.AddComponent(_heroEntity, new MovementComponent { Speed = 80f, Acceleration = 120f, TurnRate = 180f });
         _world.AddComponent(_heroEntity, new SelectionComponent { IsSelected = true, SelectionRadius = 8f });
         _world.AddComponent(_heroEntity, new RenderComponent
@@ -282,6 +621,7 @@ public partial class EngineWindow
             PrimitiveType = (int)PrimitiveType.Triangles,
         });
         _world.AddComponent(_heroEntity, new HeroComponent());
+        RaceUltimatePolicy.ApplyAtSpawn(_world, _heroEntity, _playerRaceId);
 
         var rng = new Random(123);
         for (int i = 0; i < 5; i++)
@@ -313,7 +653,7 @@ public partial class EngineWindow
         float selRadius, float speed, float accel, float turn)
     {
         var fighter = _world!.CreateEntity();
-        _world.AddComponent(fighter, new TransformComponent { Position = pos, Scale = Vector3.One });
+        _world.AddComponent(fighter, new TransformComponent { Position = pos, Scale = ShipDisplayScale });
         _world.AddComponent(fighter, new MovementComponent { Speed = speed, Acceleration = accel, TurnRate = turn });
         _world.AddComponent(fighter, new SelectionComponent { IsSelected = false, SelectionRadius = selRadius });
         _world.AddComponent(fighter, new RenderComponent
@@ -328,7 +668,7 @@ public partial class EngineWindow
     {
         if (_world == null) return;
 
-        var (vao, vertCount, color) = ResolveMeshForDefinition(def, isEnemy);
+        var (vao, vertCount, color) = ResolveMeshForDefinition(def, playerId, isEnemy);
         var render = _world.GetComponent<RenderComponent>(entity);
         if (render != null)
         {
@@ -339,9 +679,13 @@ public partial class EngineWindow
             render.PrimitiveType = (int)PrimitiveType.Triangles;
         }
 
-        if (isEnemy)
+        if (!_world.HasComponent<BuildingComponent>(entity))
+            ApplyShipDisplayScale(_world.GetComponent<TransformComponent>(entity));
+
+        bool isAiControlled = isEnemy || playerId != _humanPlayerId;
+        if (isAiControlled)
         {
-            _world.AddComponent(entity, new AIControlledComponent { PlayerId = 2, Aggressiveness = 0.6f });
+            _world.AddComponent(entity, new AIControlledComponent { PlayerId = playerId, Aggressiveness = 0.6f });
             if (!_world.HasComponent<SelectionComponent>(entity))
             {
                 _world.AddComponent(entity, new SelectionComponent
@@ -354,7 +698,7 @@ public partial class EngineWindow
             if (enemyTf != null) RevealAreaAt(enemyTf.Position, 10);
             _aiEntities.Add(entity);
         }
-        else
+        else if (playerId == _humanPlayerId)
         {
             if (!_world.HasComponent<SelectionComponent>(entity))
             {
@@ -382,13 +726,22 @@ public partial class EngineWindow
             _world.AddComponent(entity, new SightRadiusComponent { Radius = radius });
         }
 
-        ApplyCombatComponents(entity, isEnemy ? 2 : playerId, isEnemy);
+        ApplyCombatComponents(entity, playerId, isAiControlled);
+
+        if (!_world.HasComponent<BuildingComponent>(entity) && _world.HasComponent<HealthComponent>(entity))
+        {
+            string raceId = ResolveFactionRaceId(playerId, isEnemy);
+            RaceShieldPolicy.ApplyAtSpawn(_world, entity, raceId);
+            if (_world.HasComponent<HeroComponent>(entity))
+                RaceUltimatePolicy.ApplyAtSpawn(_world, entity, raceId);
+        }
+
         if (!_world.HasComponent<EntityNameComponent>(entity))
         {
             string display = string.IsNullOrWhiteSpace(def.DisplayName)
                 ? def.Id.Replace('_', ' ')
                 : def.DisplayName;
-            if (isEnemy)
+            if (isAiControlled)
                 display = $"Enemy {display}";
             _world.AddComponent(entity, new EntityNameComponent
             {
@@ -427,55 +780,24 @@ public partial class EngineWindow
     private float ResolveSelectionRadius(EntityDefinition def)
     {
         string id = def.Id.ToLowerInvariant();
-        if (id.Contains("dreadnought")) return 14f;
-        if (id.Contains("carrier") || id.Contains("cruiser")) return 12f;
-        if (id.Contains("destroyer") || id.Contains("gunship") || id.Contains("frigate")) return 9f;
-        if (id.Contains("bomber") || id.Contains("corvette")) return 8f;
-        if (id.Contains("drone")) return 5f;
-        if (id.Contains("miner")) return 6f;
+        if (id.Contains("dreadnought")) return 14f;
+
+        if (id.Contains("carrier") || id.Contains("cruiser")) return 12f;
+
+        if (id.Contains("destroyer") || id.Contains("gunship") || id.Contains("frigate")) return 9f;
+
+        if (id.Contains("bomber") || id.Contains("corvette")) return 8f;
+
+        if (id.Contains("drone")) return 5f;
+
+        if (id.Contains("miner")) return 6f;
+
         return 7f;
     }
 
     private (int vao, int vertCount, Vector4 color) ResolveMeshForDefinition(
-        EntityDefinition def, bool isEnemy)
-    {
-        if (isEnemy)
-            return (_fighterVao, _fighterVertCount, GameplayEntityDisplay.HostileColor);
-
-        string id = def.Id.ToLowerInvariant();
-        string cat = def.Category.ToLowerInvariant();
-        if (id.Contains("hero"))
-            return (_heroVao, _heroVertCount, new Vector4(0.2f, 0.8f, 1f, 1f));
-        if (id.Contains("dreadnought") || cat.Contains("dreadnought"))
-            return (_dreadnoughtVao, _dreadnoughtVertCount, new Vector4(0.85f, 0.3f, 0.55f, 1f));
-        if (id.Contains("carrier"))
-            return (_carrierVao, _carrierVertCount, new Vector4(0.6f, 0.6f, 0.8f, 1f));
-        if (id.Contains("cruiser") || cat.Contains("cruiser"))
-            return (_cruiserVao, _cruiserVertCount, new Vector4(0.55f, 0.5f, 0.9f, 1f));
-        if (id.Contains("gunship") || cat.Contains("gunship"))
-            return (_gunshipVao, _gunshipVertCount, new Vector4(0.95f, 0.45f, 0.25f, 1f));
-        if (id.Contains("destroyer") || cat.Contains("destroyer"))
-            return (_destroyerVao, _destroyerVertCount, new Vector4(0.7f, 0.2f, 0.9f, 1f));
-        if (id.Contains("frigate") || cat.Contains("frigate"))
-            return (_frigateVao, _frigateVertCount, new Vector4(0.5f, 0.7f, 0.95f, 1f));
-        if (id.Contains("corvette") || cat.Contains("corvette"))
-            return (_corvetteVao, _corvetteVertCount, new Vector4(0.45f, 0.8f, 1f, 1f));
-        if (id.Contains("bomber") || cat.Contains("bomber"))
-            return (_bomberVao, _bomberVertCount, new Vector4(0.9f, 0.5f, 0.2f, 1f));
-        if (id.Contains("miner") || cat.Contains("miner"))
-            return (_minerVao, _minerVertCount, new Vector4(0.9f, 0.8f, 0.2f, 1f));
-        if (id.Contains("transport") || id.Contains("freighter") || id.Contains("hauler") || cat.Contains("transport"))
-            return (_transportVao, _transportVertCount, new Vector4(0.55f, 0.75f, 0.95f, 1f));
-        if (id.Contains("drone") || cat.Contains("drone"))
-            return (_droneVao, _droneVertCount, new Vector4(0.75f, 0.9f, 1f, 1f));
-        if (id.Contains("support") || cat.Contains("support"))
-            return (_transportVao, _transportVertCount, new Vector4(0.65f, 0.85f, 0.75f, 1f));
-        if (id.Contains("scout") || cat.Contains("scout"))
-            return (_scoutVao, _scoutVertCount, new Vector4(0.55f, 0.95f, 1f, 1f));
-        if (id.Contains("fighter") || id.Contains("interceptor") || cat.Contains("fighter"))
-            return (_fighterVao, _fighterVertCount, new Vector4(0.4f, 1f, 0.4f, 1f));
-        return (_fighterVao, _fighterVertCount, new Vector4(0.5f, 0.8f, 1f, 1f));
-    }
+        EntityDefinition def, int playerId, bool isEnemy)
+        => ResolveRaceMeshForDefinition(def, playerId, isEnemy);
 
     private Vector3? ScreenToWorldGround(Vector2 screenPos)
     {
@@ -514,31 +836,6 @@ public partial class EngineWindow
         return MathF.Sqrt(dx * dx + dz * dz);
     }
 
-    private Entity? FindEnemyAt(Vector3 worldPos)
-    {
-        if (_world == null) return null;
-
-        const float clickRadius = 20f;
-        Entity? closest = null;
-        float closestDist = float.MaxValue;
-
-        foreach (var (entity, _) in _world.Query<AIControlledComponent>())
-        {
-            var transform = _world.GetComponent<TransformComponent>(entity);
-            var health = _world.GetComponent<HealthComponent>(entity);
-            if (transform == null || health == null || health.IsDead) continue;
-
-            float dist = HorizontalDistance(transform.Position, worldPos);
-            if (dist < clickRadius && dist < closestDist)
-            {
-                closestDist = dist;
-                closest = entity;
-            }
-        }
-
-        return closest;
-    }
-
     private void HandleAttackCommand(Entity enemy)
     {
         if (_world == null) return;
@@ -561,6 +858,7 @@ public partial class EngineWindow
                 _world.AddComponent(entity, ct);
             }
             ct.CurrentTarget = enemy;
+            ct.ManualTarget = true;
 
             var stance = _world.GetComponent<StanceComponent>(entity);
             if (stance == null)
@@ -568,9 +866,11 @@ public partial class EngineWindow
             else
                 stance.CurrentStance = Stance.Aggressive;
 
+            ClearPatrolAndPath(entity);
+
             var movement = _world.GetComponent<MovementComponent>(entity);
             if (movement != null)
-                movement.PathTarget = enemyTransform.Position;
+                movement.Velocity = Vector3.Zero;
         }
 
         if (anyAttacker)
@@ -612,16 +912,25 @@ public partial class EngineWindow
                 _patrolMode = true;
                 _attackMoveMode = false;
                 _moveCommandMode = false;
+                _attackMode = false;
                 break;
             case "attack_move":
                 _attackMoveMode = true;
                 _patrolMode = false;
                 _moveCommandMode = false;
+                _attackMode = false;
                 break;
             case "move":
                 _moveCommandMode = true;
                 _attackMoveMode = false;
                 _patrolMode = false;
+                _attackMode = false;
+                break;
+            case "attack":
+                _attackMode = true;
+                _attackMoveMode = false;
+                _patrolMode = false;
+                _moveCommandMode = false;
                 break;
         }
     }
@@ -638,7 +947,10 @@ public partial class EngineWindow
             Keys.M => 'm',
             Keys.S => 's',
             Keys.P => 'p',
+            Keys.T => 't',
+            Keys.F => 'a',
             Keys.A => 'a',
+            Keys.G => 'g',
             _ => '\0',
         };
         if (c == '\0') return false;
@@ -714,22 +1026,24 @@ public partial class EngineWindow
         if (_world == null) return;
         if (_uiManager.Current is not GameplayHUD hud) return;
 
-        bool anySelected = false;
+        var selected = GetSelectedPlayerEntities();
+        bool anySelected = selected.Count > 0;
         bool hasWeapons = false;
         bool hasMovement = false;
         Stance? stance = null;
 
-        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        foreach (var entity in selected)
         {
-            if (!sel.IsSelected || !IsPlayerSelectable(entity)) continue;
-            anySelected = true;
             if (_world.HasComponent<MovementComponent>(entity)) hasMovement = true;
             if (_world.HasComponent<WeaponListComponent>(entity)) hasWeapons = true;
             var stanceComp = _world.GetComponent<StanceComponent>(entity);
             if (stanceComp != null) stance = stanceComp.CurrentStance;
         }
 
-        hud.BindShipControlBar(hasWeapons, hasMovement, stance, anySelected);
+        FormationType? formation = _squadSystem?.GetFormationForSelection(selected, _world);
+        bool showFormation = selected.Count > 1 && hasMovement;
+
+        hud.BindShipControlBar(hasWeapons, hasMovement, stance, anySelected, formation, showFormation);
     }
     private void RegisterProceduralMeshes()
     {
@@ -742,8 +1056,10 @@ public partial class EngineWindow
         }
 
         _assetManager.RegisterProceduralMesh("meshes/command_center.obj");
-        _assetManager.RegisterProceduralMesh("meshes/shipyard_small.obj");
-        _assetManager.RegisterProceduralMesh("meshes/shipyard_medium.obj");
+        _assetManager.RegisterProceduralMesh("meshes/shipyard_small.obj");
+
+        _assetManager.RegisterProceduralMesh("meshes/shipyard_medium.obj");
+
         _assetManager.RegisterProceduralMesh("meshes/shipyard_large.obj");
     }
 

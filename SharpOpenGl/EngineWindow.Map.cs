@@ -15,6 +15,7 @@ public partial class EngineWindow
 {
     private GridSystem? _gridSystem;
     private FogOfWar? _fogOfWar;
+    private readonly CombatFogGate _combatFogGate = new();
     private AutoMoveSystem? _autoMoveSystem;
     private int _fogQuadVao, _fogQuadVbo, _fogQuadVertCount;
     private readonly List<Vector3> _objectiveWaypoints = new();
@@ -27,12 +28,19 @@ public partial class EngineWindow
         _gridSystem = new GridSystem(GridColumns, GridRows, GridCellSize, new Vector2(-halfMap, -halfMap));
         _fogOfWar = new FogOfWar(_gridSystem, playerCount: 2);
 
+        _combatFogGate.Grid = _gridSystem;
+        _combatFogGate.Fog = _fogOfWar;
+        _combatFogGate.FogPlayerId = 0;
+
         _autoMoveSystem = new AutoMoveSystem(_eventBus);
+        _squadSystem = new SquadSystem();
         var pathFollowing = new PathFollowingSystem(_gridSystem);
         var fogSystem = new FogOfWarSystem(_gridSystem, _fogOfWar, playerId: 0);
 
+        _world.AddSystem(_squadSystem);
         _world.AddSystem(_autoMoveSystem);
         _world.AddSystem(pathFollowing);
+        _world.AddSystem(new AttackChaseSystem());
         _world.AddSystem(_movementSystem);
         _world.AddSystem(fogSystem);
 
@@ -75,11 +83,33 @@ public partial class EngineWindow
             (worldPos.Z + half) / MapWorldSize);
     }
 
-    private bool IsVisibleToPlayer(Vector3 worldPos)
+    private FogState GetFogStateAt(Vector3 worldPos)
     {
-        if (_fogOfWar == null || _gridSystem == null) return true;
-        if (!_gridSystem.WorldToGrid(worldPos, out int gx, out int gy)) return false;
-        return _fogOfWar.GetState(0, gx, gy) == FogState.Visible;
+        if (_fogOfWar == null || _gridSystem == null) return FogState.Visible;
+        if (!_gridSystem.WorldToGrid(worldPos, out int gx, out int gy)) return FogState.Unexplored;
+        return _fogOfWar.GetState(0, gx, gy);
+    }
+
+    private bool IsVisibleToPlayer(Vector3 worldPos) =>
+        GetFogStateAt(worldPos) == FogState.Visible;
+
+    private bool IsExploredByPlayer(Vector3 worldPos) =>
+        GetFogStateAt(worldPos) != FogState.Unexplored;
+
+    private bool ShouldRenderEntity(Entity entity, Vector3 worldPos)
+    {
+        if (_world == null) return true;
+
+        if (_world.HasComponent<AIControlledComponent>(entity) ||
+            (_world.HasComponent<ProjectileComponent>(entity) &&
+             !_world.HasComponent<SelectionComponent>(entity)))
+            return IsVisibleToPlayer(worldPos);
+
+        if (_world.HasComponent<ResourceNodeComponent>(entity) ||
+            _world.HasComponent<MapFeatureComponent>(entity))
+            return IsExploredByPlayer(worldPos);
+
+        return true;
     }
 
     private void PanCameraToMinimap(Vector2 normalizedPosition)
@@ -134,6 +164,7 @@ public partial class EngineWindow
         var markers = new List<MinimapMarker>();
         foreach (Vector3 waypoint in _objectiveWaypoints)
         {
+            if (!IsExploredByPlayer(waypoint)) continue;
             markers.Add(new MinimapMarker(
                 WorldToNormalized(waypoint),
                 new Vector4(1f, 0.75f, 0.15f, 1f)));
@@ -147,6 +178,8 @@ public partial class EngineWindow
         var camMax = new Vector2(
             (_rtsCamera.Target.X + viewW * 0.5f + half) / MapWorldSize,
             (_rtsCamera.Target.Z + viewH * 0.5f + half) / MapWorldSize);
+        camMin = Vector2.Clamp(camMin, Vector2.Zero, Vector2.One);
+        camMax = Vector2.Clamp(camMax, Vector2.Zero, Vector2.One);
 
         hud.Minimap.FogOfWar = _fogOfWar;
         hud.Minimap.PlayerId = 0;
@@ -203,6 +236,48 @@ public partial class EngineWindow
         GL.Disable(EnableCap.Blend);
     }
 
+    private void RenderRoutePreviews()
+    {
+        if (_world == null) return;
+
+        if (_routePreviewVbo == 0)
+            (_routePreviewVao, _routePreviewVbo, _) = MeshBuilder.CreateDynamicLineStrip();
+
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        GL.BindVertexArray(_routePreviewVao);
+        var identity = Matrix4.Identity;
+        GL.UniformMatrix4(_uniformModel, false, ref identity);
+        GL.Uniform4(_uniformColor, new Vector4(0.2f, 0.85f, 0.55f, 0.45f));
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var queue = _world.GetComponent<WaypointQueueComponent>(entity);
+            if (queue == null || queue.Waypoints.Count == 0) continue;
+
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            var segments = new List<Vector3> { transform.Position };
+            for (int i = queue.CurrentIndex; i < queue.Waypoints.Count; i++)
+                segments.Add(queue.Waypoints[i]);
+
+            if (queue.Patrol && queue.Waypoints.Count > 0)
+                segments.Add(queue.Waypoints[0]);
+
+            if (segments.Count < 2) continue;
+
+            float[] vertices = MeshBuilder.BuildLineStripVertices(
+                segments, new Vector3(0.2f, 0.85f, 0.55f), y: 0.3f);
+            int vertCount = MeshBuilder.UpdateDynamicLineStrip(_routePreviewVbo, vertices);
+            GL.DrawArrays(PrimitiveType.LineStrip, 0, vertCount);
+        }
+
+        GL.Disable(EnableCap.Blend);
+    }
+
     private void RenderObjectiveMarkers(Matrix4 projection, Matrix4 view)
     {
         if (_objectiveWaypoints.Count == 0) return;
@@ -210,6 +285,8 @@ public partial class EngineWindow
         GL.BindVertexArray(_moveTargetVao);
         foreach (Vector3 waypoint in _objectiveWaypoints)
         {
+            if (!IsExploredByPlayer(waypoint)) continue;
+
             float pulse = 0.7f + 0.3f * MathF.Sin(System.Environment.TickCount * 0.004f);
             var model = Matrix4.CreateScale(pulse * 1.2f) *
                         Matrix4.CreateTranslation(waypoint with { Y = 0.5f });

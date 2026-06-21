@@ -4,11 +4,16 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
-using SharpOpenGl.Engine.Audio;
-using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Audio;
+using SharpOpenGl.Engine.Build;
+
+using SharpOpenGl.Engine.ECS;
+
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Multiplayer;
+using SharpOpenGl.Engine.Persistence;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Rendering;
 using SharpOpenGl.Engine.Scenes;
@@ -31,6 +36,9 @@ public partial class EngineWindow : GameWindow
     private int _frameCount;
     private readonly bool _screenshotMode;
     private readonly string _screenshotPath;
+    private readonly bool _demoRecordingMode;
+    private readonly string _demoMissionId;
+    private readonly string _demoVideoPath;
 
     private ShaderManager _shaderManager = null!;
     private int _shaderProgram;
@@ -54,6 +62,9 @@ public partial class EngineWindow : GameWindow
     private MovementSystem? _movementSystem;
     private AIPlayerSystem? _aiSystem;
     private BuildSystem? _buildSystem;
+    private MiningVisualSystem? _miningVisualSystem;
+    private AbilitySystem? _abilitySystem;
+    private SquadSystem? _squadSystem;
 
     // Economy
     private ResourceManager? _resourceManager;
@@ -77,9 +88,14 @@ public partial class EngineWindow : GameWindow
     private int _engineTrailVao, _engineTrailVbo, _engineTrailVertCount;
     private int _selectionVao, _selectionVbo, _selectionVertCount;
     private int _moveTargetVao, _moveTargetVbo, _moveTargetVertCount;
+    private int _routePreviewVao, _routePreviewVbo, _routePreviewVertCount;
     private int _gridVao, _gridVbo, _gridVertCount;
+    private int _gridLineStep = 1;
     private int _resourceNodeVao, _resourceNodeVbo, _resourceNodeVertCount;
     private int _minerVao, _minerVbo, _minerVertCount;
+    private int _miningDroneVao, _miningDroneVbo, _miningDroneVertCount;
+    private int _evaCrewVao, _evaCrewVbo, _evaCrewVertCount;
+    private int _tractorBeamVao, _tractorBeamVbo, _tractorBeamVertCount;
     private int _commandCenterVao, _commandCenterVbo, _commandCenterVertCount;
     private int _shipyardVao, _shipyardVbo, _shipyardVertCount;
     private int _shipyardSmallVao, _shipyardSmallVbo, _shipyardSmallVertCount;
@@ -117,18 +133,28 @@ public partial class EngineWindow : GameWindow
 
     // Input modes for attack-move and patrol
     private bool _attackMoveMode;
+    private bool _attackMode;
     private bool _patrolMode;
 
     // Building placement mode
     private string? _placementBuildingId;
     private SupplySystem? _supplySystem;
 
-    public EngineWindow(GameWindowSettings gameSettings, NativeWindowSettings nativeSettings,
-        bool screenshotMode = false, string screenshotPath = "screenshot.png")
+    public EngineWindow(
+        GameWindowSettings gameSettings,
+        NativeWindowSettings nativeSettings,
+        bool screenshotMode = false,
+        string screenshotPath = "screenshot.png",
+        bool demoRecordingMode = false,
+        string demoMissionId = "example_scenario",
+        string? demoVideoPath = null)
         : base(gameSettings, nativeSettings)
     {
         _screenshotMode = screenshotMode;
         _screenshotPath = screenshotPath;
+        _demoRecordingMode = demoRecordingMode;
+        _demoMissionId = demoMissionId;
+        _demoVideoPath = demoVideoPath ?? ResolveDemoVideoPath();
         _frameCount = 0;
     }
 
@@ -149,6 +175,8 @@ public partial class EngineWindow : GameWindow
         _uniformView = ShaderManager.GetUniform(_shaderProgram, "view");
         _uniformModel = ShaderManager.GetUniform(_shaderProgram, "model");
         _uniformColor = ShaderManager.GetUniform(_shaderProgram, "overrideColor");
+
+
 
         // Environment (starfield background)
         _environment = new EnvironmentController();
@@ -171,8 +199,11 @@ public partial class EngineWindow : GameWindow
         _uiRenderer.Initialize(Size.X, Size.Y);
 
         // Event bus & managers
-        _eventBus = new EventBus();
-        InitializeAudio();
+        _eventBus = new EventBus();
+
+        InitializeExplosionVfx();
+        InitializeAudio();
+
         _sceneManager = new SceneManager(_eventBus);
         _uiManager = new UIManager(_eventBus);
         _uiManager.Resize(new Vector2(Size.X, Size.Y));
@@ -181,9 +212,11 @@ public partial class EngineWindow : GameWindow
         _sceneManager.Register(SceneMainMenu, () => new MainMenuScene(this));
         _sceneManager.Register(SceneGameplay, () => new GameplayScene(this));
 
-        // Start at main menu (or skip to gameplay in screenshot mode)
-        if (_screenshotMode)
+        // Start at main menu (or skip to gameplay in screenshot / demo mode)
+        if (_screenshotMode || _demoRecordingMode)
         {
+            if (_demoRecordingMode)
+                InitializeDemoRecording();
             _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
         }
         else
@@ -199,10 +232,13 @@ public partial class EngineWindow : GameWindow
     internal void ShowMainMenu()
     {
         _uiManager.Clear();
-        var menu = new MainMenuScreen();
+        EnsurePersistence();
+        bool hasSave = _saveManager!.ListSaveFiles().Length > 0;
+        var menu = new MainMenuScreen(hasSave);
         menu.NewGameRequested += ShowMissionSelect;
         menu.MultiplayerRequested += ShowMultiplayerSetup;
         menu.ContinueRequested += ContinueSavedGame;
+        menu.LoadGameRequested += ShowLoadGameScreen;
         menu.ShipDesignerRequested += ShowShipDesigner;
         menu.SettingsRequested += ShowSettings;
         menu.QuitRequested += () => Close();
@@ -230,56 +266,25 @@ public partial class EngineWindow : GameWindow
         _uiManager.Push(missionSelect);
     }
 
-    private IEnumerable<MissionEntry> LoadMissionEntries()
-    {
-        string missionsPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "GameData", "Missions");
-        // Try relative path from working directory if not found
-        if (!Directory.Exists(missionsPath))
-            missionsPath = Path.Combine(Directory.GetCurrentDirectory(), "GameData", "Missions");
-
-        if (!Directory.Exists(missionsPath))
-        {
-            Console.WriteLine("[Mission] No missions directory found, using defaults");
-            return new[]
-            {
-                new MissionEntry { Id = "tutorial_01", Title = "Tutorial - First Steps", Description = "Learn the basics of fleet command." },
-                new MissionEntry { Id = "example_scenario", Title = "First Contact", Description = "Encounter unknown hostiles in Sector Alpha." },
-                new MissionEntry { Id = "mission_02", Title = "Resource Rush", Description = "Secure critical resource nodes before the enemy." },
-                new MissionEntry { Id = "mission_03", Title = "Defensive Stand", Description = "Hold your position against waves of enemies." },
-                new MissionEntry { Id = "mission_04", Title = "Deep Strike", Description = "Strike behind enemy lines and destroy their base." },
-                new MissionEntry { Id = "mission_05", Title = "Final Assault", Description = "Launch the decisive attack on the enemy homeworld." },
-            };
-        }
-
-        var entries = new List<MissionEntry>();
-        foreach (string file in Directory.GetFiles(missionsPath, "*.json"))
-        {
-            string filename = Path.GetFileNameWithoutExtension(file);
-            if (filename.StartsWith('_')) continue;
-
-            // Read display name from JSON if possible
-            string title = filename.Replace('_', ' ');
-            if (title.Length > 0)
-                title = char.ToUpper(title[0]) + title[1..];
-
-            entries.Add(new MissionEntry
-            {
-                Id = filename,
-                Title = title,
-                Description = $"Mission: {title}",
-            });
-        }
-        return entries;
-    }
+    private IEnumerable<MissionEntry> LoadMissionEntries() => LoadMissionEntriesFromData();
 
     /// <summary>Show multiplayer setup screen with AI player option (issue #6).</summary>
     internal void ShowMultiplayerSetup()
     {
         var mpScreen = new MultiplayerSetupScreen();
-        mpScreen.StartRequested += includeAI =>
+        mpScreen.StartRequested += result =>
         {
-            Console.WriteLine($"[Multiplayer] Starting match, AI={includeAI}");
+            _pendingSkirmishSetup = result;
             _pendingMissionId = null;
+            Console.WriteLine(
+                $"[Multiplayer] Starting skirmish on '{result.MapId}' with {result.ActivePlayerCount} factions " +
+                $"({result.HumanCount} human, {result.AiCount} AI)");
+            foreach (var player in result.Players)
+            {
+                Console.WriteLine(
+                    $"  Slot {player.SlotIndex + 1}: {(player.IsHuman ? "Human" : "AI")} — {player.RaceId}");
+            }
+
             _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
         };
         mpScreen.BackRequested += () => _uiManager.Pop();
@@ -297,7 +302,11 @@ public partial class EngineWindow : GameWindow
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
         hud.BuildPanel.BuildRequested += OnBuildPanelBuildRequested;
+        WireBuildMapHud(hud);
         hud.ShipControlBar.CommandActivated += HandleShipControlCommand;
+        hud.ShipControlBar.StanceToggled += CycleSelectedStance;
+        hud.ShipControlBar.FormationCycled += CycleSelectedFormation;
+        hud.MinimapClicked += PanCameraToMinimap;
         _uiManager.Push(hud);
 
         if (!_gameplayMeshesLoaded)
@@ -317,6 +326,8 @@ public partial class EngineWindow : GameWindow
         {
             _uiManager.Pop();
         };
+        pause.SaveGameRequested += ShowSaveGameScreen;
+        pause.SettingsRequested += ShowSettings;
         pause.QuitToMenuRequested += () =>
         {
             CleanupGameplay();
@@ -328,9 +339,9 @@ public partial class EngineWindow : GameWindow
     private void LoadGameplayMeshes()
     {
         (_heroVao, _heroVbo, _heroVertCount) =
-            ShipMeshExtensions.BuildFighterMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f);
+            ShipMeshExtensions.BuildHeroMesh(new Vector3(0.2f, 0.8f, 1.0f), 3f);
         (_fighterVao, _fighterVbo, _fighterVertCount) =
-            ShipMeshExtensions.BuildFighterMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.5f);
+            ShipMeshExtensions.BuildFighterMesh(new Vector3(0.4f, 1.0f, 0.4f), 1.75f);
         (_scoutVao, _scoutVbo, _scoutVertCount) =
             ShipMeshExtensions.BuildScoutMesh(new Vector3(0.5f, 0.95f, 1f), 1.4f);
         (_droneVao, _droneVbo, _droneVertCount) =
@@ -348,11 +359,11 @@ public partial class EngineWindow : GameWindow
         (_dreadnoughtVao, _dreadnoughtVbo, _dreadnoughtVertCount) =
             ShipMeshExtensions.BuildDreadnoughtMesh(new Vector3(0.75f, 0.35f, 0.55f), 5.5f);
         (_bomberVao, _bomberVbo, _bomberVertCount) =
-            ShipMeshBuilder.BuildBomberMesh(new Vector3(0.9f, 0.5f, 0.2f), 2.5f);
+            ShipMeshExtensions.BuildBomberMesh(new Vector3(0.9f, 0.5f, 0.2f), 2.5f);
         (_destroyerVao, _destroyerVbo, _destroyerVertCount) =
-            ShipMeshBuilder.BuildDestroyerMesh(new Vector3(0.7f, 0.2f, 0.9f), 3.5f);
+            ShipMeshExtensions.BuildDestroyerMesh(new Vector3(0.7f, 0.2f, 0.9f), 3.5f);
         (_carrierVao, _carrierVbo, _carrierVertCount) =
-            ShipMeshBuilder.BuildCarrierMesh(new Vector3(0.6f, 0.6f, 0.8f), 4f);
+            ShipMeshExtensions.BuildCarrierMesh(new Vector3(0.6f, 0.6f, 0.8f), 4f);
         (_engineTrailVao, _engineTrailVbo, _engineTrailVertCount) =
             ShipMeshBuilder.BuildEngineTrail(new Vector3(1.0f, 0.6f, 0.1f), 2.5f);
         (_selectionVao, _selectionVbo, _selectionVertCount) =
@@ -367,6 +378,12 @@ public partial class EngineWindow : GameWindow
         // Miner ship (uses bomber mesh shape with different color — yellow/gold)
         (_minerVao, _minerVbo, _minerVertCount) =
             ShipMeshExtensions.BuildMinerMesh(new Vector3(0.9f, 0.8f, 0.2f), 2.2f);
+        (_miningDroneVao, _miningDroneVbo, _miningDroneVertCount) =
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildMiningDrone(new Vector3(0.9f, 0.8f, 0.25f)));
+        (_evaCrewVao, _evaCrewVbo, _evaCrewVertCount) =
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildEvaAstronaut(new Vector3(0.92f, 0.94f, 0.98f)));
+        (_tractorBeamVao, _tractorBeamVbo, _tractorBeamVertCount) =
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildBeamStreak(new Vector3(0.45f, 0.85f, 1f), 4f));
         (_commandCenterVao, _commandCenterVbo, _commandCenterVertCount) =
             ShipMeshBuilder.BuildCommandCenterStation(8f);
         (_shipyardSmallVao, _shipyardSmallVbo, _shipyardSmallVertCount) =
@@ -377,6 +394,7 @@ public partial class EngineWindow : GameWindow
             ShipMeshExtensions.BuildShipyardLarge(12f);
         (_shipyardVao, _shipyardVbo, _shipyardVertCount) =
             (_shipyardMediumVao, _shipyardMediumVbo, _shipyardMediumVertCount);
+        LoadStructureMeshes();
         LoadMapFeatureMeshes();
         LoadProjectileMeshes();
         _gameplayMeshesLoaded = true;
@@ -414,61 +432,37 @@ public partial class EngineWindow : GameWindow
         }
 
         Console.WriteLine($"[LoadDefs] Loaded {_definitions.Count} entity definitions.");
+        LoadBuildMapCatalog();
     }
 
 
     private void InitializeWorld()
     {
-        string? missionId = _pendingMissionId;
+        SaveData? saveData = _pendingSaveData;
+        _pendingSaveData = null;
+
+        string? missionId = saveData?.MissionId;
+        if (string.IsNullOrWhiteSpace(missionId))
+            missionId = _pendingMissionId;
         _pendingMissionId = null;
-        InitializeWorldCore(missionId);
+        _pendingSkirmishSetup = null;
+
+        if (saveData != null && !string.IsNullOrWhiteSpace(saveData.MissionId))
+        {
+            EnsureAssets();
+            _missionController!.StartMission(saveData.MissionId);
+        }
+
+        InitializeWorldCore(missionId, skipWorldSpawn: saveData != null);
+
+        if (saveData != null)
+            ApplySaveData(saveData);
     }
 
     private void SpawnAIPlayer(Random rng)
     {
         if (_world == null) return;
-
-        // Spawn AI fleet on opposite side of map
-        float aiBaseX = 600f;
-        float aiBaseZ = 600f;
-
-        for (int i = 0; i < 4; i++)
-        {
-            float x = aiBaseX + (rng.NextSingle() - 0.5f) * 200f;
-            float z = aiBaseZ + (rng.NextSingle() - 0.5f) * 200f;
-
-            var aiShip = _world.CreateEntity();
-            _world.AddComponent(aiShip, new TransformComponent
-            {
-                Position = new Vector3(x, 1f, z),
-                Scale = Vector3.One,
-            });
-            _world.AddComponent(aiShip, new MovementComponent
-            {
-                Speed = 70f,
-                Acceleration = 100f,
-                TurnRate = 200f,
-            });
-            _world.AddComponent(aiShip, new RenderComponent
-            {
-                MeshId = _fighterVao,
-                VertexCount = _fighterVertCount,
-                Color = new Vector4(1.0f, 0.2f, 0.2f, 1f), // Red for enemy
-                Visible = true,
-                PrimitiveType = (int)PrimitiveType.Triangles,
-            });
-            _world.AddComponent(aiShip, new AIControlledComponent { PlayerId = 2, Aggressiveness = 0.5f });
-            _world.AddComponent(aiShip, new SelectionComponent { IsSelected = false, SelectionRadius = 12f });
-            _world.AddComponent(aiShip, new HealthComponent { MaxHP = 80f, CurrentHP = 80f, MaxShields = 20f, CurrentShields = 20f, Armor = 5f });
-            var aiWeapons = new WeaponListComponent();
-            aiWeapons.Weapons.Add(new WeaponComponent { Slot = 0, Type = "laser", Damage = 8f, Range = 150f, FireRate = 3f });
-            _world.AddComponent(aiShip, aiWeapons);
-            _world.AddComponent(aiShip, new CombatTargetComponent { Faction = 2, Priority = 10 });
-            _world.AddComponent(aiShip, new StanceComponent { CurrentStance = Stance.Aggressive });
-            _world.AddComponent(aiShip, new EntityNameComponent { DisplayName = "Enemy Scout", DefinitionId = "scout_light" });
-            RevealAreaAt(new Vector3(x, 0f, z), 8);
-            _aiEntities.Add(aiShip);
-        }
+        SpawnSkirmishAiFaction(2, new Vector3(600f, 0f, 600f));
     }
 
     private void SpawnResourceNodes(Random rng)
@@ -529,6 +523,8 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(_baseEntity, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
         _world.AddComponent(_baseEntity, new HealthComponent { MaxHP = 2000f, CurrentHP = 2000f, Armor = 100f });
         _world.AddComponent(_baseEntity, new EntityNameComponent { DisplayName = "Command Center", DefinitionId = "command_center" });
+        RegisterExistingBuildingOccupancy(_baseEntity, new Vector3(-30f, 0f, -30f),
+            _world.GetComponent<BuildingComponent>(_baseEntity)!);
         AttachStationWeapons(_baseEntity,
             ("beam", 45f, 480f, 1.2f),
             ("missile", 95f, 620f, 0.35f));
@@ -548,6 +544,8 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(shipyard, new SelectionComponent { IsSelected = false, SelectionRadius = 18f });
         _world.AddComponent(shipyard, new HealthComponent { MaxHP = 1500f, CurrentHP = 1500f, Armor = 75f });
         _world.AddComponent(shipyard, new EntityNameComponent { DisplayName = "Medium Shipyard", DefinitionId = "shipyard_medium" });
+        RegisterExistingBuildingOccupancy(shipyard, new Vector3(50f, 0f, -50f),
+            _world.GetComponent<BuildingComponent>(shipyard)!);
         AttachStationWeapons(shipyard,
             ("laser", 28f, 360f, 2.5f),
             ("cannon", 65f, 420f, 0.55f));
@@ -589,6 +587,9 @@ public partial class EngineWindow : GameWindow
             _world.AddComponent(miner, new ResourceCollectorComponent
             {
                 PlayerId = 1,
+                HarvestMode = HarvestMode.Drones,
+                HarvestRange = 28f,
+                HarvestRate = 15f,
                 CarryCapacity = 100f,
                 DepositTarget = _baseEntity,
             });
@@ -601,6 +602,7 @@ public partial class EngineWindow : GameWindow
         _world?.Dispose();
         _world = null;
         _movementSystem = null;
+        _miningVisualSystem = null;
         _aiSystem = null;
         _resourceManager = null;
         _fighterEntities.Clear();
@@ -654,10 +656,19 @@ public partial class EngineWindow : GameWindow
 
         _frameCount++;
 
+        if (_demoRecordingMode && _demoRecorder != null && _frameCount >= 2)
+            _demoRecorder.CaptureFrame(Size.X, Size.Y, _frameCount);
+
         if (_screenshotMode && _frameCount >= 5)
         {
             CaptureScreenshot(_screenshotPath);
             Console.WriteLine($"Screenshot saved to: {_screenshotPath}");
+            Close();
+        }
+
+        if (_demoRecordingMode && _demoFinalizePending && _demoRecorder != null)
+        {
+            FinalizeDemoRecording();
             Close();
         }
     }
@@ -667,6 +678,9 @@ public partial class EngineWindow : GameWindow
         GL.UseProgram(_shaderProgram);
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
         GL.UniformMatrix4(_uniformView, false, ref view);
+        GL.Uniform1(_uniformPointSize, 2f);
+
+        UpdateGridMeshLod();
 
         // Render grid (centered on origin for larger map)
         float halfGrid = MapWorldSize * 0.5f;
@@ -684,6 +698,8 @@ public partial class EngineWindow : GameWindow
             if (!render.Visible || render.MeshId < 0) continue;
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
+
+            if (!ShouldRenderEntity(entity, transform.Position)) continue;
 
             bool isProjectile = _world.HasComponent<ProjectileComponent>(entity);
 
@@ -729,6 +745,9 @@ public partial class EngineWindow : GameWindow
             GL.DrawArrays((PrimitiveType)render.PrimitiveType, 0, render.VertexCount);
         }
 
+        RenderFogOverlay(projection, view);
+        RenderObjectiveMarkers(projection, view);
+
         // Render selection rings
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
@@ -743,6 +762,13 @@ public partial class EngineWindow : GameWindow
             GL.BindVertexArray(_selectionVao);
             GL.DrawArrays(PrimitiveType.Lines, 0, _selectionVertCount);
         }
+
+        RenderAttackHoverRing();
+        RenderShieldCombatRings();
+        RenderMiningVfx();
+        RenderExplosionVfx();
+        RenderRoutePreviews();
+        RenderPlacementPreview();
 
         // Render move target indicator
         if (_moveTargetPosition.HasValue && _moveTargetTimer > 0f)
@@ -763,7 +789,7 @@ public partial class EngineWindow : GameWindow
     {
         base.OnUpdateFrame(args);
 
-        if (!IsFocused && !_screenshotMode)
+        if (!IsFocused && !_screenshotMode && !_demoRecordingMode)
             return;
 
         float dt = (float)args.Time;
@@ -791,28 +817,45 @@ public partial class EngineWindow : GameWindow
         // Update scene
         _sceneManager.Update(dt);
 
+        if (_sceneManager.State != GameState.Playing)
+            _environment.Update(dt);
+
         // Update UI
         _uiManager.Update(dt);
 
         // Gameplay-specific updates
         if (_sceneManager.State == GameState.Playing && _world != null)
         {
-            UpdateCameraControls(dt);
+            if (_demoRecordingMode)
+                UpdateDemoRecording(dt);
+            else
+                UpdateCameraControls(dt);
+            _attackHoverPulse += dt;
+            _shieldRingPulse += dt;
 
             // Update ECS world (issue #1: ensures movement system runs)
             _world.Update(dt);
+            UpdateExplosionVfx(dt);
 
             // Tick economy (issue #4: resources on HUD)
             _resourceManager?.Tick(dt);
             BindResourceHUD();
             BindBuildPanel();
+            BindBuildMapPanel();
+            UpdatePlacementPreview();
             BindUnitInfoPanelExtended();
             BindObjectivePanel();
-            BindShipControlBar();
-
-            UpdateAudioListener();
-            _audio.Update(dt);
-
+            BindShipControlBar();
+            BindMinimap();
+
+
+
+            UpdateAudioListener();
+
+            _audio.Update(dt);
+
+
+
             // Fade move target indicator
             if (_moveTargetTimer > 0f)
                 _moveTargetTimer -= dt;
@@ -850,10 +893,14 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
         var viewportSize = new Vector2(Size.X, Size.Y);
-        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
-        {
-            PlayUiClick();
-            return;
+        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
+
+        {
+
+            PlayUiClick();
+
+            return;
+
         }
 
         if (_sceneManager.State != GameState.Playing || _world == null)
@@ -861,28 +908,43 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         if (e.Button == MouseButton.Left)
         {
-            if (_placementBuildingId != null || _attackMoveMode || _patrolMode || _moveCommandMode)
+            if (_placementBuildingId != null || _attackMode || _attackMoveMode || _patrolMode || _moveCommandMode)
             {
                 Vector3? commandPos = ScreenToWorldGround(MousePosition);
-                if (commandPos == null) return;
+                var clickPoint = new Vector2(MousePosition.X, MousePosition.Y);
 
                 if (_placementBuildingId != null)
                 {
-                    HandlePlaceBuilding(commandPos.Value);
-                    _placementBuildingId = null;
+                    if (commandPos == null) return;
+                    if (HandlePlaceBuilding(commandPos.Value))
+                        _placementBuildingId = null;
+                }
+                else if (_attackMode)
+                {
+                    Entity? enemy = ResolveAttackTargetAt(clickPoint);
+                    if (!enemy.HasValue && commandPos != null)
+                        enemy = FindHostileAt(commandPos.Value);
+                    if (enemy.HasValue)
+                        HandleAttackCommand(enemy.Value);
+                    _attackMode = false;
+                    if (_uiManager.Current is GameplayHUD attackHud)
+                        attackHud.ShipControlBar.ClearActiveCommand();
                 }
                 else if (_attackMoveMode)
                 {
+                    if (commandPos == null) return;
                     HandleAttackMoveCommand(commandPos.Value);
                     _attackMoveMode = false;
                 }
                 else if (_patrolMode)
                 {
+                    if (commandPos == null) return;
                     HandlePatrolCommand(commandPos.Value);
                     _patrolMode = false;
                 }
                 else if (_moveCommandMode)
                 {
+                    if (commandPos == null) return;
                     HandleMoveCommand(commandPos.Value);
                     _moveCommandMode = false;
                     if (_uiManager.Current is GameplayHUD moveHud)
@@ -903,6 +965,9 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     protected override void OnKeyDown(KeyboardKeyEventArgs e)
     {
         base.OnKeyDown(e);
+
+        if (TryHandleMenuKey(e.Key))
+            return;
 
         if (_sceneManager.State != GameState.Playing || _world == null)
             return;
@@ -939,11 +1004,6 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             // Hold position (H key)
             case Keys.H:
                 SetSelectedStance(Stance.Neutral);
-                break;
-
-            // Aggressive stance (G key)
-            case Keys.G:
-                SetSelectedStance(Stance.Aggressive);
                 break;
 
             // Defensive stance (V key)
@@ -1009,9 +1069,9 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 RecallControlGroup(9);
                 break;
 
-            // Build command (B key) — queue next producible item from selected building
+            // Build map panel (B key)
             case Keys.B when !ctrlHeld:
-                HandleBuildCommand();
+                ToggleBuildMapPanel();
                 break;
 
             // Set rally point (R key + next right-click)
@@ -1019,14 +1079,14 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 HandleSetRallyPoint();
                 break;
 
-            // Place building mode (N key cycles through available buildings)
-            case Keys.N:
-                EnterPlacementMode();
+            // Cycle squad formation (G key)
+            case Keys.G:
+                CycleSelectedFormation();
                 break;
         }
     }
 
-    private void HandleMoveCommand(Vector3 worldPos)
+    private void HandleMoveCommand(Vector3 worldPos, bool appendWaypoint = false)
     {
         if (_world == null) return;
 
@@ -1039,7 +1099,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         if (selectedEntities.Count == 0) return;
 
-        Entity? targetEnemy = FindEnemyAt(worldPos);
+        Entity? targetEnemy = FindHostileAt(worldPos);
         if (targetEnemy.HasValue)
         {
             HandleAttackCommand(targetEnemy.Value);
@@ -1047,11 +1107,10 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         }
 
         Entity? targetNode = FindResourceNodeAt(worldPos);
+        var movable = new List<Entity>();
 
-        for (int i = 0; i < selectedEntities.Count; i++)
+        foreach (var entity in selectedEntities)
         {
-            var entity = selectedEntities[i];
-
             if (targetNode.HasValue)
             {
                 var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
@@ -1062,18 +1121,26 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 }
             }
 
-            var movement = _world.GetComponent<MovementComponent>(entity);
-            if (movement == null) continue;
-
-            Vector3 offset = Vector3.Zero;
-            if (selectedEntities.Count > 1)
+            if (_world.GetComponent<MovementComponent>(entity) == null) continue;
+            movable.Add(entity);
+        }
+        foreach (var entity in movable)
+        {
+            var ct = _world.GetComponent<CombatTargetComponent>(entity);
+            if (ct != null)
             {
-                float angle = MathF.PI * 2f * i / selectedEntities.Count;
-                float radius = 12f;
-                offset = new Vector3(MathF.Cos(angle) * radius, 0f, MathF.Sin(angle) * radius);
+                ct.CurrentTarget = Entity.Null;
+                ct.ManualTarget = false;
             }
+        }
 
-            movement.PathTarget = worldPos + offset;
+
+        if (movable.Count > 1 && _squadSystem != null)
+            _squadSystem.AssignMoveRoutes(_world, movable, worldPos, appendWaypoint);
+        else
+        {
+            foreach (var entity in movable)
+                RouteCommands.AssignDestination(_world, entity, worldPos, appendWaypoint);
         }
 
         _moveTargetPosition = worldPos;
@@ -1119,13 +1186,9 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         Entity? depositTarget = FindNearestBase(minerEntity);
         collector.DepositTarget = depositTarget ?? _heroEntity;
 
-        // Set movement toward the node
         var nodeTransform = _world.GetComponent<TransformComponent>(nodeEntity);
-        var movement = _world.GetComponent<MovementComponent>(minerEntity);
-        if (nodeTransform != null && movement != null)
-        {
-            movement.PathTarget = nodeTransform.Position;
-        }
+        if (nodeTransform != null)
+            RouteCommands.AssignDestination(_world, minerEntity, nodeTransform.Position);
     }
 
     /// <summary>Find the nearest base/building entity for resource deposit.</summary>
@@ -1173,37 +1236,46 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 movement.Velocity = Vector3.Zero;
             }
 
-            var waypoints = _world.GetComponent<WaypointQueueComponent>(entity);
-            if (waypoints != null)
+            ClearPatrolAndPath(entity);
+
+            var ct = _world.GetComponent<CombatTargetComponent>(entity);
+            if (ct != null)
             {
-                waypoints.Waypoints.Clear();
-                waypoints.CurrentIndex = 0;
-                waypoints.Patrol = false;
+                ct.CurrentTarget = Entity.Null;
+                ct.ManualTarget = false;
             }
         }
     }
 
     /// <summary>Attack-move: move to position with aggressive auto-engage.</summary>
-    private void HandleAttackMoveCommand(Vector3 worldPos)
+    private void HandleAttackMoveCommand(Vector3 worldPos, bool appendWaypoint = false)
     {
         if (_world == null) return;
 
+        var movable = new List<Entity>();
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
-            if (!sel.IsSelected) continue;
+            if (!sel.IsSelected || !IsPlayerSelectable(entity)) continue;
+            if (_world.GetComponent<MovementComponent>(entity) == null) continue;
+            movable.Add(entity);
+        }
 
-            var movement = _world.GetComponent<MovementComponent>(entity);
-            if (movement != null)
-                movement.PathTarget = worldPos;
+        if (movable.Count > 1 && _squadSystem != null)
+            _squadSystem.AssignMoveRoutes(_world, movable, worldPos, appendWaypoint);
+        else
+        {
+            foreach (var entity in movable)
+                RouteCommands.AssignDestination(_world, entity, worldPos, appendWaypoint);
+        }
 
-            // Ensure entity has combat and stance components for aggressive behavior
+        foreach (var entity in movable)
+        {
             var stance = _world.GetComponent<StanceComponent>(entity);
             if (stance != null)
                 stance.CurrentStance = Stance.Aggressive;
             else
                 _world.AddComponent(entity, new StanceComponent { CurrentStance = Stance.Aggressive });
 
-            // Ensure combat target component exists
             if (!_world.HasComponent<CombatTargetComponent>(entity))
                 _world.AddComponent(entity, new CombatTargetComponent { Faction = 1 });
         }
@@ -1224,29 +1296,53 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
-            var waypoints = _world.GetComponent<WaypointQueueComponent>(entity);
-            if (waypoints == null)
+            var ct = _world.GetComponent<CombatTargetComponent>(entity);
+            if (ct != null)
             {
-                waypoints = new WaypointQueueComponent();
-                _world.AddComponent(entity, waypoints);
+                ct.CurrentTarget = Entity.Null;
+                ct.ManualTarget = false;
             }
 
-            waypoints.Waypoints.Clear();
-            waypoints.Waypoints.Add(worldPos);
-            waypoints.Waypoints.Add(transform.Position);
-            waypoints.CurrentIndex = 0;
-            waypoints.Patrol = true;
-
-            // Start moving toward first waypoint
-            var movement = _world.GetComponent<MovementComponent>(entity);
-            if (movement != null)
-                movement.PathTarget = worldPos;
+            RouteCommands.AssignPatrol(_world, entity, worldPos, transform.Position);
         }
 
         _moveTargetPosition = worldPos;
         _moveTargetTimer = 2f;
     }
 
+    private void ClearPatrolAndPath(Entity entity)
+    {
+        if (_world == null) return;
+        RouteCommands.ClearRoute(_world, entity);
+    }
+
+    /// <summary>Cycle passive, defensive, and aggressive stances on selected units.</summary>
+    private void CycleSelectedStance()
+    {
+        if (_world == null) return;
+
+        Stance? current = null;
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected || !IsPlayerSelectable(entity)) continue;
+            var stanceComp = _world.GetComponent<StanceComponent>(entity);
+            if (stanceComp != null)
+            {
+                current = stanceComp.CurrentStance;
+                break;
+            }
+        }
+
+        Stance next = current switch
+        {
+            Stance.Neutral => Stance.Defensive,
+            Stance.Defensive => Stance.Aggressive,
+            Stance.Aggressive => Stance.Neutral,
+            _ => Stance.Defensive,
+        };
+
+        SetSelectedStance(next);
+    }
     /// <summary>Set combat stance for all selected entities.</summary>
     private void SetSelectedStance(Stance stance)
     {
@@ -1267,18 +1363,24 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     /// <summary>Activate hero ability at given slot index.</summary>
     private void ActivateAbility(int slot)
     {
-        if (_world == null) return;
+        if (_world == null || _abilitySystem == null) return;
 
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
             if (!sel.IsSelected) continue;
-
-            var abilities = _world.GetComponent<AbilityListComponent>(entity);
-            if (abilities == null) continue;
-
-            var ability = abilities.GetBySlot(slot);
-            ability?.Activate();
+            if (!_world.HasComponent<AbilityListComponent>(entity)) continue;
+            _abilitySystem.ActivateAbility(entity, slot);
         }
+
+        _world.Update(0f);
+    }
+
+    /// <summary>Execute a networked ability command (replay / multiplayer).</summary>
+    public void ExecuteUseAbilityCommand(UseAbilityCommand command)
+    {
+        if (_world == null || _abilitySystem == null) return;
+        _abilitySystem.HandleUseAbility(_world, command);
+        _world.Update(0f);
     }
 
     /// <summary>Assign currently selected entities to a control group.</summary>
@@ -1286,14 +1388,36 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         if (_world == null) return;
 
+        var entities = GetSelectedPlayerEntities();
+        if (entities.Count > 1)
+            _squadSystem?.FormSquad(_world, entities);
+
+        _controlGroups[group] = entities;
+    }
+
+    /// <summary>Cycle formation layout for the selected squad.</summary>
+    private void CycleSelectedFormation()
+    {
+        if (_world == null || _squadSystem == null) return;
+
+        var selected = GetSelectedPlayerEntities();
+        if (_squadSystem.CycleFormation(_world, selected) != null)
+            BindShipControlBar();
+    }
+
+    /// <summary>Return currently selected player-controllable entities.</summary>
+    private List<Entity> GetSelectedPlayerEntities()
+    {
         var entities = new List<Entity>();
+        if (_world == null) return entities;
+
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
-            if (sel.IsSelected)
+            if (sel.IsSelected && IsPlayerSelectable(entity))
                 entities.Add(entity);
         }
 
-        _controlGroups[group] = entities;
+        return entities;
     }
 
     /// <summary>Recall a control group (select those entities).</summary>
@@ -1418,32 +1542,6 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
     // ── Building Placement ────────────────────────────────────────────────────
 
-    /// <summary>Available buildings the player can place.</summary>
-    private static readonly string[] PlaceableBuildings =
-        ["command_center", "shipyard_small", "shipyard_medium", "shipyard_large"];
-
-    private int _placementIndex;
-
-    /// <summary>Enter building placement mode, cycling through available buildings.</summary>
-    private void EnterPlacementMode()
-    {
-        _placementIndex = (_placementIndex + 1) % PlaceableBuildings.Length;
-        _placementBuildingId = PlaceableBuildings[_placementIndex];
-        _attackMoveMode = false;
-        _patrolMode = false;
-        Console.WriteLine($"[Place] Click to place: {_placementBuildingId} (press N to cycle, right-click to cancel)");
-    }
-
-    /// <summary>Place a building at the given world position.</summary>
-    private (int meshId, int vertCount, Vector3 scale) ResolveBuildingMesh(string buildingType) => buildingType switch
-    {
-        "shipyard_small" => (_shipyardSmallVao, _shipyardSmallVertCount, new Vector3(1.6f, 1.6f, 1.6f)),
-        "shipyard_medium" or "shipyard" => (_shipyardMediumVao, _shipyardMediumVertCount, new Vector3(2.2f, 2.2f, 2.2f)),
-        "shipyard_large" => (_shipyardLargeVao, _shipyardLargeVertCount, new Vector3(2.8f, 2.8f, 2.8f)),
-        _ => (_commandCenterVao, _commandCenterVertCount, new Vector3(2f, 2f, 2f)),
-    };
-
-
     private List<string> GetDefaultProducible(string buildingId)
     {
         if (_definitions.TryGetValue(buildingId, out var def) && def.Producible is { Count: > 0 })
@@ -1451,13 +1549,35 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         return [];
     }
 
-    private void HandlePlaceBuilding(Vector3 worldPos)
+    private bool HandlePlaceBuilding(Vector3 worldPos) =>
+        _placementBuildingId != null && TryPlaceBuildingAt(_placementBuildingId, worldPos);
+
+    private bool TryPlaceBuildingAt(string buildingId, Vector3 worldPos)
     {
-        if (_world == null || _resourceManager == null || _placementBuildingId == null) return;
-        if (!_definitions.TryGetValue(_placementBuildingId, out var def))
+        if (_world == null || _resourceManager == null ||
+            _gridSystem == null || _buildMapCatalog == null)
+            return false;
+
+        if (!_definitions.TryGetValue(buildingId, out var def))
         {
-            Console.WriteLine($"[Place] Unknown building: {_placementBuildingId}");
-            return;
+            def = _assetManager?.Load<EntityDefinition>($"Bases/{buildingId}");
+            if (def != null)
+                _definitions[buildingId] = def;
+        }
+
+        if (def == null)
+        {
+            Console.WriteLine($"[Place] Unknown building: {buildingId}");
+            return false;
+        }
+
+        var validation = BuildingPlacementValidator.Validate(
+            _gridSystem, _world, playerId: 1, def, worldPos,
+            _buildMapCatalog, _resourceManager, _supplySystem);
+        if (!validation.IsValid)
+        {
+            Console.WriteLine($"[Place] Invalid location for {def.DisplayName}: {validation.Reason}");
+            return false;
         }
 
         int energy = def.Cost?.Energy ?? 0;
@@ -1467,10 +1587,10 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         if (!_resourceManager.TrySpendCost(1, energy, minerals, data, crew))
         {
             Console.WriteLine($"[Place] Cannot afford {def.DisplayName}");
-            return;
+            return false;
         }
 
-        string buildingType = def.Components?.Building?.BuildingType ?? _placementBuildingId;
+        string buildingType = def.Components?.Building?.BuildingType ?? buildingId;
         var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType);
 
         var building = _world.CreateEntity();
@@ -1484,7 +1604,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         var buildingDef = def.Components?.Building;
         _world.AddComponent(building, new BuildingComponent
         {
-            BuildingType = buildingDef?.BuildingType ?? _placementBuildingId,
+            BuildingType = buildingDef?.BuildingType ?? buildingId,
             ProductionRate = buildingDef?.ProductionRate ?? 1f,
             Footprint = buildingDef?.Footprint ?? [2, 2],
             PlayerId = 1,
@@ -1497,8 +1617,13 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             DefinitionId = def.Id,
         });
 
-        PlayBuildingPlaced(worldPos);
+        BuildingFootprint.Occupy(_gridSystem, building,
+            worldPos, buildingDef?.Footprint ?? [2, 2]);
+
+        PlayBuildingPlaced(worldPos);
+
         Console.WriteLine($"[Place] Built {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
+        return true;
     }
 
     /// <summary>
@@ -1614,7 +1739,11 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             if (unitInfos.Count >= 4) break;
             var health = _world.GetComponent<HealthComponent>(entity);
             string name = ResolveEntityDisplayName(entity);
-            if (health != null) unitInfos.Add(UnitInfo.FromHealth(name, health));
+            if (health != null)
+            {
+                string? raceId = _world.GetComponent<RaceComponent>(entity)?.RaceId;
+                unitInfos.Add(UnitInfo.FromHealth(name, health, raceId: raceId));
+            }
         }
         hud.UnitInfoPanel.SelectedUnits = unitInfos;
     }
@@ -1673,7 +1802,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         _environment.Dispose();
         _shaderManager.Dispose();
         _uiRenderer.Dispose();
-        _sceneManager.Dispose();
+        _sceneManager.Dispose();
+
         DisposeAudio();
 
         if (_gameplayMeshesLoaded)
@@ -1686,6 +1816,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             MeshBuilder.DeleteMesh(_engineTrailVao, _engineTrailVbo);
             MeshBuilder.DeleteMesh(_selectionVao, _selectionVbo);
             MeshBuilder.DeleteMesh(_moveTargetVao, _moveTargetVbo);
+            if (_routePreviewVbo != 0)
+                MeshBuilder.DeleteMesh(_routePreviewVao, _routePreviewVbo);
             MeshBuilder.DeleteMesh(_gridVao, _gridVbo);
             MeshBuilder.DeleteMesh(_resourceNodeVao, _resourceNodeVbo);
         }
@@ -1722,13 +1854,14 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
 uniform vec4 overrideColor;
+uniform float pointSize;
 
 out vec3 fragColor;
 
 void main()
 {
     gl_Position = projection * view * model * vec4(aPosition, 1.0);
-    gl_PointSize = 2.0;
+    gl_PointSize = max(pointSize, 1.0);
     if (overrideColor.a > 0.0)
         fragColor = overrideColor.rgb;
     else

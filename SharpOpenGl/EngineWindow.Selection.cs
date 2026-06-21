@@ -3,6 +3,7 @@ using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Input;
 using SharpOpenGl.Engine.UI;
+using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl;
 
@@ -111,6 +112,8 @@ public partial class EngineWindow
             sel.IsSelected = false;
     }
 
+    private Button? _lastHoveredButton;
+
     private void UpdateUiPointerState()
     {
         if (_uiManager.Current == null) return;
@@ -118,5 +121,10 @@ public partial class EngineWindow
         bool pointerDown = MouseState.IsButtonDown(MouseButton.Left) ||
                            MouseState.IsButtonDown(MouseButton.Right);
         _uiManager.HandlePointerMove(screenPoint, pointerDown, new Vector2(Size.X, Size.Y));
+
+        Button? hovered = _uiManager.FindHoveredButton();
+        if (hovered != null && hovered != _lastHoveredButton && hovered.IsEnabled)
+            PlayUiHover();
+        _lastHoveredButton = hovered;
     }
 }

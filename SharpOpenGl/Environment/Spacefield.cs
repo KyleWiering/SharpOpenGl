@@ -12,6 +12,7 @@ public class Spacefield : IEnvironment
     private int _vao;
     private int _vbo;
     private int _vertexCount;
+    private float _rotation;
 
     public void Initialize()
     {
@@ -58,7 +59,7 @@ public class Spacefield : IEnvironment
 
     public void Render(int shaderProgram, int modelUniform, int colorUniform)
     {
-        var model = Matrix4.Identity;
+        var model = Matrix4.CreateRotationY(_rotation) * Matrix4.CreateRotationX(_rotation * 0.35f);
         GL.UniformMatrix4(modelUniform, false, ref model);
 
         // No override color (use per-vertex colors)
@@ -71,7 +72,7 @@ public class Spacefield : IEnvironment
 
     public void Update(double elapsedTime)
     {
-        // Static starfield doesn't update
+        _rotation += (float)elapsedTime * 0.04f;
     }
 
     public void Dispose()

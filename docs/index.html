@@ -144,6 +144,36 @@
             border: 1px solid rgba(79,195,247,0.5);
             color: #4fc3f7;
         }
+
+        /* ── Gameplay demo (mobile-friendly) ── */
+        #demo-section {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(960px, calc(100% - 20px));
+            z-index: 25;
+            background: rgba(0, 0, 0, 0.82);
+            border: 1px solid rgba(79, 195, 247, 0.35);
+            border-radius: 8px;
+            padding: 10px 12px;
+        }
+        #demo-section h2 {
+            color: #4fc3f7;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        #demo-section video {
+            width: 100%;
+            max-height: 42vh;
+            border-radius: 6px;
+            background: #000;
+        }
+        @media (max-width: 768px) {
+            body { overflow: auto; height: auto; min-height: 100vh; }
+            #glcanvas { position: relative; height: 55vh; }
+            #demo-section { position: relative; transform: none; left: auto; margin: 10px; width: auto; }
+        }
     </style>
 </head>
 <body>
@@ -196,6 +226,14 @@
 
     <div id="fps">FPS: --</div>
     <div id="notif"></div>
+
+    <section id="demo-section" aria-label="Gameplay demo video">
+        <h2>Gameplay demo — selection, movement, combat, base building</h2>
+        <video controls playsinline preload="metadata" poster="gameplay-demo-poster.png">
+            <source src="gameplay-demo.mp4" type="video/mp4" />
+            Your browser does not support HTML5 video.
+        </video>
+    </section>
 
     <script src="engine.js"></script>
 </body>

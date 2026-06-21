@@ -31,7 +31,7 @@ public sealed class BrowserGameplayRenderer
 
     public RtsCameraController Camera => _camera;
 
-    public void Render(World world, int viewportWidth, int viewportHeight)
+    public void Render(World world, int viewportWidth, int viewportHeight, ExplosionVfxController? explosionVfx = null)
     {
         float aspect = viewportWidth / (float)Math.Max(1, viewportHeight);
         Matrix4 projection = _camera.GetProjectionMatrix(aspect);
@@ -42,7 +42,9 @@ public sealed class BrowserGameplayRenderer
 
         float halfGrid = BrowserMeshLibrary.MapWorldSize * 0.5f;
         Matrix4 gridModel = Matrix4.CreateTranslation(-halfGrid, -0.5f, -halfGrid);
-        _renderer.DrawMesh(_meshes.Grid, _meshes.GridCount, gridModel, Vector4.Zero, GlPrimitive.Lines);
+        var (gridMesh, gridCount) = _meshes.GetGridForHeight(
+            _camera.Height, _camera.MinHeight, _camera.MaxHeight);
+        _renderer.DrawMesh(gridMesh, gridCount, gridModel, Vector4.Zero, GlPrimitive.Lines);
 
         foreach (var (entity, render) in world.Query<RenderComponent>())
         {
@@ -100,6 +102,15 @@ public sealed class BrowserGameplayRenderer
             Matrix4 ringModel = Matrix4.CreateTranslation(transform.Position);
             _renderer.DrawMesh(_meshes.SelectionRing, _meshes.SelectionRingCount, ringModel,
                 new Vector4(0, 1, 0, 1), GlPrimitive.Lines);
+        }
+
+        if (explosionVfx != null)
+        {
+            var (pointCount, vertices) = explosionVfx.BuildVertexData();
+            if (pointCount > 0)
+            {
+                _renderer.DrawPoints(_meshes.ParticleBuffer, vertices, pointCount, Matrix4.Identity, 5f);
+            }
         }
 
         _renderer.EndFrame();

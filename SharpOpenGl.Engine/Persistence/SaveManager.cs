@@ -29,6 +29,44 @@ public sealed class SaveManager
 
     // ── Queries ───────────────────────────────────────────────────────────────
 
+    /// <summary>Returns <c>true</c> when a save file exists for <paramref name="slotName"/>.</summary>
+    public bool SlotExists(string slotName) => File.Exists(SlotPath(slotName));
+
+    /// <summary>
+    /// Return metadata for every supported slot, including empty manual slots.
+    /// Populated saves are ordered newest-first; empty slots follow.
+    /// </summary>
+    public IReadOnlyList<SaveSlotInfo> ListSaveSlots()
+    {
+        var populated = new List<SaveSlotInfo>();
+        var empty = new List<SaveSlotInfo>();
+
+        foreach (string slot in SaveSlotNames.AllSlots)
+        {
+            string path = SlotPath(slot);
+            if (!File.Exists(path))
+            {
+                empty.Add(new SaveSlotInfo { SlotName = slot, HasData = false });
+                continue;
+            }
+
+            SaveData? data = Load(slot);
+            populated.Add(new SaveSlotInfo
+            {
+                SlotName = slot,
+                FilePath = path,
+                SavedAt = data?.SavedAt ?? string.Empty,
+                MissionId = data?.MissionId ?? string.Empty,
+                ElapsedMissionTime = data?.ElapsedMissionTime ?? 0f,
+                HasData = data != null,
+            });
+        }
+
+        populated.Sort((a, b) => string.Compare(b.SavedAt, a.SavedAt, StringComparison.Ordinal));
+        populated.AddRange(empty);
+        return populated;
+    }
+
     /// <summary>
     /// Return the paths of all <c>*.sav.json</c> files in the save directory,
     /// sorted by last-write time (newest first).

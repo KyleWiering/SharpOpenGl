@@ -31,15 +31,34 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Install Mesa, OpenGL, and ffmpeg dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mesa-utils libgl1-mesa-dev libglu1-mesa-dev xvfb libopengl0 libglfw3 ffmpeg
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build desktop project for demo capture
+        run: dotnet build SharpOpenGl/SharpOpenGl.csproj --configuration Release --no-restore
+
+      - name: Record gameplay demo video
+        run: |
+          xvfb-run -a -s "-screen 0 1024x768x24" \
+            dotnet run --project SharpOpenGl --configuration Release --no-build -- \
+            --demo-recording --mission example_scenario
+
       - name: Publish Blazor WASM to docs/
         run: |
-          mkdir -p _md_backup
+          mkdir -p _md_backup _demo_backup
           cp docs/*.md _md_backup/ 2>/dev/null || true
+          cp docs/gameplay-demo.mp4 docs/gameplay-demo-poster.png _demo_backup/ 2>/dev/null || true
           dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
             --configuration Release \
             --output docs \
             /p:BaseHref=/SharpOpenGl/
           cp _md_backup/*.md docs/ 2>/dev/null || true
+          cp _demo_backup/gameplay-demo.mp4 _demo_backup/gameplay-demo-poster.png docs/ 2>/dev/null || true
           rm -f docs/engine.js docs/engine.min.js
 
       - name: Upload artifact

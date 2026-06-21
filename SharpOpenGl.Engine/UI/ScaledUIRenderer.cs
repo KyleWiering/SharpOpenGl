@@ -9,7 +9,7 @@ namespace SharpOpenGl.Engine.UI;
 public sealed class ScaledUIRenderer : IUIRenderer
 {
     /// <summary>Minimum physical font size so menu text stays legible at 1024×768.</summary>
-    public const float MinPhysicalFontSize = 18f;
+    public const float MinPhysicalFontSize = 16f;
 
     private readonly IUIRenderer _inner;
     private readonly UIScaler _scaler;
@@ -22,6 +22,14 @@ public sealed class ScaledUIRenderer : IUIRenderer
 
     /// <inheritdoc/>
     public Vector2 ViewportSize => _inner.ViewportSize;
+
+    /// <inheritdoc/>
+    public float ScaleToPhysical(float logicalPixels) =>
+        logicalPixels * _scaler.UniformScale;
+
+    /// <inheritdoc/>
+    public float ResolveFontSize(float logicalFontSize) =>
+        MathF.Max(logicalFontSize * _scaler.UniformScale, MinPhysicalFontSize);
 
     /// <inheritdoc/>
     public void DrawRect(Vector2 position, Vector2 size, Vector4 color)
@@ -38,7 +46,7 @@ public sealed class ScaledUIRenderer : IUIRenderer
     /// <inheritdoc/>
     public void DrawText(string text, Vector2 position, float fontSize, Vector4 color)
     {
-        float physicalSize = MathF.Max(fontSize * _scaler.UniformScale, MinPhysicalFontSize);
+        float physicalSize = ResolveFontSize(fontSize);
         _inner.DrawText(text, _scaler.ScalePosition(position), physicalSize, color);
     }
 }

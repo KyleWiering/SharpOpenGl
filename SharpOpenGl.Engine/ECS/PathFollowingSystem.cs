@@ -10,7 +10,7 @@ namespace SharpOpenGl.Engine.ECS;
 public sealed class PathFollowingSystem : GameSystem
 {
     private readonly GridSystem _grid;
-    private const float WaypointArrivalThreshold = 0.5f;
+    private const float WaypointArrivalThreshold = 2.5f;
 
     public PathFollowingSystem(GridSystem grid)
     {
@@ -28,13 +28,11 @@ public sealed class PathFollowingSystem : GameSystem
 
             var path = world.GetComponent<PathComponent>(entity);
 
-            // If no path computed yet, compute one
             if (path == null)
             {
                 path = ComputePath(transform.Position, dest);
                 if (path == null)
                 {
-                    // Unreachable — remove destination, move as close as possible
                     world.RemoveComponent<DestinationComponent>(entity);
                     movement.PathTarget = null;
                     continue;
@@ -42,38 +40,70 @@ public sealed class PathFollowingSystem : GameSystem
                 world.AddComponent(entity, path);
             }
 
-            // Follow path waypoints
             if (path.IsComplete)
             {
-                // Arrived at destination
                 world.RemoveComponent<PathComponent>(entity);
                 world.RemoveComponent<DestinationComponent>(entity);
                 movement.PathTarget = null;
                 continue;
             }
 
-            Vector3 nextWaypoint = path.Waypoints[path.CurrentWaypointIndex];
-            float dist = (transform.Position - nextWaypoint).Length;
+            AdvancePassedWaypoints(path, transform.Position);
+
+            if (path.IsComplete)
+            {
+                world.RemoveComponent<PathComponent>(entity);
+                world.RemoveComponent<DestinationComponent>(entity);
+                movement.PathTarget = null;
+                continue;
+            }
+
+            int targetIndex = SelectLookAheadIndex(path, transform.Position);
+            movement.PathTarget = path.Waypoints[targetIndex];
+        }
+    }
+
+    private void AdvancePassedWaypoints(PathComponent path, Vector3 position)
+    {
+        while (path.CurrentWaypointIndex < path.Waypoints.Count)
+        {
+            Vector3 waypoint = path.Waypoints[path.CurrentWaypointIndex];
+            float dist = PathRouteHelper.HorizontalDistance(position, waypoint);
 
             if (dist < WaypointArrivalThreshold)
             {
                 path.CurrentWaypointIndex++;
-                if (path.IsComplete)
-                {
-                    world.RemoveComponent<PathComponent>(entity);
-                    world.RemoveComponent<DestinationComponent>(entity);
-                    movement.PathTarget = null;
-                }
-                else
-                {
-                    movement.PathTarget = path.Waypoints[path.CurrentWaypointIndex];
-                }
+                continue;
             }
-            else
+
+            if (path.CurrentWaypointIndex < path.Waypoints.Count - 1)
             {
-                movement.PathTarget = nextWaypoint;
+                Vector3 next = path.Waypoints[path.CurrentWaypointIndex + 1];
+                Vector3 leg = new(next.X - waypoint.X, 0f, next.Z - waypoint.Z);
+                Vector3 toShip = new(position.X - waypoint.X, 0f, position.Z - waypoint.Z);
+                if (Vector3.Dot(leg, toShip) > 0f && leg.LengthSquared > 0.01f)
+                {
+                    path.CurrentWaypointIndex++;
+                    continue;
+                }
             }
+
+            break;
         }
+    }
+
+    private int SelectLookAheadIndex(PathComponent path, Vector3 position)
+    {
+        int index = path.CurrentWaypointIndex;
+        for (int i = path.CurrentWaypointIndex + 1; i < path.Waypoints.Count; i++)
+        {
+            if (PathRouteHelper.HasClearLine(position, path.Waypoints[i], _grid))
+                index = i;
+            else
+                break;
+        }
+
+        return index;
     }
 
     private PathComponent? ComputePath(Vector3 currentPos, DestinationComponent dest)
@@ -90,17 +120,24 @@ public sealed class PathFollowingSystem : GameSystem
         if (startCell == null || goalCell == null) return null;
         if (!goalCell.IsPassable) return null;
 
-        List<GridCell> cells = Pathfinding.FindPath(_grid, startCell, goalCell);
+        var path = new PathComponent();
+
+        if (PathRouteHelper.HasClearLine(currentPos, dest.Target, _grid))
+        {
+            path.Waypoints.Add(dest.Target);
+            return path;
+        }
+
+        List<GridCell> cells = Pathfinding.FindPath(
+            _grid, startCell, goalCell, diagonal: true);
         if (cells.Count == 0 && startCell != goalCell) return null;
 
-        var path = new PathComponent();
+        var raw = new List<Vector3>();
         foreach (GridCell cell in cells)
-        {
-            path.Waypoints.Add(_grid.GridToWorld(cell.X, cell.Y));
-        }
-        // Final waypoint is the exact destination
-        path.Waypoints.Add(dest.Target);
+            raw.Add(_grid.GridToWorld(cell.X, cell.Y));
 
+        raw.Add(dest.Target);
+        path.Waypoints = PathRouteHelper.StringPull(raw, _grid);
         return path;
     }
 }

@@ -1,6 +1,6 @@
 using OpenTK.Mathematics;
-using SharpOpenGl.Engine.Audio;
-using SharpOpenGl.Engine.Combat;
+using SharpOpenGl.Engine.Audio;
+using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.Events;
 
 namespace SharpOpenGl.Engine.ECS;
@@ -20,11 +20,16 @@ namespace SharpOpenGl.Engine.ECS;
 public sealed class CombatSystem : GameSystem
 {
     private readonly EventBus _bus;
+    private readonly CombatFogGate _fogGate;
 
     /// <summary>XP awarded to the killer when a unit dies (future: drive from balance.json).</summary>
     public int BaseXpPerKill { get; set; } = 25;
 
-    public CombatSystem(EventBus bus) => _bus = bus;
+    public CombatSystem(EventBus bus, CombatFogGate? fogGate = null)
+    {
+        _bus = bus;
+        _fogGate = fogGate ?? new CombatFogGate();
+    }
 
     /// <inheritdoc/>
     public override void Update(World world, float deltaTime)
@@ -54,13 +59,18 @@ public sealed class CombatSystem : GameSystem
     {
         foreach (var (attacker, ct) in world.Query<CombatTargetComponent>())
         {
+            var disabled = world.GetComponent<DisabledComponent>(attacker);
+            if (disabled is { IsActive: true }) continue;
+
             var wl = world.GetComponent<WeaponListComponent>(attacker);
             if (wl == null || wl.Weapons.Count == 0) continue;
 
-            // Drop stale target.
+            // Drop stale or fog-hidden target.
             if (!world.IsAlive(ct.CurrentTarget) ||
                 world.GetComponent<HealthComponent>(ct.CurrentTarget) == null ||
-                world.GetComponent<HealthComponent>(ct.CurrentTarget)!.IsDead)
+                world.GetComponent<HealthComponent>(ct.CurrentTarget)!.IsDead ||
+                (ct.CurrentTarget != Entity.Null
+                    && !_fogGate.CanEngage(world, attacker, ct.CurrentTarget)))
             {
                 ct.CurrentTarget = Entity.Null;
             }
@@ -73,6 +83,9 @@ public sealed class CombatSystem : GameSystem
 
             if (ct.CurrentTarget == Entity.Null) continue;
 
+            if (!_fogGate.CanEngage(world, attacker, ct.CurrentTarget))
+                continue;
+
             // Try to fire each weapon.
             var attackerPos = world.GetComponent<TransformComponent>(attacker)?.Position ?? Vector3.Zero;
             var targetPos   = world.GetComponent<TransformComponent>(ct.CurrentTarget)?.Position ?? Vector3.Zero;
@@ -83,8 +96,10 @@ public sealed class CombatSystem : GameSystem
                 if (!weapon.IsReady) continue;
                 if (dist > weapon.Range) continue;
 
-                Fire(world, attacker, ct, weapon, attackerPos, targetPos);
-                _bus.Publish(new SoundRequestedEvent(WeaponAudioProfiles.FireSoundFor(weapon.Type), attackerPos));
+                Fire(world, attacker, ct, weapon, attackerPos, targetPos);
+
+                _bus.Publish(new SoundRequestedEvent(WeaponAudioProfiles.FireSoundFor(weapon.Type), attackerPos));
+
                 weapon.Cooldown = weapon.FireRate > 0f ? 1f / weapon.FireRate : float.MaxValue;
             }
         }
@@ -92,7 +107,7 @@ public sealed class CombatSystem : GameSystem
 
     // ── Target acquisition ────────────────────────────────────────────────────
 
-    private static Entity AcquireTarget(
+    private Entity AcquireTarget(
         World world, Entity attacker, CombatTargetComponent ct, float range)
     {
         var attackerPos = world.GetComponent<TransformComponent>(attacker)?.Position ?? Vector3.Zero;
@@ -107,6 +122,7 @@ public sealed class CombatSystem : GameSystem
         {
             if (candidate == attacker) continue;
             if (health.IsDead) continue;
+            if (!_fogGate.CanEngage(world, attacker, candidate)) continue;
 
             // Skip friendlies.
             var candidateCt = world.GetComponent<CombatTargetComponent>(candidate);
@@ -200,7 +216,7 @@ public sealed class CombatSystem : GameSystem
         world.AddComponent(flash, new TransformComponent
         {
             Position = mid with { Y = MathF.Max(mid.Y, 1.2f) },
-            Scale = new Vector3(profile.Scale * 0.35f, profile.Scale * 0.35f, length * 0.5f),
+            Scale = new Vector3(profile.Scale * 0.55f, profile.Scale * 0.55f, length * 0.55f),
             EulerAngles = new Vector3(0f, yaw, 0f),
         });
         world.AddComponent(flash, new ProjectileComponent
@@ -232,6 +248,9 @@ public sealed class CombatSystem : GameSystem
 
         float final = DamageCalculator.Apply(baseDamage, health);
         _bus.Publish(new DamageDealtEvent(attacker.Index, target.Index, baseDamage, final));
+
+        var hitPos = world.GetComponent<TransformComponent>(target)?.Position ?? Vector3.Zero;
+        _bus.Publish(new ExplosionVfxEvent(hitPos, ExplosionVfxKind.Impact, 0.75f));
     }
 
     // ── Death processing ──────────────────────────────────────────────────────
@@ -256,9 +275,16 @@ public sealed class CombatSystem : GameSystem
                     heroComp.XP += xp;
             }
 
-            var deathPos = world.GetComponent<TransformComponent>(entity)?.Position ?? Vector3.Zero;
-            _bus.Publish(new SoundRequestedEvent(AudioEventType.Explosion, deathPos));
-            _bus.Publish(new UnitDiedEvent(entity.Index, killer.Index, xp));
+            var deathPos = world.GetComponent<TransformComponent>(entity)?.Position ?? Vector3.Zero;
+            bool isStation = world.HasComponent<BuildingComponent>(entity);
+            var deathKind = isStation ? ExplosionVfxKind.StationDeath : ExplosionVfxKind.ShipDeath;
+            float deathScale = isStation ? 1.2f : 1f;
+
+            _bus.Publish(new ExplosionVfxEvent(deathPos, deathKind, deathScale));
+            _bus.Publish(new SoundRequestedEvent(AudioEventType.Explosion, deathPos));
+
+            _bus.Publish(new UnitDiedEvent(entity.Index, killer.Index, xp));
+
             world.DestroyEntity(entity);
         }
     }

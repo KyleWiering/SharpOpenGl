@@ -20,6 +20,11 @@ public sealed class SupplySystem : GameSystem
         ["shipyard_large"] = 18,
         ["shipyard"] = 10,
         ["supply_depot"] = 15,
+        ["resource_refinery"] = 5,
+        ["repair_bay"] = 8,
+        ["power_reactor"] = 10,
+        ["defense_turret"] = 0,
+        ["sensor_array"] = 0,
     };
 
     /// <summary>Current supply used per player.</summary>

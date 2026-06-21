@@ -3,6 +3,10 @@
   "displayName": "Rescue Op",
   "description": "Extract the stranded science team before their life support fails.",
   "map": "sector_gamma",
+  "planetName": "Valkyr Outpost",
+  "starMapPosition": [0.45, 0.62],
+  "planetColor": "#66E0A3",
+  "prerequisiteMissionId": "mission_02",
   "briefing": {
     "text": "Commander, a science vessel has been disabled in Sector Gamma. The crew has taken refuge in an escape pod. Escort them to the extraction beacon while neutralising the pirate blockade.",
     "objectivesPreview": ["Escort the escape pod to the beacon", "Destroy the pirate blockade", "Keep the pod intact"]
@@ -71,5 +75,20 @@
     "resources": { "energy": 400, "minerals": 150, "data": 150, "crew": 5 },
     "xp": 350,
     "unlocks": ["gunship_basic"]
-  }
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [2, 8], "height": 200 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "all" },
+    { "type": "attack_move", "position": [22, 40] },
+    { "type": "wait", "seconds": 8 },
+    { "type": "attack_move", "position": [45, 45] },
+    { "type": "wait", "seconds": 10 },
+    { "type": "attack_target", "targetTag": "pirate_blockade_leader" },
+    { "type": "wait", "seconds": 20 },
+    { "type": "move_to", "position": [50, 50] },
+    { "type": "wait", "seconds": 15 },
+    { "type": "camera_pan", "position": [50, 50], "height": 220 },
+    { "type": "wait", "seconds": 2 }
+  ]
 }

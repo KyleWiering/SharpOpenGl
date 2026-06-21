@@ -121,4 +121,19 @@ public sealed class MissionDefinition
     public EndConditionDefinition? Victory { get; set; }
     public EndConditionDefinition? Defeat { get; set; }
     public RewardsDefinition? Rewards { get; set; }
+
+    /// <summary>Display name of the planet node on the galactic star map.</summary>
+    public string PlanetName { get; set; } = string.Empty;
+
+    /// <summary>Normalized [x, y] position on the star map (0–1).</summary>
+    public float[] StarMapPosition { get; set; } = [];
+
+    /// <summary>Planet accent colour as a hex string (e.g. <c>#4DA6FF</c>).</summary>
+    public string PlanetColor { get; set; } = "#4DA6FF";
+
+    /// <summary>Mission ID that must be completed before this system unlocks.</summary>
+    public string? PrerequisiteMissionId { get; set; }
+
+    /// <summary>Deterministic playthrough script for demo recordings.</summary>
+    public DemoScriptStepDefinition[] DemoScript { get; set; } = [];
 }

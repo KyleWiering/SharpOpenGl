@@ -1,7 +1,9 @@
-using OpenTK.Mathematics;
-using SharpOpenGl.Engine.Audio;
+using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Audio;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Grid;
+using SharpOpenGl.Engine.Rendering;
 using Xunit;
 
 namespace SharpOpenGl.Tests.Combat;
@@ -218,6 +220,98 @@ public class CombatSystemTests
 
     // ─────────────────────────────────────────────────────────────────────────
     // CombatSystem — projectiles and unit death
+
+    private static (World world, GridSystem grid, FogOfWar fog, CombatFogGate gate)
+        MakeFogCombatWorld()
+    {
+        var grid = new GridSystem(32, 32, cellSize: 10f);
+        var fog = new FogOfWar(grid, playerCount: 1);
+        var gate = new CombatFogGate { Grid = grid, Fog = fog, FogPlayerId = 0 };
+        var bus = new EventBus();
+        var world = new World();
+        world.AddSystem(new StanceSystem(gate));
+        world.AddSystem(new CombatSystem(bus, gate));
+        world.AddSystem(new ProjectileSystem(bus));
+        return (world, grid, fog, gate);
+    }
+
+    private static Entity MakeStarbase(World world, GridSystem grid, int faction, int gridX, int gridY,
+        float weaponRange = 500f)
+    {
+        Entity e = world.CreateEntity();
+        world.AddComponent(e, new TransformComponent { Position = grid.GridToWorld(gridX, gridY) });
+        world.AddComponent(e, new HealthComponent { MaxHP = 2000f, CurrentHP = 2000f, Armor = 0f });
+        world.AddComponent(e, new BuildingComponent { PlayerId = faction });
+        world.AddComponent(e, new StanceComponent { CurrentStance = Stance.Defensive });
+        world.AddComponent(e, new CombatTargetComponent { Faction = faction });
+        var wl = new WeaponListComponent();
+        wl.Weapons.Add(new WeaponComponent
+        {
+            Slot = 0, Type = "beam", Damage = 45f, Range = weaponRange,
+            FireRate = 2f, ProjectileType = "instant",
+        });
+        world.AddComponent(e, wl);
+        return e;
+    }
+
+    [Fact]
+    public void CombatSystem_starbase_does_not_target_enemy_outside_fog()
+    {
+        var (world, grid, fog, _) = MakeFogCombatWorld();
+        fog.Reveal(0, 0, 0, radius: 2);
+
+        Entity starbase = MakeStarbase(world, grid, faction: 1, gridX: 0, gridY: 0);
+        Entity enemy = MakeFighter(world, faction: 2, pos: grid.GridToWorld(20, 0), range: 50f);
+        world.AddComponent(enemy, new AIControlledComponent { PlayerId = 2 });
+
+        world.Update(0.6f);
+
+        var ct = world.GetComponent<CombatTargetComponent>(starbase)!;
+        Assert.Equal(Entity.Null, ct.CurrentTarget);
+
+        bool fired = false;
+        foreach (var _ in world.Query<ProjectileComponent>())
+            fired = true;
+        Assert.False(fired);
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void CombatSystem_starbase_fires_when_enemy_is_visible_in_fog()
+    {
+        var (world, grid, fog, _) = MakeFogCombatWorld();
+        fog.Reveal(0, 0, 0, radius: 2);
+        fog.Reveal(0, 20, 0, radius: 1);
+
+        Entity starbase = MakeStarbase(world, grid, faction: 1, gridX: 0, gridY: 0);
+        MakeFighter(world, faction: 2, pos: grid.GridToWorld(20, 0), range: 50f, hp: 2000f);
+
+        world.Update(0.6f);
+
+        var ct = world.GetComponent<CombatTargetComponent>(starbase)!;
+        Assert.NotEqual(Entity.Null, ct.CurrentTarget);
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void CombatSystem_ai_attacker_ignores_fog_restrictions()
+    {
+        var (world, grid, fog, _) = MakeFogCombatWorld();
+        fog.Reveal(0, 0, 0, radius: 2);
+
+        Entity aiAttacker = MakeFighter(world, faction: 2, pos: grid.GridToWorld(0, 0), range: 500f);
+        world.AddComponent(aiAttacker, new AIControlledComponent { PlayerId = 2 });
+        MakeFighter(world, faction: 1, pos: grid.GridToWorld(20, 0));
+
+        world.Update(0.001f);
+
+        var ct = world.GetComponent<CombatTargetComponent>(aiAttacker)!;
+        Assert.NotEqual(Entity.Null, ct.CurrentTarget);
+
+        world.Dispose();
+    }
     // ─────────────────────────────────────────────────────────────────────────
 
     [Fact]
@@ -302,6 +396,24 @@ public class CombatSystemTests
 
         Assert.NotNull(diedEvent);
         Assert.Equal(target.Index, diedEvent!.VictimId);
+    }
+
+    [Fact]
+    public void CombatSystem_publishes_explosion_vfx_on_death()
+    {
+        var (world, bus, _) = MakeCombatWorld();
+
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: 50f);
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
+
+        ExplosionVfxEvent? explosion = null;
+        bus.Subscribe<ExplosionVfxEvent>(e => explosion = e);
+
+        AdvanceCombatUntil(world, () => explosion != null);
+
+        Assert.NotNull(explosion);
+        Assert.Equal(ExplosionVfxKind.ShipDeath, explosion!.Kind);
     }
 
     [Fact]

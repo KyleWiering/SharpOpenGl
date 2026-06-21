@@ -1,6 +1,7 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Combat;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Rendering;
@@ -14,17 +15,17 @@ public partial class EngineWindow
     private void LoadProjectileMeshes()
     {
         RegisterProjectileMesh("projectile/laser_bolt",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildLaserBolt(new Vector3(1f, 0.4f, 0.3f))));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildLaserBolt(new Vector3(1f, 0.5f, 0.35f), 1.8f)));
         RegisterProjectileMesh("projectile/beam",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildBeamStreak(new Vector3(0.5f, 0.9f, 1f))));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildBeamStreak(new Vector3(0.55f, 0.95f, 1f), 3f)));
         RegisterProjectileMesh("projectile/torpedo",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildTorpedo(new Vector3(0.8f, 0.85f, 0.9f))));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildTorpedo(new Vector3(0.9f, 0.9f, 0.95f), 1.8f)));
         RegisterProjectileMesh("projectile/rocket",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildRocket(new Vector3(1f, 0.7f, 0.2f))));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildRocket(new Vector3(1f, 0.75f, 0.2f), 1.4f)));
         RegisterProjectileMesh("projectile/bomb",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildBomb(new Vector3(0.95f, 0.5f, 0.15f))));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildBomb(new Vector3(1f, 0.55f, 0.15f), 1.6f)));
         RegisterProjectileMesh("projectile/energy_pulse",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildEnergyPulse(new Vector3(0.6f, 0.4f, 1f))));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildEnergyPulse(new Vector3(0.7f, 0.45f, 1f), 1.5f)));
         RegisterProjectileMesh("projectile/wave",
             MeshBuilder.UploadProcedural(ProceduralMeshes.BuildWaveRing(new Vector3(0.4f, 1f, 0.85f)), lines: true));
     }
@@ -79,7 +80,7 @@ public partial class EngineWindow
                 Slot = i,
                 Type = w.type,
                 Damage = w.damage,
-                Range = w.range,
+                Range = CombatBalance.ScaleRange(w.range),
                 FireRate = w.rate,
                 ProjectileType = WeaponProfiles.DefaultProjectileTypeKey(w.type),
             });
