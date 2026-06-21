@@ -14,6 +14,10 @@ public class MapFeatureSpawnerTests
     {
         PlanetMeshId = 1,
         PlanetVertCount = 60,
+        AsteroidFieldMeshId = 10,
+        AsteroidFieldVertCount = 300,
+        NebulaMeshId = 11,
+        NebulaVertCount = 900,
         SceneryMeshId = 2,
         SceneryVertCount = 36,
         ResourceNodeMeshId = 3,
@@ -121,6 +125,66 @@ public class MapFeatureSpawnerTests
         Assert.Equal(MapFeatureKind.Scenery, features[0].Component.Kind);
         Assert.Equal("Nebula", world.GetComponent<EntityNameComponent>(features[0].Entity)!.DisplayName);
         Assert.Equal(EntityDisplayKind.Scenery, GameplayEntityDisplay.Classify(world, features[0].Entity));
+    }
+
+    [Fact]
+    public void ResolveSceneryAppearance_assigns_distinct_mesh_per_feature_type()
+    {
+        var asteroid = MapFeatureSpawner.ResolveSceneryAppearance("asteroid_field", TestMeshes);
+        var nebula = MapFeatureSpawner.ResolveSceneryAppearance("nebula", TestMeshes);
+        var debris = MapFeatureSpawner.ResolveSceneryAppearance("debris", TestMeshes);
+
+        Assert.Equal(TestMeshes.AsteroidFieldMeshId, asteroid.MeshId);
+        Assert.Equal(TestMeshes.AsteroidFieldVertCount, asteroid.VertexCount);
+        Assert.Equal(MapFeatureSpawner.AsteroidFieldTint, asteroid.Color);
+
+        Assert.Equal(TestMeshes.NebulaMeshId, nebula.MeshId);
+        Assert.Equal(TestMeshes.NebulaVertCount, nebula.VertexCount);
+        Assert.Equal(MapFeatureSpawner.NebulaTint, nebula.Color);
+
+        Assert.Equal(TestMeshes.SceneryMeshId, debris.MeshId);
+        Assert.Equal(TestMeshes.SceneryVertCount, debris.VertexCount);
+        Assert.Equal(MapFeatureSpawner.DefaultSceneryTint, debris.Color);
+    }
+
+    [Fact]
+    public void SpawnAll_assigns_asteroid_and_nebula_meshes_to_scenery_entities()
+    {
+        using var world = new World();
+        var map = new MapDefinition
+        {
+            MapFeatures =
+            [
+                new MapFeatureDefinition
+                {
+                    Kind = "scenery",
+                    FeatureType = "asteroid_field",
+                    Position = [11, 10],
+                },
+                new MapFeatureDefinition
+                {
+                    Kind = "scenery",
+                    FeatureType = "nebula",
+                    Position = [25, 25],
+                },
+            ],
+        };
+
+        MapFeatureSpawner.SpawnAll(world, map, TestMeshes);
+
+        var renders = world.Query<RenderComponent>().ToList();
+        Assert.Equal(2, renders.Count);
+
+        var asteroidRender = renders.Single(r =>
+            world.GetComponent<MapFeatureComponent>(r.Entity)!.FeatureType == "asteroid_field").Component;
+        var nebulaRender = renders.Single(r =>
+            world.GetComponent<MapFeatureComponent>(r.Entity)!.FeatureType == "nebula").Component;
+
+        Assert.Equal(TestMeshes.AsteroidFieldMeshId, asteroidRender.MeshId);
+        Assert.Equal(TestMeshes.NebulaMeshId, nebulaRender.MeshId);
+        Assert.NotEqual(asteroidRender.MeshId, nebulaRender.MeshId);
+        Assert.Equal(MapFeatureSpawner.AsteroidFieldTint, asteroidRender.Color);
+        Assert.Equal(MapFeatureSpawner.NebulaTint, nebulaRender.Color);
     }
 
     [Fact]

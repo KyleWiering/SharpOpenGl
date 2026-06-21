@@ -9,6 +9,9 @@ public sealed class CombatTargetComponent
     /// <summary>Currently locked-on target, or <see cref="Entity.Null"/> if idle.</summary>
     public Entity CurrentTarget { get; set; } = Entity.Null;
 
+    /// <summary>When true, stance logic will not drop this target until stop or target dies.</summary>
+    public bool ManualTarget { get; set; }
+
     /// <summary>Faction this entity belongs to. Entities with the same faction will not attack each other.</summary>
     public int Faction { get; set; }
 

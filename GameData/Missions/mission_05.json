@@ -3,6 +3,10 @@
   "displayName": "The Reckoning",
   "description": "Assault the enemy flagship and bring down their command network.",
   "map": "sector_omega",
+  "planetName": "Obsidian Gate",
+  "starMapPosition": [0.78, 0.58],
+  "planetColor": "#FF4D6D",
+  "prerequisiteMissionId": "mission_04",
   "briefing": {
     "text": "Commander, intelligence has pinpointed the enemy command ship — the Dreadnought Malthus — in Sector Omega. Destroy its four shield generators to expose the core, then finish it. This is the decisive battle.",
     "objectivesPreview": [
@@ -114,5 +118,20 @@
     "resources": { "energy": 1000, "minerals": 800, "data": 600, "crew": 30 },
     "xp": 1000,
     "unlocks": ["dreadnought_basic"]
-  }
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [5, 5], "height": 220 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "all" },
+    { "type": "attack_move", "position": [65, 65] },
+    { "type": "wait", "seconds": 12 },
+    { "type": "attack_target", "targetTag": "shield_generator_1" },
+    { "type": "wait", "seconds": 15 },
+    { "type": "attack_target", "targetTag": "shield_generator_2" },
+    { "type": "wait", "seconds": 15 },
+    { "type": "attack_target", "targetTag": "dreadnought_malthus" },
+    { "type": "wait", "seconds": 30 },
+    { "type": "camera_pan", "position": [70, 70], "height": 260 },
+    { "type": "wait", "seconds": 2 }
+  ]
 }

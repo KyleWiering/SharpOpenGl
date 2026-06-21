@@ -21,6 +21,8 @@ public partial class EngineWindow
         {
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
+            if (_world.HasComponent<AIControlledComponent>(entity) && !IsVisibleToPlayer(transform.Position))
+                continue;
 
             float dist = HorizontalDistance(transform.Position, worldPos);
             float effectiveRadius = sel.SelectionRadius * (_rtsCamera.Height / 100f + 1f);
@@ -35,6 +37,7 @@ public partial class EngineWindow
         {
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
+            if (!IsExploredByPlayer(transform.Position)) continue;
 
             float dist = HorizontalDistance(transform.Position, worldPos);
             if (dist < 18f && dist < closestDist)
@@ -48,6 +51,7 @@ public partial class EngineWindow
         {
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
+            if (!IsExploredByPlayer(transform.Position)) continue;
 
             float dist = HorizontalDistance(transform.Position, worldPos);
             float radius = feature.Kind == MapFeatureKind.NeutralPlanet ? 22f : 16f;
@@ -62,6 +66,7 @@ public partial class EngineWindow
         {
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
+            if (!IsVisibleToPlayer(transform.Position)) continue;
 
             float dist = HorizontalDistance(transform.Position, worldPos);
             if (dist < 20f && dist < closestDist)
@@ -125,7 +130,12 @@ public partial class EngineWindow
             string subtitle = kind == EntityDisplayKind.Hostile
                 ? "Hostile — right-click selected ships to attack"
                 : string.Empty;
-            var info = UnitInfo.FromHealth(name, health, kind);
+            string? raceId = _world.GetComponent<RaceComponent>(entity)?.RaceId;
+            var info = UnitInfo.FromHealth(name, health, kind, raceId);
+            var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+            string harvestLabel = collector != null
+                ? HarvestModeDefaults.ToLabel(collector.HarvestMode)
+                : string.Empty;
             return new UnitInfo
             {
                 Name = info.Name,
@@ -137,7 +147,11 @@ public partial class EngineWindow
                 MaxShields = info.MaxShields,
                 Armor = info.Armor,
                 DisplayKind = info.DisplayKind,
+                ShieldBarColor = info.ShieldBarColor,
                 Subtitle = subtitle,
+                HarvestMode = harvestLabel,
+                CargoAmount = collector?.CarryAmount ?? 0f,
+                CargoCapacity = collector?.CarryCapacity ?? 0f,
             };
         }
 

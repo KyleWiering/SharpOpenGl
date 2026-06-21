@@ -145,6 +145,8 @@ public sealed class ProjectileSystem : GameSystem
             _bus.Publish(new ProjectileHitEvent(projEntity.Index, candidate.Index, proj.Damage));
             _bus.Publish(new DamageDealtEvent(proj.Owner.Index, candidate.Index, proj.Damage, final));
         }
+
+        _bus.Publish(new ExplosionVfxEvent(center, ExplosionVfxKind.Impact, MathF.Max(1f, proj.BlastRadius * 0.15f)));
     }
 
     // ── Shared hit detection ──────────────────────────────────────────────────
@@ -183,5 +185,10 @@ public sealed class ProjectileSystem : GameSystem
         float final = DamageCalculator.Apply(proj.Damage, health);
         _bus.Publish(new ProjectileHitEvent(projEntity.Index, target.Index, proj.Damage));
         _bus.Publish(new DamageDealtEvent(proj.Owner.Index, target.Index, proj.Damage, final));
+
+        var hitPos = world.GetComponent<TransformComponent>(target)?.Position
+                     ?? world.GetComponent<TransformComponent>(projEntity)?.Position
+                     ?? Vector3.Zero;
+        _bus.Publish(new ExplosionVfxEvent(hitPos, ExplosionVfxKind.Impact));
     }
 }

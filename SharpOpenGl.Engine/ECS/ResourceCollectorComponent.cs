@@ -43,11 +43,23 @@ public sealed class ResourceCollectorComponent
     /// </summary>
     public Entity DepositTarget { get; set; } = Entity.Null;
 
+    /// <summary>How this collector extracts resources.</summary>
+    public HarvestMode HarvestMode { get; set; } = HarvestMode.Drones;
+
+    /// <summary>World-unit radius within which harvesting is allowed.</summary>
+    public float HarvestRange { get; set; } = 28f;
+
+    /// <summary>Effective extraction rate (units/sec) from assigned nodes.</summary>
+    public float HarvestRate { get; set; } = 5f;
+
     /// <summary>Maximum units of resource this collector can carry at once.</summary>
     public float CarryCapacity { get; set; } = 50f;
 
     /// <summary>Current amount of resource being carried.</summary>
     public float CarryAmount { get; set; }
+
+    /// <summary>Pulse timer for tractor-beam burst extraction.</summary>
+    public float TractorPulseTimer { get; set; }
 
     /// <summary>Resource type currently being carried or targeted for collection.</summary>
     public ResourceType? CarryType { get; set; }

@@ -29,13 +29,14 @@ public sealed class FogOfWarSystem : GameSystem
 
         foreach (var (entity, sight) in world.Query<SightRadiusComponent>())
         {
+            if (world.HasComponent<AIControlledComponent>(entity))
+                continue;
+
             var transform = world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
             if (_grid.WorldToGrid(transform.Position, out int gx, out int gy))
-            {
                 units.Add((gx, gy, sight.Radius));
-            }
         }
 
         _fog.Update(_playerId, units);

@@ -1,6 +1,8 @@
 {
   "_comment": "Game balance tables. Tune numbers here without code changes.",
   "combat": {
+    "globalWeaponRangeMultiplier": 0.6,
+    "globalProjectileScaleMultiplier": 1.5,
     "damageFormula": "finalDamage = baseDamage * (100 / (100 + armor)) - shieldAbsorb",
     "minimumDamage": 1,
     "hitRadius": 2.0,
@@ -87,10 +89,71 @@
       "armor": 100,
       "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
       "buildTime": 0
+    },
+    "shipyard_small": {
+      "maxHP": 800,
+      "armor": 50,
+      "cost": { "energy": 120, "minerals": 180, "data": 0, "crew": 2 },
+      "buildTime": 40
+    },
+    "shipyard_medium": {
+      "maxHP": 1500,
+      "armor": 75,
+      "cost": { "energy": 220, "minerals": 320, "data": 25, "crew": 4 },
+      "buildTime": 55
+    },
+    "shipyard_large": {
+      "maxHP": 2200,
+      "armor": 90,
+      "cost": { "energy": 380, "minerals": 520, "data": 60, "crew": 6 },
+      "buildTime": 75
+    },
+    "defense_turret": {
+      "maxHP": 600,
+      "armor": 40,
+      "cost": { "energy": 60, "minerals": 90, "data": 0, "crew": 1 },
+      "buildTime": 18
+    },
+    "sensor_array": {
+      "maxHP": 450,
+      "armor": 25,
+      "cost": { "energy": 80, "minerals": 70, "data": 15, "crew": 1 },
+      "buildTime": 22
+    },
+    "resource_refinery": {
+      "maxHP": 900,
+      "armor": 55,
+      "cost": { "energy": 140, "minerals": 200, "data": 10, "crew": 2 },
+      "buildTime": 35
+    },
+    "repair_bay": {
+      "maxHP": 1100,
+      "armor": 60,
+      "cost": { "energy": 160, "minerals": 240, "data": 20, "crew": 3 },
+      "buildTime": 42
+    },
+    "power_reactor": {
+      "maxHP": 750,
+      "armor": 45,
+      "cost": { "energy": 100, "minerals": 150, "data": 5, "crew": 2 },
+      "buildTime": 30
+    },
+    "supply_depot": {
+      "maxHP": 650,
+      "armor": 35,
+      "cost": { "energy": 90, "minerals": 120, "data": 0, "crew": 1 },
+      "buildTime": 25
     }
   },
   "economy": {
     "upkeepPerShip": { "energy": 0.5, "crew": 0.1 },
     "resourceNodeRespawnSeconds": 120
+  },
+  "movement": {
+    "globalSpeedMultiplier": 0.2,
+    "globalAccelerationMultiplier": 0.3
+  },
+  "visual": {
+    "globalShipScaleMultiplier": 3.5
   }
 }

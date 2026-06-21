@@ -32,6 +32,10 @@ public sealed class ResourceManager
     public PlayerResources? GetPlayer(int playerId) =>
         _players.TryGetValue(playerId, out var p) ? p : null;
 
+    /// <summary>Enumerate all registered player resource pools.</summary>
+    public IEnumerable<(int PlayerId, PlayerResources Resources)> AllPlayers() =>
+        _players.Select(kv => (kv.Key, kv.Value));
+
     // ── Single-resource operations ───────────────────────────────────────────
 
     /// <summary>

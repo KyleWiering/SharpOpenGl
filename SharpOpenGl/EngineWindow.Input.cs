@@ -1,7 +1,9 @@
 using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Scenes;
+using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
 
 namespace SharpOpenGl;
@@ -42,6 +44,13 @@ public partial class EngineWindow
             return;
         }
 
+        if (_world != null)
+        {
+            UpdateAttackHoverTarget(screenPoint);
+            if (_placementBuildingId != null)
+                UpdatePlacementPreview();
+        }
+
         if (!_selectionDragActive)
             return;
 
@@ -54,18 +63,38 @@ public partial class EngineWindow
     {
         if (e.Button == MouseButton.Right && _cameraPanDragActive)
         {
-            if (!_cameraPanDragMoved && _sceneManager.State == GameState.Playing && _world != null)
+            if (_sceneManager.State == GameState.Playing && _world != null)
             {
-                Vector3? worldPos = ScreenToWorldGround(_cameraPanDragStart);
-                if (worldPos != null)
+                _attackMoveMode = false;
+                _patrolMode = false;
+                _moveCommandMode = false;
+                _attackMode = false;
+                _placementBuildingId = null;
+                _placementPreviewValid = false;
+                if (_uiManager.Current is GameplayHUD cancelHud)
                 {
-                    _attackMoveMode = false;
-                    _patrolMode = false;
-                    _moveCommandMode = false;
-                    _placementBuildingId = null;
-                    if (_uiManager.Current is GameplayHUD cancelHud)
-                        cancelHud.ShipControlBar.ClearActiveCommand();
-                    HandleMoveCommand(worldPos.Value);
+                    cancelHud.ShipControlBar.ClearActiveCommand();
+                    cancelHud.BuildMapPanel.Visible = false;
+                }
+
+                var releasePoint = new Vector2(MousePosition.X, MousePosition.Y);
+                Entity? attackTarget = HasSelectedUnits()
+                    ? ResolveAttackTargetAt(releasePoint, preferHover: !_cameraPanDragMoved)
+                    : null;
+
+                if (attackTarget.HasValue)
+                {
+                    HandleAttackCommand(attackTarget.Value);
+                }
+                else if (!_cameraPanDragMoved)
+                {
+                    Vector3? worldPos = ScreenToWorldGround(releasePoint);
+                    if (worldPos != null)
+                    {
+                        bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) ||
+                                         KeyboardState.IsKeyDown(Keys.RightShift);
+                        HandleMoveCommand(worldPos.Value, appendWaypoint: shiftHeld);
+                    }
                 }
             }
 
@@ -91,15 +120,46 @@ public partial class EngineWindow
         CancelSelectionDrag();
     }
 
+    private bool TryHandleMenuKey(Keys key)
+    {
+        if (_uiManager.Current == null)
+            return false;
+
+        UIKey? uiKey = key switch
+        {
+            Keys.Up => UIKey.Up,
+            Keys.Down => UIKey.Down,
+            Keys.Enter => UIKey.Enter,
+            _ => null,
+        };
+
+        if (uiKey == null)
+            return false;
+
+        if (_uiManager.HandleKey(uiKey.Value))
+        {
+            if (uiKey.Value == UIKey.Enter)
+                PlayUiClick();
+            return true;
+        }
+
+        return false;
+    }
+
     private void ProcessMouseDownRight()
     {
         CancelSelectionDrag();
         _attackMoveMode = false;
         _patrolMode = false;
         _moveCommandMode = false;
+        _attackMode = false;
         _placementBuildingId = null;
+        _placementPreviewValid = false;
         if (_uiManager.Current is GameplayHUD cancelHud)
+        {
             cancelHud.ShipControlBar.ClearActiveCommand();
+            cancelHud.BuildMapPanel.Visible = false;
+        }
 
         var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
         BeginCameraPanDrag(screenPoint);

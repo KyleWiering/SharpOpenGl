@@ -4,6 +4,10 @@
   "displayName": "Mission Display Name",
   "description": "Short description of the mission.",
   "map": "sector_alpha",
+  "planetName": "System Name",
+  "starMapPosition": [0.5, 0.5],
+  "planetColor": "#4DA6FF",
+  "prerequisiteMissionId": null,
   "briefing": {
     "text": "Narrative briefing text shown before the mission starts.",
     "objectivesPreview": ["Objective 1 summary", "Objective 2 summary"]

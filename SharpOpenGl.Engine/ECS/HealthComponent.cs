@@ -20,6 +20,11 @@ public sealed class HealthComponent
     public float MaxShields { get; set; }
 
     /// <summary>
+    /// Out-of-combat shield regeneration per second. Zero for non-shield races.
+    /// </summary>
+    public float ShieldRegenPerSecond { get; set; }
+
+    /// <summary>
     /// Flat damage reduction applied after shields are depleted.
     /// </summary>
     public float Armor { get; set; }

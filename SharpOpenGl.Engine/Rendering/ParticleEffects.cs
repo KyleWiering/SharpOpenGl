@@ -53,6 +53,54 @@ public static class ParticleEffects
         };
     }
 
+    /// <summary>Short spark burst on weapon impact.</summary>
+    public static ParticleEmitter CreateImpactBurst(Vector3 origin, float scale = 1f)
+    {
+        float radius = 1.4f * scale;
+        return new ParticleEmitter(96)
+        {
+            Origin           = origin,
+            EmitRate         = 1200f,
+            BaseVelocity     = Vector3.UnitY * 0.8f,
+            VelocitySpread   = radius,
+            ParticleLifetime = 0.45f,
+            StartColor       = new Vector4(1.0f, 0.85f, 0.35f, 1f),
+            EndColor         = new Vector4(0.9f, 0.25f, 0.05f, 0f),
+        };
+    }
+
+    /// <summary>Destruction burst for ships and small craft.</summary>
+    public static ParticleEmitter CreateShipDeathExplosion(Vector3 origin, float scale = 1f)
+    {
+        float radius = 3.5f * scale;
+        return new ParticleEmitter(384)
+        {
+            Origin           = origin,
+            EmitRate         = 1400f,
+            BaseVelocity     = Vector3.UnitY * 1.5f,
+            VelocitySpread   = radius,
+            ParticleLifetime = 1.0f,
+            StartColor       = new Vector4(1.0f, 0.55f, 0.12f, 1f),
+            EndColor         = new Vector4(0.25f, 0.08f, 0.02f, 0f),
+        };
+    }
+
+    /// <summary>Large destruction burst for stations and bases.</summary>
+    public static ParticleEmitter CreateStationDeathExplosion(Vector3 origin, float scale = 1f)
+    {
+        float radius = 7f * scale;
+        return new ParticleEmitter(768)
+        {
+            Origin           = origin,
+            EmitRate         = 1800f,
+            BaseVelocity     = Vector3.UnitY * 2.5f,
+            VelocitySpread   = radius,
+            ParticleLifetime = 1.6f,
+            StartColor       = new Vector4(1.0f, 0.7f, 0.2f, 1f),
+            EndColor         = new Vector4(0.35f, 0.12f, 0.05f, 0f),
+        };
+    }
+
     // ── Shield bubble ─────────────────────────────────────────────────────────
 
     /// <summary>

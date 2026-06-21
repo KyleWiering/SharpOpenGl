@@ -20,8 +20,19 @@
       }
     ]
   },
+  "skirmish": false,
+  "playerCount": 2,
   "spawnPoints": [
-    { "player": 1, "position": [3,  3],  "layer": "surface" },
+    {
+      "player": 1,
+      "position": [3, 3],
+      "layer": "surface",
+      "baseArea": [0, 0, 12, 12],
+      "starterBuildings": [
+        { "id": "command_center", "offset": [4, 4] },
+        { "id": "shipyard_small", "offset": [8, 4] }
+      ]
+    },
     { "player": 2, "position": [60, 60], "layer": "surface" }
   ],
   "resourceNodes": [
@@ -53,6 +64,13 @@
       "name": "Asteroid Field",
       "position": [11, 10],
       "scale": 8
+    },
+    {
+      "kind": "scenery",
+      "featureType": "nebula",
+      "name": "Nebula",
+      "position": [25, 25],
+      "scale": 12
     }
   ]
 }

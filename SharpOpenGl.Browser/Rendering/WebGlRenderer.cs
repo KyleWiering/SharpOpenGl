@@ -46,6 +46,13 @@ public sealed class WebGlRenderer : IRenderer
             new[] { color.X, color.Y, color.Z, color.W }, primitiveType);
     }
 
+    public void DrawPoints(int meshId, float[] vertices, int pointCount, Matrix4 model, float pointSize = 5f)
+    {
+        if (!_inFrame || meshId <= 0 || pointCount <= 0 || vertices.Length == 0) return;
+        _ = _js.InvokeVoidAsync("sharpGl.drawPoints",
+            meshId, vertices, pointCount, MatrixToArray(model), pointSize);
+    }
+
     public void EndFrame() => _inFrame = false;
 
     public void Resize(int width, int height) =>

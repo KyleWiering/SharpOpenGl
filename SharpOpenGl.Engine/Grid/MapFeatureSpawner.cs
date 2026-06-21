@@ -12,12 +12,22 @@ public static class MapFeatureSpawner
     {
         public int PlanetMeshId { get; init; }
         public int PlanetVertCount { get; init; }
+        public int AsteroidFieldMeshId { get; init; }
+        public int AsteroidFieldVertCount { get; init; }
+        public int NebulaMeshId { get; init; }
+        public int NebulaVertCount { get; init; }
         public int SceneryMeshId { get; init; }
         public int SceneryVertCount { get; init; }
         public int ResourceNodeMeshId { get; init; }
         public int ResourceNodeVertCount { get; init; }
         public int PrimitiveTriangles { get; init; } = 4;
     }
+
+    public readonly record struct SceneryAppearance(int MeshId, int VertexCount, Vector4 Color);
+
+    public static readonly Vector4 AsteroidFieldTint = new(0f, 0f, 0f, 0f);
+    public static readonly Vector4 NebulaTint = new(0f, 0f, 0f, 0f);
+    public static readonly Vector4 DefaultSceneryTint = new(0.55f, 0.58f, 0.62f, 1f);
 
     public static void SpawnAll(
         World world,
@@ -194,11 +204,12 @@ public static class MapFeatureSpawner
             Position = pos with { Y = scale * 0.2f },
             Scale = Vector3.One * (scale / 6f),
         });
+        var appearance = ResolveSceneryAppearance(featureType, meshes);
         world.AddComponent(entity, new RenderComponent
         {
-            MeshId = meshes.SceneryMeshId,
-            VertexCount = meshes.SceneryVertCount,
-            Color = new Vector4(0.55f, 0.58f, 0.62f, 1f),
+            MeshId = appearance.MeshId,
+            VertexCount = appearance.VertexCount,
+            Color = appearance.Color,
             Visible = true,
             PrimitiveType = meshes.PrimitiveTriangles,
         });
@@ -228,4 +239,24 @@ public static class MapFeatureSpawner
         "debris" => "Debris Field",
         _ => featureType.Replace('_', ' '),
     };
+
+    public static SceneryAppearance ResolveSceneryAppearance(string featureType, MeshHandles meshes)
+    {
+        string normalized = featureType.ToLowerInvariant();
+        return normalized switch
+        {
+            "asteroid_field" => new(
+                meshes.AsteroidFieldMeshId,
+                meshes.AsteroidFieldVertCount,
+                AsteroidFieldTint),
+            "nebula" => new(
+                meshes.NebulaMeshId,
+                meshes.NebulaVertCount,
+                NebulaTint),
+            _ => new(
+                meshes.SceneryMeshId,
+                meshes.SceneryVertCount,
+                DefaultSceneryTint),
+        };
+    }
 }

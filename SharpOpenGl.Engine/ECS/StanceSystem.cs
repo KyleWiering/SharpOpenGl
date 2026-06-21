@@ -5,7 +5,7 @@ namespace SharpOpenGl.Engine.ECS;
 /// <summary>
 /// Applies stance-based targeting rules to entities with <see cref="StanceComponent"/>.
 /// <list type="bullet">
-///   <item><b>Neutral</b>: Does not auto-engage enemies.</item>
+///   <item><b>Neutral</b> (passive): Does not engage unless a manual target is already locked.</item>
 ///   <item><b>Defensive</b>: Engages enemies within defensive radius or that attack first.</item>
 ///   <item><b>Aggressive</b>: Pursues any enemy within weapon range.</item>
 /// </list>
@@ -25,19 +25,13 @@ public sealed class StanceSystem : GameSystem
             switch (stance.CurrentStance)
             {
                 case Stance.Neutral:
-                    // Clear any auto-acquired target (keep manually assigned ones)
-                    if (ct.CurrentTarget != Entity.Null &&
-                        !world.IsAlive(ct.CurrentTarget))
-                    {
+                    if (!ct.ManualTarget)
                         ct.CurrentTarget = Entity.Null;
-                    }
                     break;
 
                 case Stance.Defensive:
                     if (ct.CurrentTarget == Entity.Null)
-                    {
                         ct.CurrentTarget = FindDefensiveTarget(world, entity, ct);
-                    }
                     break;
 
                 case Stance.Aggressive:
@@ -59,7 +53,6 @@ public sealed class StanceSystem : GameSystem
     {
         var selfPos = world.GetComponent<TransformComponent>(self)?.Position ?? Vector3.Zero;
 
-        // Find enemies targeting us or within defensive radius
         foreach (var (candidate, candidateCt) in world.Query<CombatTargetComponent>())
         {
             if (candidate == self) continue;
@@ -68,10 +61,8 @@ public sealed class StanceSystem : GameSystem
             var health = world.GetComponent<HealthComponent>(candidate);
             if (health == null || health.IsDead) continue;
 
-            // Enemy is targeting us — retaliate
             if (candidateCt.CurrentTarget == self) return candidate;
 
-            // Enemy within defensive radius
             var candidatePos = world.GetComponent<TransformComponent>(candidate)?.Position
                               ?? Vector3.Zero;
             float dist = (candidatePos - selfPos).Length;
@@ -89,13 +80,14 @@ public sealed class StanceSystem : GameSystem
         Entity closest = Entity.Null;
         float closestDist = float.MaxValue;
 
-        foreach (var (candidate, candidateCt) in world.Query<CombatTargetComponent>())
+        foreach (var (candidate, health) in world.Query<HealthComponent>())
         {
-            if (candidate == self) continue;
-            if (candidateCt.Faction == selfCt.Faction) continue;
+            if (candidate == self || health.IsDead) continue;
 
-            var health = world.GetComponent<HealthComponent>(candidate);
-            if (health == null || health.IsDead) continue;
+            var candidateCt = world.GetComponent<CombatTargetComponent>(candidate);
+            if (candidateCt != null && candidateCt.Faction == selfCt.Faction) continue;
+            if (candidateCt == null && !world.HasComponent<AIControlledComponent>(candidate))
+                continue;
 
             var candidatePos = world.GetComponent<TransformComponent>(candidate)?.Position
                               ?? Vector3.Zero;

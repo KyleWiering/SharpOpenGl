@@ -17,6 +17,7 @@ public sealed class UnitInfoPanel : Widget
     public Vector4 BackgroundColor { get; set; } = new Vector4(0.05f, 0.06f, 0.12f, 0.92f);
     public Vector4 HPColor { get; set; } = new Vector4(0.2f, 0.9f, 0.2f, 1f);
     public Vector4 ShieldColor { get; set; } = new Vector4(0.3f, 0.6f, 1.0f, 1f);
+    public Vector4 CargoColor { get; set; } = new Vector4(0.95f, 0.75f, 0.2f, 1f);
     public Vector4 BarBgColor { get; set; } = new Vector4(0.15f, 0.15f, 0.15f, 1f);
     public float FontSize { get; set; } = 18f;
 
@@ -83,8 +84,30 @@ public sealed class UnitInfoPanel : Widget
                 renderer.DrawRect(new Vector2(barX, shieldY), new Vector2(barW, barH), BarBgColor);
                 float shieldFill = barW * Math.Clamp(unit.ShieldFraction, 0f, 1f);
                 if (shieldFill > 0f)
+                {
+                    Vector4 shieldColor = unit.ShieldBarColor ?? ShieldColor;
                     renderer.DrawRect(new Vector2(barX, shieldY),
-                        new Vector2(shieldFill, barH), ShieldColor);
+                        new Vector2(shieldFill, barH), shieldColor);
+                }
+                barY = shieldY + barH + 3f;
+            }
+
+            if (unit.CargoCapacity > 0f)
+            {
+                if (!string.IsNullOrEmpty(unit.HarvestMode))
+                {
+                    string cargoLabel =
+                        $"Harvest: {unit.HarvestMode}   Cargo {unit.CargoAmount:0}/{unit.CargoCapacity:0}";
+                    float labelY = barY + 2f;
+                    UITextDrawing.DrawTextBlock(renderer, cargoLabel, new Vector2(barX, labelY),
+                        FontSize - 3f, new Vector4(0.82f, 0.78f, 0.55f, 1f), barW);
+                    barY = labelY + (FontSize - 3f) * UITextDrawing.LineHeightFactor + 3f;
+                }
+
+                renderer.DrawRect(new Vector2(barX, barY), new Vector2(barW, barH), BarBgColor);
+                float cargoFill = barW * Math.Clamp(unit.CargoFraction, 0f, 1f);
+                if (cargoFill > 0f)
+                    renderer.DrawRect(new Vector2(barX, barY), new Vector2(cargoFill, barH), CargoColor);
             }
         }
 

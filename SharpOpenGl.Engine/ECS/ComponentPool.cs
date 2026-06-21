@@ -11,6 +11,9 @@ internal interface IComponentPool
 
     /// <summary>Remove all components.</summary>
     void Clear();
+
+    /// <summary>Returns <c>true</c> when the entity index has a component in this pool.</summary>
+    bool Has(uint entityIndex);
 }
 
 /// <summary>

@@ -46,17 +46,34 @@ public class FogOfWarSystemTests
         });
         world.AddComponent(ship, new SightRadiusComponent { Radius = 2 });
 
-        // First update reveals cells around (4,4)
         system.Update(world, 0.016f);
         Assert.Equal(FogState.Visible, fog.GetState(0, 4, 4));
 
-        // Move ship away
         world.GetComponent<TransformComponent>(ship)!.Position = grid.GridToWorld(12, 12);
 
-        // Second update should downgrade old cells
         system.Update(world, 0.016f);
         Assert.Equal(FogState.Explored, fog.GetState(0, 4, 4));
         Assert.Equal(FogState.Visible, fog.GetState(0, 12, 12));
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void FogOfWarSystem_ignores_enemy_sight()
+    {
+        var grid = new GridSystem(16, 16);
+        var fog = new FogOfWar(grid, playerCount: 1);
+        var world = new World();
+        var system = new FogOfWarSystem(grid, fog, playerId: 0);
+
+        Entity enemy = world.CreateEntity();
+        world.AddComponent(enemy, new TransformComponent { Position = grid.GridToWorld(12, 12) });
+        world.AddComponent(enemy, new SightRadiusComponent { Radius = 8 });
+        world.AddComponent(enemy, new AIControlledComponent { PlayerId = 2 });
+
+        system.Update(world, 0.016f);
+
+        Assert.Equal(FogState.Unexplored, fog.GetState(0, 12, 12));
 
         world.Dispose();
     }

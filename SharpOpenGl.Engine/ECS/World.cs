@@ -83,6 +83,33 @@ public sealed class World : IDisposable
     /// <summary>Number of currently live entities.</summary>
     public int LiveCount => _liveCount;
 
+    /// <summary>
+    /// Resolve a live entity from a command/replay entity index.
+    /// Returns <c>false</c> when the slot is empty or recycled.
+    /// </summary>
+    public bool TryGetEntityByIndex(uint index, out Entity entity)
+    {
+        entity = Entity.Null;
+        if (index >= (uint)_generations.Count)
+            return false;
+
+        bool hasComponents = false;
+        foreach (IComponentPool pool in _pools.Values)
+        {
+            if (pool.Has(index))
+            {
+                hasComponents = true;
+                break;
+            }
+        }
+
+        if (!hasComponents)
+            return false;
+
+        entity = new Entity(index, _generations[(int)index]);
+        return IsAlive(entity);
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Component management
     // ─────────────────────────────────────────────────────────────────────────

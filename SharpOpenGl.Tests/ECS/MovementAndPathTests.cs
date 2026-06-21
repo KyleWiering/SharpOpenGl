@@ -153,6 +153,74 @@ public class MovementAndPathTests
     }
 
     [Fact]
+    public void MovementSystem_keeps_moving_while_route_managed_within_arrival_threshold()
+    {
+        var world = new World();
+        var system = new MovementSystem();
+
+        Entity ship = world.CreateEntity();
+        world.AddComponent(ship, new TransformComponent
+        {
+            Position = new Vector3(9.2f, 0, 0),
+        });
+        world.AddComponent(ship, new MovementComponent
+        {
+            Speed = 100f,
+            Acceleration = 200f,
+            TurnRate = 360f,
+            PathTarget = new Vector3(10, 0, 0),
+        });
+        world.AddComponent(ship, new DestinationComponent
+        {
+            Target = new Vector3(10, 0, 0),
+            GridX = 10,
+            GridY = 0,
+        });
+
+        system.Update(world, 0.1f);
+
+        var movement = world.GetComponent<MovementComponent>(ship)!;
+        Assert.NotNull(movement.PathTarget);
+        Assert.True(movement.Velocity.Length > 0.01f);
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void Full_route_pipeline_ship_reaches_destination()
+    {
+        var bus = new EventBus();
+        var grid = new GridSystem(16, 16);
+        var world = new World();
+        world.AddSystem(new AutoMoveSystem(bus));
+        world.AddSystem(new PathFollowingSystem(grid));
+        world.AddSystem(new MovementSystem());
+
+        Entity ship = world.CreateEntity();
+        world.AddComponent(ship, new TransformComponent
+        {
+            Position = grid.GridToWorld(0, 0),
+        });
+        world.AddComponent(ship, new MovementComponent
+        {
+            Speed = 30f,
+            Acceleration = 80f,
+            TurnRate = 360f,
+        });
+
+        RouteCommands.AssignDestination(world, ship, grid.GridToWorld(5, 0));
+
+        for (int i = 0; i < 600; i++)
+            world.Update(1f / 60f);
+
+        var transform = world.GetComponent<TransformComponent>(ship)!;
+        float dist = Vector3.Distance(transform.Position, grid.GridToWorld(5, 0));
+        Assert.True(dist < 2f, $"Ship should reach destination, dist={dist}");
+
+        world.Dispose();
+    }
+
+    [Fact]
     public void AutoMoveSystem_advances_through_waypoints()
     {
         var bus = new EventBus();
@@ -177,12 +245,13 @@ public class MovementAndPathTests
             }
         });
 
-        // First update should assign first waypoint as destination
+        // First update should assign first waypoint as destination without advancing index
         system.Update(world, 0.016f);
         Assert.True(world.HasComponent<DestinationComponent>(ship));
 
         var dest = world.GetComponent<DestinationComponent>(ship)!;
         Assert.Equal(new Vector3(5, 0, 0), dest.Target);
+        Assert.Equal(0, world.GetComponent<WaypointQueueComponent>(ship)!.CurrentIndex);
 
         world.Dispose();
     }

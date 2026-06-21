@@ -9,8 +9,11 @@
     "movement": { "speed": 45, "acceleration": 60, "turnRate": 120 },
     "weapons": [],
     "resourceCollector": {
-      "carryCapacity": 100,
-      "harvestRate": 15
+      "harvestMode": "drones",
+      "harvestRange": 28,
+      "harvestRate": 15,
+      "harvestRateMultiplier": 1.0,
+      "carryCapacity": 100
     }
   },
   "cost": { "energy": 60, "minerals": 100, "data": 0, "crew": 2 },

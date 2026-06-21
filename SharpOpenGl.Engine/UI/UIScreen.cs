@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl.Engine.UI;
 
@@ -48,6 +49,63 @@ public abstract class UIScreen
         if (!Visible) return;
         for (int i = _roots.Count - 1; i >= 0; i--)
             _roots[i].UpdatePointerState(screenPoint, isPointerDown, Vector2.Zero, viewportSize);
+    }
+
+    /// <summary>Handle a navigation key pressed while this screen is active.</summary>
+    public virtual bool HandleKey(UIKey key) => false;
+
+    /// <summary>Return the topmost hovered button on this screen, if any.</summary>
+    public Button? FindHoveredButton()
+    {
+        if (!Visible) return null;
+
+        Button? hovered = null;
+        for (int i = _roots.Count - 1; i >= 0; i--)
+            hovered = FindHoveredButtonInWidget(_roots[i]) ?? hovered;
+        return hovered;
+    }
+
+    private static Button? FindHoveredButtonInWidget(Widget widget)
+    {
+        if (widget is Button { IsHovered: true } button)
+            return button;
+
+        for (int i = widget.Children.Count - 1; i >= 0; i--)
+        {
+            Button? childMatch = FindHoveredButtonInWidget(widget.Children[i]);
+            if (childMatch != null)
+                return childMatch;
+        }
+
+        return null;
+    }
+
+    /// <summary>Find a button anywhere in the widget tree by <see cref="Widget.Name"/>.</summary>
+    public Button? FindButton(string name)
+    {
+        foreach (Widget root in _roots)
+        {
+            Button? match = FindButtonInWidget(root, name);
+            if (match != null)
+                return match;
+        }
+
+        return null;
+    }
+
+    private static Button? FindButtonInWidget(Widget widget, string name)
+    {
+        if (widget is Button button && button.Name == name)
+            return button;
+
+        for (int i = widget.Children.Count - 1; i >= 0; i--)
+        {
+            Button? childMatch = FindButtonInWidget(widget.Children[i], name);
+            if (childMatch != null)
+                return childMatch;
+        }
+
+        return null;
     }
 
     protected void AddWidget(Widget widget) => _roots.Add(widget);

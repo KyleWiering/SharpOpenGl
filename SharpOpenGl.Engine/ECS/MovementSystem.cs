@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Config;
 
 namespace SharpOpenGl.Engine.ECS;
 
@@ -16,6 +17,14 @@ public sealed class MovementSystem : GameSystem
     {
         foreach (var (entity, movement) in world.Query<MovementComponent>())
         {
+            var disabled = world.GetComponent<DisabledComponent>(entity);
+            if (disabled is { IsActive: true })
+            {
+                movement.PathTarget = null;
+                movement.Velocity = Vector3.Zero;
+                continue;
+            }
+
             if (movement.PathTarget == null)
             {
                 // Decelerate to stop
@@ -37,7 +46,11 @@ public sealed class MovementSystem : GameSystem
             Vector3 toTarget = target - transform.Position;
             float distance = toTarget.Length;
 
-            if (distance < ArrivalThreshold)
+            // PathFollowingSystem owns arrival while a route is active.
+            bool routeManaged = world.HasComponent<DestinationComponent>(entity)
+                || world.HasComponent<PathComponent>(entity);
+
+            if (distance < ArrivalThreshold && !routeManaged)
             {
                 movement.PathTarget = null;
                 movement.Velocity = Vector3.Zero;
@@ -45,6 +58,8 @@ public sealed class MovementSystem : GameSystem
             }
 
             Vector3 direction = toTarget.Normalized();
+            float maxSpeed = movement.Speed * MovementBalance.SpeedMultiplier;
+            float maxAccel = movement.Acceleration * MovementBalance.AccelerationMultiplier;
 
             // Rotate toward target (yaw only for top-down RTS)
             float targetYaw = MathHelper.RadiansToDegrees(
@@ -59,12 +74,12 @@ public sealed class MovementSystem : GameSystem
                 transform.EulerAngles.Z);
 
             // Compute desired speed (slow near target)
-            float desiredSpeed = movement.Speed;
-            float slowRadius = movement.Speed * 0.3f;
+            float desiredSpeed = maxSpeed;
+            float slowRadius = maxSpeed * 0.3f;
             if (distance < slowRadius)
             {
-                desiredSpeed = movement.Speed * (distance / slowRadius);
-                desiredSpeed = MathF.Max(desiredSpeed, movement.Speed * 0.15f);
+                desiredSpeed = maxSpeed * (distance / slowRadius);
+                desiredSpeed = MathF.Max(desiredSpeed, maxSpeed * 0.15f);
             }
 
             // Accelerate toward target
@@ -72,15 +87,15 @@ public sealed class MovementSystem : GameSystem
             Vector3 accel = desiredVelocity - movement.Velocity;
             if (accel.LengthSquared > 0.001f)
             {
-                float accelMag = MathF.Min(accel.Length, movement.Acceleration * deltaTime);
+                float accelMag = MathF.Min(accel.Length, maxAccel * deltaTime);
                 accel = accel.Normalized() * accelMag;
             }
             movement.Velocity += accel;
 
             // Clamp speed
-            if (movement.Velocity.Length > movement.Speed)
+            if (movement.Velocity.Length > maxSpeed)
             {
-                movement.Velocity = movement.Velocity.Normalized() * movement.Speed;
+                movement.Velocity = movement.Velocity.Normalized() * maxSpeed;
             }
 
             transform.Position += movement.Velocity * deltaTime;

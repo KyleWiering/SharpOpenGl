@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <PackageReference Include="OpenTK" Version="4.8.2" />
+    <PackageReference Include="Silk.NET.OpenAL.Soft.Native" Version="1.23.1" GeneratePathProperty="true" />
     <PackageReference Include="StbImageWriteSharp" Version="1.16.7" />
   </ItemGroup>
 
@@ -21,6 +22,29 @@
   <ItemGroup>
     <Content Include="..\GameData\**\*" Link="GameData\%(RecursiveDir)%(Filename)%(Extension)">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- OpenTK P/Invokes openal32.dll on Windows; OpenAL Soft ships as soft_oal.dll. -->
+  <PropertyGroup>
+    <_OpenALNativeRuntime Condition="'$(_OpenALNativeRuntime)' == '' and '$(RuntimeIdentifier)' != ''">$(RuntimeIdentifier)</_OpenALNativeRuntime>
+    <_OpenALNativeRuntime Condition="'$(_OpenALNativeRuntime)' == '' and $([MSBuild]::IsOsPlatform('Windows'))">win-x64</_OpenALNativeRuntime>
+    <_OpenALNativeRuntime Condition="'$(_OpenALNativeRuntime)' == '' and $([MSBuild]::IsOsPlatform('Linux'))">linux-x64</_OpenALNativeRuntime>
+    <_OpenALNativeRuntime Condition="'$(_OpenALNativeRuntime)' == '' and $([MSBuild]::IsOsPlatform('OSX'))">osx-x64</_OpenALNativeRuntime>
+    <_OpenALNativeSource Condition="'$(_OpenALNativeRuntime)' == 'win-x64' or '$(_OpenALNativeRuntime)' == 'win-x86' or '$(_OpenALNativeRuntime)' == 'win-arm64'">$(PkgSilk_NET_OpenAL_Soft_Native)\runtimes\$(_OpenALNativeRuntime)\native\soft_oal.dll</_OpenALNativeSource>
+    <_OpenALNativeLink Condition="'$(_OpenALNativeRuntime)' == 'win-x64' or '$(_OpenALNativeRuntime)' == 'win-x86' or '$(_OpenALNativeRuntime)' == 'win-arm64'">openal32.dll</_OpenALNativeLink>
+    <_OpenALNativeSource Condition="'$(_OpenALNativeRuntime)' == 'linux-x64' or '$(_OpenALNativeRuntime)' == 'linux-arm64' or '$(_OpenALNativeRuntime)' == 'linux-arm'">$(PkgSilk_NET_OpenAL_Soft_Native)\runtimes\$(_OpenALNativeRuntime)\native\libopenal.so</_OpenALNativeSource>
+    <_OpenALNativeLink Condition="'$(_OpenALNativeRuntime)' == 'linux-x64' or '$(_OpenALNativeRuntime)' == 'linux-arm64' or '$(_OpenALNativeRuntime)' == 'linux-arm'">libopenal.so</_OpenALNativeLink>
+    <_OpenALNativeSource Condition="'$(_OpenALNativeRuntime)' == 'osx-x64' or '$(_OpenALNativeRuntime)' == 'osx-arm64'">$(PkgSilk_NET_OpenAL_Soft_Native)\runtimes\$(_OpenALNativeRuntime)\native\libopenal.dylib</_OpenALNativeSource>
+    <_OpenALNativeLink Condition="'$(_OpenALNativeRuntime)' == 'osx-x64' or '$(_OpenALNativeRuntime)' == 'osx-arm64'">libopenal.dylib</_OpenALNativeLink>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_OpenALNativeSource)' != '' and Exists('$(_OpenALNativeSource)')">
+    <Content Include="$(_OpenALNativeSource)" Link="$(_OpenALNativeLink)">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <Visible>false</Visible>
     </Content>
   </ItemGroup>
 

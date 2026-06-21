@@ -30,6 +30,7 @@ public sealed class BrowserGameHost : IDisposable
     private readonly WebGlRenderer _glRenderer;
     private readonly BrowserMeshLibrary _meshes = new();
     private readonly BrowserGameplayRenderer _gameplayRenderer;
+    private readonly ExplosionVfxController _explosionVfx = new();
     private readonly HttpAssetTextSource _assetSource;
     private readonly AssetManager _assetManager;
     private readonly MissionLoader _missionLoader;
@@ -75,6 +76,7 @@ public sealed class BrowserGameHost : IDisposable
         await _meshes.InitializeAsync(_glRenderer);
 
         _uiManager.Resize(new Vector2(width, height));
+        _explosionVfx.Bind(_eventBus);
         _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
         _initialized = true;
     }
@@ -96,7 +98,10 @@ public sealed class BrowserGameHost : IDisposable
         _world?.Update(deltaTime);
 
         if (_sceneManager.State == GameState.Playing && _world != null)
-            _gameplayRenderer.Render(_world, _viewportWidth, _viewportHeight);
+        {
+            _explosionVfx.Update(deltaTime);
+            _gameplayRenderer.Render(_world, _viewportWidth, _viewportHeight, _explosionVfx);
+        }
 
         if (_uiManager.Current is GameplayHUD activeHud)
             BindResourceHud(activeHud);
@@ -235,6 +240,7 @@ public sealed class BrowserGameHost : IDisposable
         playerRes.AddIncome(ResourceType.Energy, 5f);
         playerRes.AddIncome(ResourceType.Minerals, 3f);
         _world.AddSystem(new ResourceSystem(_resourceManager));
+        _world.AddSystem(new MiningVisualSystem());
 
         if (!string.IsNullOrEmpty(missionId) && _missionController.CurrentMission != null)
             SpawnMissionFleet(missionId);
@@ -336,38 +342,36 @@ public sealed class BrowserGameHost : IDisposable
     {
         var known = new[]
         {
-            ("tutorial_01", "Tutorial - First Steps"),
-            ("example_scenario", "First Contact"),
-            ("mission_02", "Resource Rush"),
-            ("mission_03", "Defensive Stand"),
-            ("mission_04", "Deep Strike"),
-            ("mission_05", "Final Assault"),
+            "tutorial_01", "example_scenario", "mission_02",
+            "mission_03", "mission_04", "mission_05",
         };
 
         var entries = new List<MissionEntry>();
-        foreach (var (id, title) in known)
+        foreach (string id in known)
         {
-            if (_assetManager.Exists($"Missions/{id}"))
-            {
-                entries.Add(new MissionEntry
-                {
-                    Id = id,
-                    Title = title,
-                    Description = $"Mission: {title}",
-                });
-            }
+            var definition = _missionLoader.Load(id);
+            if (definition != null)
+                entries.Add(ToMissionEntry(definition));
         }
 
         if (entries.Count == 0)
         {
-            foreach (var (id, title) in known)
+            entries.Add(new MissionEntry
             {
-                entries.Add(new MissionEntry { Id = id, Title = title, Description = $"Mission: {title}" });
-            }
+                Id = "tutorial_01",
+                Title = "Tutorial - First Steps",
+                Description = "Learn the basics of fleet command.",
+                MapId = "sector_alpha",
+                BriefingText = "Commander, sensors have detected an enemy scout in Sector Alpha.",
+                ObjectivesPreview = ["Destroy the enemy scout", "Protect your base"],
+            });
         }
 
         return entries;
     }
+
+    private static MissionEntry ToMissionEntry(MissionDefinition definition) =>
+        MissionEntryMapper.FromDefinition(definition);
 
     private async Task PreloadAssetsAsync()
     {

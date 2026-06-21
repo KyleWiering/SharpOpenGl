@@ -112,14 +112,19 @@ public class MissionLoaderTests
         var loader = CreateLoader();
         var mission = loader.Load("tutorial_01")!;
 
-        Assert.Single(mission.Triggers);
-        var trigger = mission.Triggers[0];
-        Assert.Equal("spawn_wave_1", trigger.Id);
-        Assert.NotNull(trigger.Condition);
-        Assert.Equal("timer", trigger.Condition.Type);
-        Assert.Equal(30f, trigger.Condition.Seconds);
-        Assert.Equal(2, trigger.Actions.Length);
-        Assert.True(trigger.OneShot);
+        Assert.Equal(2, mission.Triggers.Length);
+        var scoutTrigger = mission.Triggers[0];
+        Assert.Equal("spawn_enemy_scout", scoutTrigger.Id);
+        Assert.Equal(5f, scoutTrigger.Condition!.Seconds);
+        Assert.Equal("enemy_scout_1", scoutTrigger.Actions[0].Tag);
+
+        var waveTrigger = mission.Triggers[1];
+        Assert.Equal("spawn_wave_1", waveTrigger.Id);
+        Assert.NotNull(waveTrigger.Condition);
+        Assert.Equal("timer", waveTrigger.Condition.Type);
+        Assert.Equal(30f, waveTrigger.Condition.Seconds);
+        Assert.Equal(2, waveTrigger.Actions.Length);
+        Assert.True(waveTrigger.OneShot);
     }
 
     [Fact]
@@ -145,6 +150,28 @@ public class MissionLoaderTests
         Assert.Contains("fighter_advanced", mission.Rewards.Unlocks);
         Assert.NotNull(mission.Rewards.Resources);
         Assert.Equal(200f, mission.Rewards.Resources.Energy);
+    }
+
+    [Fact]
+    public void Load_parses_star_map_fields()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("tutorial_01")!;
+
+        Assert.Equal("Helios Prime", mission.PlanetName);
+        Assert.Equal(new[] { 0.15f, 0.55f }, mission.StarMapPosition);
+        Assert.Equal("#4DA6FF", mission.PlanetColor);
+        Assert.Null(mission.PrerequisiteMissionId);
+    }
+
+    [Fact]
+    public void Load_parses_prerequisite_mission_id()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_02")!;
+
+        Assert.Equal("Asteria Belt", mission.PlanetName);
+        Assert.Equal("tutorial_01", mission.PrerequisiteMissionId);
     }
 
     // ── LoadAll ──────────────────────────────────────────────────────────────

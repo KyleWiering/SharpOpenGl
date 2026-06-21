@@ -1,0 +1,19 @@
+{
+  "id": "repair_bay",
+  "displayName": "Repair Bay",
+  "category": "base",
+  "mesh": "meshes/repair_bay.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 1100, "shields": 0, "armor": 60 },
+    "building": {
+      "buildingType": "repair_bay",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 3]
+    },
+    "sightRadius": 8
+  },
+  "cost": { "energy": 160, "minerals": 240, "data": 20, "crew": 3 },
+  "buildTime": 42
+}

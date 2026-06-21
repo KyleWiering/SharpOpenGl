@@ -9,12 +9,18 @@ namespace SharpOpenGl;
 public partial class EngineWindow
 {
     private int _planetVao, _planetVbo, _planetVertCount;
+    private int _asteroidFieldVao, _asteroidFieldVbo, _asteroidFieldVertCount;
+    private int _nebulaVao, _nebulaVbo, _nebulaVertCount;
     private int _sceneryVao, _sceneryVbo, _sceneryVertCount;
 
     private MapFeatureSpawner.MeshHandles BuildMapFeatureMeshes() => new()
     {
         PlanetMeshId = _planetVao,
         PlanetVertCount = _planetVertCount,
+        AsteroidFieldMeshId = _asteroidFieldVao,
+        AsteroidFieldVertCount = _asteroidFieldVertCount,
+        NebulaMeshId = _nebulaVao,
+        NebulaVertCount = _nebulaVertCount,
         SceneryMeshId = _sceneryVao,
         SceneryVertCount = _sceneryVertCount,
         ResourceNodeMeshId = _resourceNodeVao,
@@ -26,6 +32,10 @@ public partial class EngineWindow
     {
         (_planetVao, _planetVbo, _planetVertCount) =
             MeshBuilder.BuildPlanetSphere(new Vector3(0.75f, 0.8f, 0.9f), 4f);
+        (_asteroidFieldVao, _asteroidFieldVbo, _asteroidFieldVertCount) =
+            MeshBuilder.BuildAsteroidFieldCluster(new Vector3(0.52f, 0.48f, 0.44f), 3f);
+        (_nebulaVao, _nebulaVbo, _nebulaVertCount) =
+            MeshBuilder.BuildNebulaCloud(3f);
         (_sceneryVao, _sceneryVbo, _sceneryVertCount) =
             MeshBuilder.BuildSceneryCluster(new Vector3(0.5f, 0.52f, 0.55f), 3f);
     }

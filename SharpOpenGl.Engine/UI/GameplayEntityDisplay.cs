@@ -26,6 +26,7 @@ public static class GameplayEntityDisplay
     public static readonly Vector4 SelectionNeutral = NeutralColor;
     public static readonly Vector4 SelectionHarvestable = HarvestableColor;
     public static readonly Vector4 SelectionScenery = SceneryColor;
+    public static readonly Vector4 AttackHoverRingColor = new(1f, 0.4f, 0.15f, 1f);
 
     public static EntityDisplayKind Classify(World world, Entity entity)
     {
@@ -55,6 +56,19 @@ public static class GameplayEntityDisplay
             return EntityDisplayKind.Neutral;
 
         return EntityDisplayKind.Friendly;
+    }
+
+    public static bool IsHostileToPlayer(World world, Entity entity, int playerFaction = 1)
+    {
+        if (world.HasComponent<AIControlledComponent>(entity))
+            return true;
+
+        var health = world.GetComponent<HealthComponent>(entity);
+        if (health == null || health.IsDead)
+            return false;
+
+        var combat = world.GetComponent<CombatTargetComponent>(entity);
+        return combat != null && combat.Faction > playerFaction;
     }
 
     public static Vector4 LabelColor(EntityDisplayKind kind) => kind switch

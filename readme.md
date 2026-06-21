@@ -7,6 +7,21 @@
 
 The GitHub Pages site runs the **same C# game** as the desktop build (`SharpOpenGl.Browser` — Blazor WebAssembly + `SharpOpenGl.Engine`). It uses the same GLSL shader pipeline (`GameShaders`), procedural meshes (`ProceduralMeshes`), RTS camera, and `IRenderer` draw path as desktop — WebGL2 in the browser instead of OpenTK OpenGL. Menus, mission select, briefing, ECS gameplay, and `GameData/` JSON all come from the shared engine library. CI publishes the WASM build to `docs/` on every push to `master`.
 
+### Gameplay demo (mobile-friendly)
+
+Watch a ~45s scripted playthrough without installing the app — fleet selection, move orders, combat, HUD resources, and base building:
+
+<p align="center">
+  <video controls playsinline preload="metadata"
+         poster="https://kylewiering.github.io/SharpOpenGl/gameplay-demo-poster.png"
+         width="640">
+    <source src="https://kylewiering.github.io/SharpOpenGl/gameplay-demo.mp4" type="video/mp4" />
+    Your browser does not support HTML5 video.
+  </video>
+</p>
+
+CI regenerates `docs/gameplay-demo.mp4` (H.264, under 15 MB) on every push to `master` via `--demo-recording`.
+
 ## Introduction
 
 A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 8, featuring an Entity Component System (ECS) architecture, procedural map generation, A* pathfinding, fog of war, and data-driven ship/mission definitions.
@@ -24,6 +39,7 @@ A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (optional — CI runs on GitHub Actions)
+- **Desktop audio:** no separate OpenAL install — `Silk.NET.OpenAL.Soft.Native` copies OpenAL Soft next to the exe as `openal32.dll` (Windows) or `libopenal.so` / `libopenal.dylib` (Linux/macOS)
 
 ## Build & Run
 
@@ -86,7 +102,8 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 | Left drag | Box-select multiple ships |
 | Left click | Select ship, resource node, planet, or enemy (HUD color-coded) |
 | Right click | Move / attack / mine (context-sensitive) |
-| Right drag | Pan the map |
+| Right drag | Pan the map (grab-and-drag; moves with pointer) |
+| Scroll wheel | Zoom in / out |
 | W/S | Camera forward/back (Shift overrides unit key conflicts) |
 | A/D | Camera strafe left/right |
 | Q/E | Extra strafe left/right |
@@ -125,7 +142,19 @@ Definitions: `GameData/Bases/shipyard_small.json`, `shipyard_medium.json`, `ship
 
 ## Audio
 
-Desktop builds initialize **OpenAL** on startup. Headless / CI uses silent `NullAudioManager`.
+Desktop builds initialize **OpenAL Soft** on startup (bundled via NuGet — no system install required). The native library is copied into the build output automatically:
+
+| Platform | Shipped file | Source |
+|----------|--------------|--------|
+| Windows x64/x86/ARM64 | `openal32.dll` | OpenAL Soft (`soft_oal.dll`, renamed for OpenTK) |
+| Linux x64 | `libopenal.so` | OpenAL Soft |
+| macOS x64 / ARM64 | `libopenal.dylib` | OpenAL Soft |
+
+SFX are **procedural placeholders** generated at runtime (`PlaceholderSoundGenerator`) — weapon fire, explosions, UI clicks, etc. No `.wav` assets to ship yet.
+
+Headless / CI (`--screenshot`, `--demo-recording`) uses silent `NullAudioManager`. The **browser build** uses Web Audio API instead of OpenAL.
+
+**Optional system install (dev only):** `winget install --id=kcat.openal` if you prefer a global OpenAL Soft install instead of the bundled DLL.
 
 | Event | Sound |
 |-------|-------|
@@ -174,6 +203,16 @@ Run headlessly and capture a rendered frame:
 ```bash
 dotnet run --project SharpOpenGl -- --screenshot --screenshot-path output.png
 ```
+
+## Demo Recording (for CI / gameplay video)
+
+Auto-play `example_scenario` under xvfb, capture frames, and encode `docs/gameplay-demo.mp4`:
+
+```bash
+dotnet run --project SharpOpenGl -- --demo-recording --mission example_scenario
+```
+
+Optional output override: `--demo-output docs/gameplay-demo.mp4`
 
 ## Render Example
 

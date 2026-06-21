@@ -295,11 +295,11 @@ public static class ShipMeshBuilder
     {
         float s = size;
         var verts = new List<float>();
-        Vector3 hullDark  = new(0.12f, 0.22f, 0.38f);
-        Vector3 hullMid   = new(0.22f, 0.42f, 0.62f);
-        Vector3 hullLight = new(0.38f, 0.62f, 0.82f);
-        Vector3 accent    = new(0.95f, 0.75f, 0.25f);
-        Vector3 spire     = new(0.55f, 0.85f, 1.0f);
+        Vector3 hullDark  = new(0.18f, 0.32f, 0.52f);
+        Vector3 hullMid   = new(0.32f, 0.55f, 0.78f);
+        Vector3 hullLight = new(0.5f, 0.75f, 0.95f);
+        Vector3 accent    = new(1f, 0.85f, 0.35f);
+        Vector3 spire     = new(0.65f, 0.92f, 1.0f);
 
         void Tri(Vector3 a, Vector3 b, Vector3 c, Vector3 col)
         {

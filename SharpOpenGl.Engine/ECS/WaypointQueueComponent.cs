@@ -15,4 +15,7 @@ public sealed class WaypointQueueComponent
 
     /// <summary>When true, loops back to the first waypoint after the last.</summary>
     public bool Patrol { get; set; }
+
+    /// <summary>True while the entity is traveling toward <see cref="CurrentIndex"/>.</summary>
+    public bool LegInProgress { get; set; }
 }

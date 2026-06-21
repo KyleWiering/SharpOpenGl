@@ -1,0 +1,229 @@
+using OpenTK.Mathematics;
+using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Economy;
+using SharpOpenGl.Engine.Entities;
+using SharpOpenGl.Engine.Grid;
+using SharpOpenGl.Engine.Missions;
+
+namespace SharpOpenGl.Engine.Persistence;
+
+/// <summary>
+/// Rebuilds ECS gameplay state from a <see cref="SaveData"/> snapshot.
+/// </summary>
+public static class WorldLoadService
+{
+    /// <summary>Restore entities, resources, mission progress, and fog from <paramref name="data"/>.</summary>
+    public static WorldLoadResult Restore(WorldLoadContext ctx, SaveData data)
+    {
+        RestoreResources(ctx.ResourceManager, data.PlayerResources);
+        RestoreMissionProgress(ctx.MissionState, data);
+        RestoreFog(ctx.GridSystem, ctx.FogOfWar, ctx.FogPlayerId, data.FogStates);
+
+        var idMap = new Dictionary<int, Entity>();
+        Entity hero = Entity.Null;
+        Entity commandCenter = Entity.Null;
+
+        foreach (EntitySaveRecord record in data.Entities)
+        {
+            Entity entity = SpawnEntity(ctx, record);
+            idMap[record.EntityId] = entity;
+
+            if (!string.IsNullOrWhiteSpace(record.Tag) && ctx.MissionState != null)
+                ctx.MissionState.RegisterEntityTag(record.Tag, entity);
+
+            if (ctx.World.HasComponent<HeroComponent>(entity))
+                hero = entity;
+
+            BuildingComponent? building = ctx.World.GetComponent<BuildingComponent>(entity);
+            if (building != null
+                && building.BuildingType.Equals("command_center", StringComparison.OrdinalIgnoreCase))
+                commandCenter = entity;
+        }
+
+        return new WorldLoadResult
+        {
+            EntityCount = data.Entities.Count,
+            HeroEntity = hero,
+            CommandCenterEntity = commandCenter,
+            EntityIdMap = idMap,
+        };
+    }
+
+    private static void RestoreResources(ResourceManager resources, List<PlayerResourceRecord> records)
+    {
+        foreach (var record in records)
+        {
+            var pool = resources.GetPlayer(record.PlayerId)
+                       ?? resources.AddPlayer(record.PlayerId);
+            pool.SetStartingAmount(ResourceType.Energy, record.Energy);
+            pool.SetStartingAmount(ResourceType.Minerals, record.Minerals);
+            pool.SetStartingAmount(ResourceType.Data, record.Data);
+            pool.SetStartingAmount(ResourceType.Crew, record.Crew);
+        }
+    }
+
+    private static void RestoreMissionProgress(MissionState? mission, SaveData data)
+    {
+        if (mission == null) return;
+
+        mission.ElapsedTime = data.ElapsedMissionTime;
+
+        foreach (string objectiveId in data.CompletedObjectiveIds)
+        {
+            ObjectiveProgress? objective = mission.FindObjective(objectiveId);
+            if (objective != null)
+                objective.IsCompleted = true;
+        }
+
+        foreach (string triggerId in data.FiredTriggerIds)
+        {
+            TriggerProgress? trigger = mission.FindTrigger(triggerId);
+            if (trigger != null)
+                trigger.HasFired = true;
+        }
+
+        if (mission.Phase == MissionPhase.Briefing)
+            mission.Phase = MissionPhase.InProgress;
+    }
+
+    private static void RestoreFog(
+        GridSystem grid,
+        FogOfWar fog,
+        int playerId,
+        Dictionary<string, int> fogStates)
+    {
+        foreach (var (key, ordinal) in fogStates)
+        {
+            if (!TryParseFogKey(key, out int keyPlayer, out int x, out int y))
+                continue;
+            if (keyPlayer != playerId)
+                continue;
+            if (!Enum.IsDefined(typeof(FogState), ordinal))
+                continue;
+
+            GridCell? cell = grid.GetCell(x, y);
+            cell?.SetFog(playerId, (FogState)ordinal);
+        }
+
+        // Ensure saved explored cells remain at least explored even if fog system resets them.
+        _ = fog;
+    }
+
+    private static Entity SpawnEntity(WorldLoadContext ctx, EntitySaveRecord record)
+    {
+        if (WorldSaveService.TryParseResourceNodeTemplate(record.TemplateId, out ResourceType resType))
+            return SpawnResourceNode(ctx, record, resType);
+
+        EntityDefinition? def = ctx.ResolveDefinition(record.TemplateId);
+        if (def == null)
+            return SpawnFallbackEntity(ctx, record);
+
+        bool isEnemy = record.PlayerId > 1
+            || (record.PlayerId == 2 && !record.TemplateId.Contains("hero", StringComparison.OrdinalIgnoreCase));
+        Entity entity = ctx.UnitFactory.Create(ctx.World, def);
+
+        ApplyTransform(ctx.World, entity, record);
+        ApplyHealth(ctx.World, entity, record);
+        ApplyStance(ctx.World, entity, record);
+        ctx.FinalizeUnit?.Invoke(entity, def, record.PlayerId, isEnemy);
+
+        return entity;
+    }
+
+    private static Entity SpawnResourceNode(WorldLoadContext ctx, EntitySaveRecord record, ResourceType type)
+    {
+        Entity entity = ctx.World.CreateEntity();
+        ctx.World.AddComponent(entity, new TransformComponent
+        {
+            Position = new Vector3(record.X, 1f, record.Y),
+            Scale = new Vector3(6f, 6f, 6f),
+        });
+        float amount = record.Health > 0f ? record.Health : 5000f;
+        float maxAmount = record.Shields > 0f ? record.Shields : amount;
+        ctx.World.AddComponent(entity, new ResourceNodeComponent
+        {
+            ResourceType = type,
+            Amount = amount,
+            MaxAmount = maxAmount,
+            HarvestRate = 10f,
+        });
+        ctx.World.AddComponent(entity, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = 14f,
+        });
+        ctx.FinalizeUnit?.Invoke(entity, null, 0, false);
+        return entity;
+    }
+
+    private static Entity SpawnFallbackEntity(WorldLoadContext ctx, EntitySaveRecord record)
+    {
+        Entity entity = ctx.World.CreateEntity();
+        ctx.World.AddComponent(entity, new TransformComponent
+        {
+            Position = new Vector3(record.X, 0f, record.Y),
+        });
+        ctx.World.AddComponent(entity, new HealthComponent
+        {
+            MaxHP = MathF.Max(record.Health, 1f),
+            CurrentHP = record.Health,
+            CurrentShields = record.Shields,
+            MaxShields = MathF.Max(record.Shields, 0f),
+        });
+        ctx.World.AddComponent(entity, new EntityNameComponent
+        {
+            DefinitionId = record.TemplateId,
+            DisplayName = record.TemplateId.Replace('_', ' '),
+        });
+        ctx.FinalizeUnit?.Invoke(entity, null, record.PlayerId, record.PlayerId > 1);
+        return entity;
+    }
+
+    private static void ApplyTransform(World world, Entity entity, EntitySaveRecord record)
+    {
+        TransformComponent? transform = world.GetComponent<TransformComponent>(entity);
+        if (transform == null) return;
+
+        float y = transform.Position.Y;
+        transform.Position = new Vector3(record.X, y, record.Y);
+    }
+
+    private static void ApplyHealth(World world, Entity entity, EntitySaveRecord record)
+    {
+        HealthComponent? health = world.GetComponent<HealthComponent>(entity);
+        if (health == null) return;
+
+        health.CurrentHP = record.Health;
+        health.CurrentShields = record.Shields;
+    }
+
+    private static void ApplyStance(World world, Entity entity, EntitySaveRecord record)
+    {
+        if (string.IsNullOrWhiteSpace(record.Stance))
+            return;
+
+        if (!Enum.TryParse(record.Stance, ignoreCase: true, out Stance stance))
+            return;
+
+        StanceComponent? stanceComp = world.GetComponent<StanceComponent>(entity);
+        if (stanceComp != null)
+            stanceComp.CurrentStance = stance;
+        else
+            world.AddComponent(entity, new StanceComponent { CurrentStance = stance });
+    }
+
+    private static bool TryParseFogKey(string key, out int playerId, out int x, out int y)
+    {
+        playerId = 0;
+        x = 0;
+        y = 0;
+
+        string[] parts = key.Split(':');
+        if (parts.Length != 3)
+            return false;
+
+        return int.TryParse(parts[0], out playerId)
+            && int.TryParse(parts[1], out x)
+            && int.TryParse(parts[2], out y);
+    }
+}

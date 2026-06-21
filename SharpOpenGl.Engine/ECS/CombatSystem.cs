@@ -1,6 +1,8 @@
 using OpenTK.Mathematics;
-using SharpOpenGl.Engine.Audio;
-using SharpOpenGl.Engine.Combat;
+using SharpOpenGl.Engine.Audio;
+
+using SharpOpenGl.Engine.Combat;
+
 using SharpOpenGl.Engine.Events;
 
 namespace SharpOpenGl.Engine.ECS;
@@ -54,6 +56,9 @@ public sealed class CombatSystem : GameSystem
     {
         foreach (var (attacker, ct) in world.Query<CombatTargetComponent>())
         {
+            var disabled = world.GetComponent<DisabledComponent>(attacker);
+            if (disabled is { IsActive: true }) continue;
+
             var wl = world.GetComponent<WeaponListComponent>(attacker);
             if (wl == null || wl.Weapons.Count == 0) continue;
 
@@ -83,8 +88,10 @@ public sealed class CombatSystem : GameSystem
                 if (!weapon.IsReady) continue;
                 if (dist > weapon.Range) continue;
 
-                Fire(world, attacker, ct, weapon, attackerPos, targetPos);
-                _bus.Publish(new SoundRequestedEvent(WeaponAudioProfiles.FireSoundFor(weapon.Type), attackerPos));
+                Fire(world, attacker, ct, weapon, attackerPos, targetPos);
+
+                _bus.Publish(new SoundRequestedEvent(WeaponAudioProfiles.FireSoundFor(weapon.Type), attackerPos));
+
                 weapon.Cooldown = weapon.FireRate > 0f ? 1f / weapon.FireRate : float.MaxValue;
             }
         }
@@ -200,7 +207,7 @@ public sealed class CombatSystem : GameSystem
         world.AddComponent(flash, new TransformComponent
         {
             Position = mid with { Y = MathF.Max(mid.Y, 1.2f) },
-            Scale = new Vector3(profile.Scale * 0.35f, profile.Scale * 0.35f, length * 0.5f),
+            Scale = new Vector3(profile.Scale * 0.55f, profile.Scale * 0.55f, length * 0.55f),
             EulerAngles = new Vector3(0f, yaw, 0f),
         });
         world.AddComponent(flash, new ProjectileComponent
@@ -232,6 +239,9 @@ public sealed class CombatSystem : GameSystem
 
         float final = DamageCalculator.Apply(baseDamage, health);
         _bus.Publish(new DamageDealtEvent(attacker.Index, target.Index, baseDamage, final));
+
+        var hitPos = world.GetComponent<TransformComponent>(target)?.Position ?? Vector3.Zero;
+        _bus.Publish(new ExplosionVfxEvent(hitPos, ExplosionVfxKind.Impact, 0.75f));
     }
 
     // ── Death processing ──────────────────────────────────────────────────────
@@ -256,9 +266,16 @@ public sealed class CombatSystem : GameSystem
                     heroComp.XP += xp;
             }
 
-            var deathPos = world.GetComponent<TransformComponent>(entity)?.Position ?? Vector3.Zero;
-            _bus.Publish(new SoundRequestedEvent(AudioEventType.Explosion, deathPos));
-            _bus.Publish(new UnitDiedEvent(entity.Index, killer.Index, xp));
+            var deathPos = world.GetComponent<TransformComponent>(entity)?.Position ?? Vector3.Zero;
+            bool isStation = world.HasComponent<BuildingComponent>(entity);
+            var deathKind = isStation ? ExplosionVfxKind.StationDeath : ExplosionVfxKind.ShipDeath;
+            float deathScale = isStation ? 1.2f : 1f;
+
+            _bus.Publish(new ExplosionVfxEvent(deathPos, deathKind, deathScale));
+            _bus.Publish(new SoundRequestedEvent(AudioEventType.Explosion, deathPos));
+
+            _bus.Publish(new UnitDiedEvent(entity.Index, killer.Index, xp));
+
             world.DestroyEntity(entity);
         }
     }

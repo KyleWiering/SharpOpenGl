@@ -59,4 +59,25 @@ public class GameplayEntityDisplayTests
         Assert.Equal(EntityDisplayKind.Scenery, GameplayEntityDisplay.Classify(world, entity));
         Assert.Equal(GameplayEntityDisplay.SceneryColor, GameplayEntityDisplay.SelectionRingColor(EntityDisplayKind.Scenery));
     }
+
+    [Fact]
+    public void IsHostileToPlayer_detects_ai_and_enemy_faction()
+    {
+        using var world = new World();
+        var ai = world.CreateEntity();
+        world.AddComponent(ai, new AIControlledComponent());
+        world.AddComponent(ai, new HealthComponent { MaxHP = 10f, CurrentHP = 10f });
+
+        var factionEnemy = world.CreateEntity();
+        world.AddComponent(factionEnemy, new HealthComponent { MaxHP = 10f, CurrentHP = 10f });
+        world.AddComponent(factionEnemy, new CombatTargetComponent { Faction = 2 });
+
+        var friendly = world.CreateEntity();
+        world.AddComponent(friendly, new HealthComponent { MaxHP = 10f, CurrentHP = 10f });
+        world.AddComponent(friendly, new CombatTargetComponent { Faction = 1 });
+
+        Assert.True(GameplayEntityDisplay.IsHostileToPlayer(world, ai));
+        Assert.True(GameplayEntityDisplay.IsHostileToPlayer(world, factionEnemy));
+        Assert.False(GameplayEntityDisplay.IsHostileToPlayer(world, friendly));
+    }
 }

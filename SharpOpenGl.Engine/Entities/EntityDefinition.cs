@@ -66,8 +66,19 @@ public sealed class SquadMemberDefinition
 /// <summary>JSON shape for a resource collector block.</summary>
 public sealed class ResourceCollectorDefinition
 {
+    /// <summary>Extraction mode: drones, eva, or tractor_beam.</summary>
+    public string HarvestMode { get; set; } = "drones";
+
+    /// <summary>World-unit range at which collection begins (mode-specific default if 0).</summary>
+    public float HarvestRange { get; set; }
+
+    /// <summary>Base units per second extracted from a node.</summary>
+    public float HarvestRate { get; set; } = 5f;
+
+    /// <summary>Multiplier applied to <see cref="HarvestRate"/> per mode tuning.</summary>
+    public float HarvestRateMultiplier { get; set; } = 1f;
+
     public float CarryCapacity { get; set; } = 50f;
-    public float HarvestRate   { get; set; } = 5f;
 }
 
 /// <summary>JSON shape for a building block.</summary>

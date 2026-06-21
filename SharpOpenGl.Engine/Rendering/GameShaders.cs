@@ -15,13 +15,14 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
 uniform vec4 overrideColor;
+uniform float pointSize;
 
 out vec3 fragColor;
 
 void main()
 {
     gl_Position = projection * view * model * vec4(aPosition, 1.0);
-    gl_PointSize = 2.0;
+    gl_PointSize = max(pointSize, 1.0);
     if (overrideColor.a > 0.0)
         fragColor = overrideColor.rgb;
     else
@@ -48,13 +49,14 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
 uniform vec4 overrideColor;
+uniform float pointSize;
 
 out vec3 fragColor;
 
 void main()
 {
     gl_Position = projection * view * model * vec4(aPosition, 1.0);
-    gl_PointSize = 2.0;
+    gl_PointSize = max(pointSize, 1.0);
     if (overrideColor.a > 0.0)
         fragColor = overrideColor.rgb;
     else

@@ -50,6 +50,22 @@ public record AbilityActivatedEvent(uint CasterId, int Slot, string AbilityId);
 /// <summary>Fired when an entity dies during combat (HP drops to zero).</summary>
 public record UnitDiedEvent(uint VictimId, uint KillerId, int XpAwarded);
 
+/// <summary>Visual scale for an explosion particle burst.</summary>
+public enum ExplosionVfxKind
+{
+    /// <summary>Small spark on projectile or beam impact.</summary>
+    Impact,
+
+    /// <summary>Medium burst when a ship is destroyed.</summary>
+    ShipDeath,
+
+    /// <summary>Large burst when a station or base is destroyed.</summary>
+    StationDeath,
+}
+
+/// <summary>Fired when a combat impact or destruction should spawn particle VFX.</summary>
+public record ExplosionVfxEvent(Vector3 Position, ExplosionVfxKind Kind, float Scale = 1f);
+
 // ── Mission events ─────────────────────────────────────────────────────────
 
 /// <summary>Fired when a mission transitions to the InProgress phase.</summary>

@@ -2,6 +2,7 @@ using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Audio;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Rendering;
 using Xunit;
 
 namespace SharpOpenGl.Tests.Combat;
@@ -302,6 +303,24 @@ public class CombatSystemTests
 
         Assert.NotNull(diedEvent);
         Assert.Equal(target.Index, diedEvent!.VictimId);
+    }
+
+    [Fact]
+    public void CombatSystem_publishes_explosion_vfx_on_death()
+    {
+        var (world, bus, _) = MakeCombatWorld();
+
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: 50f);
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 1f);
+
+        ExplosionVfxEvent? explosion = null;
+        bus.Subscribe<ExplosionVfxEvent>(e => explosion = e);
+
+        AdvanceCombatUntil(world, () => explosion != null);
+
+        Assert.NotNull(explosion);
+        Assert.Equal(ExplosionVfxKind.ShipDeath, explosion!.Kind);
     }
 
     [Fact]

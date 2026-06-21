@@ -40,7 +40,8 @@ public class ResourceSystemTests
     }
 
     private static Entity MakeCollector(World world, int playerId, Entity node, Entity depot,
-        float capacity = 50f, CollectorState state = CollectorState.MovingToNode, Vector3? pos = null)
+        float capacity = 50f, CollectorState state = CollectorState.MovingToNode, Vector3? pos = null,
+        float harvestRate = 20f, HarvestMode harvestMode = HarvestMode.Eva)
     {
         Entity e = world.CreateEntity();
         world.AddComponent(e, new ResourceCollectorComponent
@@ -49,6 +50,9 @@ public class ResourceSystemTests
             AssignedNode  = node,
             DepositTarget = depot,
             CarryCapacity = capacity,
+            HarvestRate   = harvestRate,
+            HarvestRange  = HarvestModeDefaults.DefaultRange(harvestMode),
+            HarvestMode   = harvestMode,
             State         = state
         });
         if (pos.HasValue)
@@ -159,7 +163,7 @@ public class ResourceSystemTests
         Entity node    = MakeNode(world, ResourceType.Minerals, 1000f, harvestRate: 100f);
         Entity depot   = MakeDepot(world);
         Entity collector = MakeCollector(world, 1, node, depot, capacity: 50f,
-            state: CollectorState.Collecting);
+            state: CollectorState.Collecting, harvestRate: 100f);
 
         world.Update(1f); // 100 units/sec would fill 50-unit hold
         var cComp = world.GetComponent<ResourceCollectorComponent>(collector)!;

@@ -3,6 +3,10 @@
   "displayName": "Station Defence",
   "description": "Defend the command station against three waves of increasingly powerful attackers.",
   "map": "sector_delta",
+  "planetName": "Nexus Station",
+  "starMapPosition": [0.62, 0.45],
+  "planetColor": "#B366FF",
+  "prerequisiteMissionId": "mission_03",
   "briefing": {
     "text": "Commander, Command Station Delta is under siege. Three attack waves are inbound. Use the station's defensive turrets and your fleet to hold the line. The station cannot fall.",
     "objectivesPreview": ["Survive all three attack waves", "Keep the command station above 50 % health", "Destroy all enemy capital ships"]
@@ -79,5 +83,20 @@
     "resources": { "energy": 500, "minerals": 300, "data": 200, "crew": 10 },
     "xp": 500,
     "unlocks": ["capital_ship_basic"]
-  }
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [10, 10], "height": 200 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "all" },
+    { "type": "attack_move", "position": [40, 40] },
+    { "type": "wait", "seconds": 12 },
+    { "type": "attack_move", "position": [70, 70] },
+    { "type": "wait", "seconds": 15 },
+    { "type": "attack_target", "targetTag": "enemy_capital_1" },
+    { "type": "wait", "seconds": 30 },
+    { "type": "select_units", "filter": "all" },
+    { "type": "move_to", "position": [10, 10] },
+    { "type": "camera_pan", "position": [10, 10], "height": 240 },
+    { "type": "wait", "seconds": 2 }
+  ]
 }
