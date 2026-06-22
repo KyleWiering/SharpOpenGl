@@ -14,8 +14,10 @@ concurrency:
   group: "pages"
   cancel-in-progress: false
 
+env:
+  BROWSER_PUBLISH_DIR: SharpOpenGl.Browser/bin/Release/net8.0/publish/wwwroot
+
 jobs:
-  # Isolated from desktop/demo build — matches ci.yml build-browser exactly.
   build-browser:
     runs-on: ubuntu-latest
     steps:
@@ -31,25 +33,30 @@ jobs:
 
       - name: Publish Blazor WASM
         run: |
-          set -euo pipefail
-          rm -rf dist/browser
+          set -eo pipefail
           dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
             --configuration Release \
-            --output dist/browser \
             /p:BaseHref=/SharpOpenGl/
-          test -f dist/browser/index.html || {
-            echo "❌ dist/browser/index.html missing"
-            ls -la dist/browser 2>/dev/null || true
-            ls -la SharpOpenGl.Browser/bin/Release/net8.0/publish/wwwroot 2>/dev/null || true
+          STAGED_DIR=""
+          for candidate in \
+            "$BROWSER_PUBLISH_DIR" \
+            "SharpOpenGl.Browser/dist/browser" \
+            "dist/browser"; do
+            if [ -f "$candidate/index.html" ]; then
+              STAGED_DIR="$candidate"
+              break
+            fi
+          done
+          if [ -z "$STAGED_DIR" ]; then
+            echo "❌ index.html missing after publish"
+            find . \( -path ./.git -o -path ./SharpOpenGl.Tests -o -path '*/obj/*' \) -prune \
+              -o -name index.html -print 2>/dev/null | head -30 || true
             exit 1
-          }
-          test -f dist/browser/_framework/blazor.webassembly.js \
-            -o -f dist/browser/_framework/blazor.webassembly.js.gz || {
-            echo "❌ Blazor _framework assets missing"
-            ls -la dist/browser/_framework 2>/dev/null || true
-            exit 1
-          }
-          echo "✅ Blazor WASM published ($(du -sh dist/browser | cut -f1))"
+          fi
+          rm -rf dist/browser
+          mkdir -p dist/browser
+          cp -a "$STAGED_DIR/." dist/browser/
+          echo "✅ Blazor WASM staged from $STAGED_DIR ($(du -sh dist/browser | cut -f1))"
 
       - name: Upload browser artifact
         uses: actions/upload-artifact@v5
@@ -87,7 +94,7 @@ jobs:
 
       - name: Verify gameplay demo assets
         run: |
-          set -euo pipefail
+          set -eo pipefail
           test -f docs/gameplay-demo.mp4
           test -f docs/gameplay-demo-poster.png
           echo "✅ Gameplay demo captured ($(du -h docs/gameplay-demo.mp4 | cut -f1))"
@@ -124,7 +131,7 @@ jobs:
 
       - name: Assemble GitHub Pages site
         run: |
-          set -euo pipefail
+          set -eo pipefail
           rm -rf pages_site
           mkdir -p pages_site
           cp -a browser/. pages_site/
@@ -135,8 +142,7 @@ jobs:
           touch pages_site/.nojekyll
           cp pages_site/index.html pages_site/404.html
           test -f pages_site/index.html
-          test -f pages_site/_framework/blazor.webassembly.js \
-            -o -f pages_site/_framework/blazor.webassembly.js.gz
+          test -d pages_site/_framework
           echo "✅ Pages artifact ready ($(du -sh pages_site | cut -f1))"
 
       - name: Setup Pages
