@@ -15,10 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  # Isolated from desktop/demo build — matches ci.yml build-browser exactly.
+  build-browser:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -28,39 +26,55 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
       - name: Restore dependencies
         run: dotnet restore
 
-      # Publish Blazor BEFORE any desktop Release build — desktop build corrupts
-      # incremental WASM publish output (CI build-browser publishes in isolation).
       - name: Publish Blazor WASM
         run: |
           set -euo pipefail
-          rm -rf dist/pages
+          rm -rf dist/browser
           dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
             --configuration Release \
-            --no-restore \
-            --output dist/pages \
+            --output dist/browser \
             /p:BaseHref=/SharpOpenGl/
-          if [ ! -f dist/pages/index.html ]; then
-            echo "❌ dist/pages/index.html missing after publish"
-            ls -la dist/pages || true
+          test -f dist/browser/index.html || {
+            echo "❌ dist/browser/index.html missing"
+            ls -la dist/browser 2>/dev/null || true
+            ls -la SharpOpenGl.Browser/bin/Release/net8.0/publish/wwwroot 2>/dev/null || true
             exit 1
-          fi
-          if [ ! -f dist/pages/_framework/blazor.boot.json ]; then
-            echo "❌ dist/pages/_framework/blazor.boot.json missing"
-            ls -la dist/pages/_framework 2>/dev/null || true
+          }
+          test -f dist/browser/_framework/blazor.webassembly.js \
+            -o -f dist/browser/_framework/blazor.webassembly.js.gz || {
+            echo "❌ Blazor _framework assets missing"
+            ls -la dist/browser/_framework 2>/dev/null || true
             exit 1
-          fi
-          echo "✅ Blazor WASM published ($(du -sh dist/pages | cut -f1))"
+          }
+          echo "✅ Blazor WASM published ($(du -sh dist/browser | cut -f1))"
+
+      - name: Upload browser artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: pages-browser
+          path: dist/browser
+          retention-days: 1
+
+  record-demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '8.0.x'
 
       - name: Install Mesa, OpenGL, and ffmpeg dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y mesa-utils libgl1-mesa-dev libglu1-mesa-dev xvfb libopengl0 libglfw3 ffmpeg
+
+      - name: Restore dependencies
+        run: dotnet restore
 
       - name: Build desktop project for demo capture
         run: dotnet build SharpOpenGl/SharpOpenGl.csproj --configuration Release --no-restore
@@ -71,24 +85,62 @@ jobs:
             dotnet run --project SharpOpenGl --configuration Release --no-build -- \
             --demo-recording --mission example_scenario
 
+      - name: Verify gameplay demo assets
+        run: |
+          set -euo pipefail
+          test -f docs/gameplay-demo.mp4
+          test -f docs/gameplay-demo-poster.png
+          echo "✅ Gameplay demo captured ($(du -h docs/gameplay-demo.mp4 | cut -f1))"
+
+      - name: Upload demo artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: pages-demo
+          path: |
+            docs/gameplay-demo.mp4
+            docs/gameplay-demo-poster.png
+          retention-days: 1
+
+  deploy:
+    needs: [build-browser, record-demo]
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Download browser artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: pages-browser
+          path: browser
+
+      - name: Download demo artifact
+        uses: actions/download-artifact@v5
+        with:
+          name: pages-demo
+          path: demo
+
       - name: Assemble GitHub Pages site
         run: |
           set -euo pipefail
           rm -rf pages_site
           mkdir -p pages_site
-          cp -a dist/pages/. pages_site/
+          cp -a browser/. pages_site/
           cp docs/*.md pages_site/ 2>/dev/null || true
-          if [ -f docs/gameplay-demo.mp4 ]; then cp docs/gameplay-demo.mp4 pages_site/; fi
-          if [ -f docs/gameplay-demo-poster.png ]; then cp docs/gameplay-demo-poster.png pages_site/; fi
+          cp demo/gameplay-demo.mp4 pages_site/
+          cp demo/gameplay-demo-poster.png pages_site/
           rm -f pages_site/engine.js pages_site/engine.min.js
           touch pages_site/.nojekyll
           cp pages_site/index.html pages_site/404.html
-          if [ ! -f pages_site/_framework/blazor.boot.json ]; then
-            echo "❌ pages_site/_framework/blazor.boot.json missing after assemble"
-            ls -la pages_site || true
-            exit 1
-          fi
+          test -f pages_site/index.html
+          test -f pages_site/_framework/blazor.webassembly.js \
+            -o -f pages_site/_framework/blazor.webassembly.js.gz
           echo "✅ Pages artifact ready ($(du -sh pages_site | cut -f1))"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
