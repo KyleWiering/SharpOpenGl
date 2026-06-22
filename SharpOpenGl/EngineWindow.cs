@@ -46,6 +46,8 @@ public partial class EngineWindow : GameWindow
     private int _uniformView;
     private int _uniformModel;
     private int _uniformColor;
+    private int _uniformRaceTextureIndex;
+    private int _uniformTeamTint;
 
     // Scene & UI management
     private EventBus _eventBus = null!;
@@ -170,11 +172,14 @@ public partial class EngineWindow : GameWindow
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
 
         _shaderManager = new ShaderManager();
-        _shaderProgram = _shaderManager.CreateProgram(VertexShaderSource, FragmentShaderSource);
+        _shaderProgram = _shaderManager.CreateProgram(
+            GameShaders.DesktopVertex, GameShaders.DesktopFragment);
         _uniformProjection = ShaderManager.GetUniform(_shaderProgram, "projection");
         _uniformView = ShaderManager.GetUniform(_shaderProgram, "view");
         _uniformModel = ShaderManager.GetUniform(_shaderProgram, "model");
         _uniformColor = ShaderManager.GetUniform(_shaderProgram, "overrideColor");
+        _uniformRaceTextureIndex = ShaderManager.GetUniform(_shaderProgram, "raceTextureIndex");
+        _uniformTeamTint = ShaderManager.GetUniform(_shaderProgram, "teamTint");
 
 
 
@@ -217,6 +222,8 @@ public partial class EngineWindow : GameWindow
         {
             if (_demoRecordingMode)
                 InitializeDemoRecording();
+            else
+                InitializeScreenshotCapture();
             _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
         }
         else
@@ -368,6 +375,7 @@ public partial class EngineWindow : GameWindow
             ShipMeshBuilder.BuildEngineTrail(new Vector3(1.0f, 0.6f, 0.1f), 2.5f);
         (_selectionVao, _selectionVbo, _selectionVertCount) =
             ShipMeshBuilder.BuildSelectionRing(new Vector3(0f, 1f, 0f), 3f);
+        LoadTeamAuraMesh();
         (_moveTargetVao, _moveTargetVbo, _moveTargetVertCount) =
             ShipMeshBuilder.BuildMoveTarget(new Vector3(0f, 1f, 0.5f), 2f);
         (_gridVao, _gridVbo, _gridVertCount) =
@@ -517,8 +525,12 @@ public partial class EngineWindow : GameWindow
         if (_world == null) return;
 
         _baseEntity = _world.CreateEntity();
-        _world.AddComponent(_baseEntity, new TransformComponent { Position = new Vector3(-30f, 0f, -30f), Scale = new Vector3(2f, 2f, 2f) });
-        _world.AddComponent(_baseEntity, new RenderComponent { MeshId = _commandCenterVao, VertexCount = _commandCenterVertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
+        var (ccMesh, ccCount, ccScale) = ResolveBuildingMesh("command_center", 1);
+        _baseEntity = _world.CreateEntity();
+        _world.AddComponent(_baseEntity, new TransformComponent { Position = new Vector3(-30f, 0f, -30f), Scale = ccScale });
+        var baseRender = new RenderComponent { MeshId = ccMesh, VertexCount = ccCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles };
+        ApplyRaceTexturing(baseRender, _playerRaceId, 1);
+        _world.AddComponent(_baseEntity, baseRender);
         _world.AddComponent(_baseEntity, new BuildingComponent { BuildingType = "command_center", ProductionRate = 1f, Footprint = [2, 2], PlayerId = 1, RallyPoint = new Vector3(-30f, 0f, 0f), Producible = ["drone_worker", "miner_basic"] });
         _world.AddComponent(_baseEntity, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
         _world.AddComponent(_baseEntity, new HealthComponent { MaxHP = 2000f, CurrentHP = 2000f, Armor = 100f });
@@ -530,8 +542,11 @@ public partial class EngineWindow : GameWindow
             ("missile", 95f, 620f, 0.35f));
 
         var shipyard = _world.CreateEntity();
-        _world.AddComponent(shipyard, new TransformComponent { Position = new Vector3(50f, 0f, -50f), Scale = new Vector3(2.2f, 2.2f, 2.2f) });
-        _world.AddComponent(shipyard, new RenderComponent { MeshId = _shipyardMediumVao, VertexCount = _shipyardMediumVertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
+        var (syMesh, syCount, syScale) = ResolveBuildingMesh("shipyard_medium", 1);
+        _world.AddComponent(shipyard, new TransformComponent { Position = new Vector3(50f, 0f, -50f), Scale = syScale });
+        var yardRender = new RenderComponent { MeshId = syMesh, VertexCount = syCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles };
+        ApplyRaceTexturing(yardRender, _playerRaceId, 1);
+        _world.AddComponent(shipyard, yardRender);
         _world.AddComponent(shipyard, new BuildingComponent
         {
             BuildingType = "shipyard_medium",
@@ -625,7 +640,7 @@ public partial class EngineWindow : GameWindow
         // Always render the starfield background
         var projection = Matrix4.CreatePerspectiveFieldOfView(
             MathHelper.DegreesToRadians(45.0f),
-            (float)Size.X / Size.Y,
+            Size.Y > 0 ? (float)Size.X / Size.Y : 4f / 3f,
             0.1f,
             10000.0f);
 
@@ -691,6 +706,7 @@ public partial class EngineWindow : GameWindow
         GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
 
         ResolveProjectileMeshes();
+        RenderTeamAuras();
 
         // Render all ships with engine trails
         foreach (var (entity, render) in _world!.Query<RenderComponent>())
@@ -729,12 +745,20 @@ public partial class EngineWindow : GameWindow
                 : transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
 
-            if (isProjectile)
+            if (render.RaceTextureIndex >= 0)
             {
+                GL.Uniform1(_uniformRaceTextureIndex, render.RaceTextureIndex);
+                GL.Uniform3(_uniformTeamTint, render.TeamTint);
+                GL.Uniform4(_uniformColor, Vector4.Zero);
+            }
+            else if (isProjectile)
+            {
+                GL.Uniform1(_uniformRaceTextureIndex, -1);
                 GL.Uniform4(_uniformColor, render.Color);
             }
             else
             {
+                GL.Uniform1(_uniformRaceTextureIndex, -1);
                 var displayKind = GameplayEntityDisplay.Classify(_world, entity);
                 Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
                 bool useOverride = tint.W > 0f || render.Color.W > 0f;
@@ -867,7 +891,10 @@ public partial class EngineWindow : GameWindow
         switch (_sceneManager.State)
         {
             case GameState.MainMenu:
-                Close();
+                if (_uiManager.ScreenCount > 1)
+                    _uiManager.Pop();
+                else
+                    Close();
                 break;
             case GameState.Playing:
                 // Check if pause menu is already showing
@@ -1591,11 +1618,13 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         }
 
         string buildingType = def.Components?.Building?.BuildingType ?? buildingId;
-        var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType);
+        var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType, 1);
 
         var building = _world.CreateEntity();
         _world.AddComponent(building, new TransformComponent { Position = worldPos, Scale = scale });
-        _world.AddComponent(building, new RenderComponent { MeshId = meshId, VertexCount = vertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles });
+        var placedRender = new RenderComponent { MeshId = meshId, VertexCount = vertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles };
+        ApplyRaceTexturing(placedRender, ResolveFactionRaceId(1, isEnemy: false), 1);
+        _world.AddComponent(building, placedRender);
         _world.AddComponent(building, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
 
         var healthDef = def.Components?.Health;
@@ -1758,7 +1787,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         var projection = Matrix4.CreatePerspectiveFieldOfView(
             MathHelper.DegreesToRadians(45.0f),
-            (float)Size.X / Size.Y,
+            Size.Y > 0 ? (float)Size.X / Size.Y : 4f / 3f,
             0.1f,
             10000.0f);
 
@@ -1842,43 +1871,6 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         var writer = new ImageWriter();
         writer.WritePng(flipped, width, height, ColorComponents.RedGreenBlueAlpha, stream);
     }
-
-    // ── Shader sources ────────────────────────────────────────────────────────
-
-    private const string VertexShaderSource = @"
-#version 330 core
-layout(location = 0) in vec3 aPosition;
-layout(location = 1) in vec3 aColor;
-
-uniform mat4 projection;
-uniform mat4 view;
-uniform mat4 model;
-uniform vec4 overrideColor;
-uniform float pointSize;
-
-out vec3 fragColor;
-
-void main()
-{
-    gl_Position = projection * view * model * vec4(aPosition, 1.0);
-    gl_PointSize = max(pointSize, 1.0);
-    if (overrideColor.a > 0.0)
-        fragColor = overrideColor.rgb;
-    else
-        fragColor = aColor;
-}
-";
-
-    private const string FragmentShaderSource = @"
-#version 330 core
-in vec3 fragColor;
-out vec4 outputColor;
-
-void main()
-{
-    outputColor = vec4(fragColor, 1.0);
-}
-";
 }
 
 // ── Scene implementations ─────────────────────────────────────────────────

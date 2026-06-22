@@ -18,6 +18,7 @@ public sealed class RaceVisualDefinition
     public string Style { get; set; } = "angular";
     public RacePalette Palette { get; set; } = new();
     public RaceModifiers Modifiers { get; set; } = new();
+    public RaceSubstrateDefinition? Substrate { get; set; }
 }
 
 public sealed class RacePalette

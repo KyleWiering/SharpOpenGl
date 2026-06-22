@@ -14,6 +14,8 @@ public sealed class BrowserMeshLibrary
     public int GridCount { get; private set; }
     public int SelectionRing { get; private set; }
     public int SelectionRingCount { get; private set; }
+    public int TeamAuraDisc { get; private set; }
+    public int TeamAuraDiscCount { get; private set; }
     public int EngineTrail { get; private set; }
     public int EngineTrailCount { get; private set; }
     public int MoveTarget { get; private set; }
@@ -64,6 +66,10 @@ public sealed class BrowserMeshLibrary
         float[] ring = ProceduralMeshes.BuildSelectionRing(new Vector3(0f, 1f, 0f), 3f);
         SelectionRing = await renderer.UploadMeshAsync(ring);
         SelectionRingCount = ProceduralMeshes.VertexCount(ring);
+
+        float[] auraDisc = ProceduralMeshes.BuildTeamAuraDisc();
+        TeamAuraDisc = await renderer.UploadMeshAsync(auraDisc);
+        TeamAuraDiscCount = ProceduralMeshes.VertexCount(auraDisc);
 
         float[] trail = ProceduralMeshes.BuildEngineTrail(new Vector3(1.0f, 0.6f, 0.1f), 2.5f);
         EngineTrail = await renderer.UploadMeshAsync(trail);

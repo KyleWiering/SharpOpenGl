@@ -13,6 +13,7 @@ using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Input;
 using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Persistence;
+using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
@@ -163,6 +164,7 @@ public partial class EngineWindow
 
     private void InitializeWorldCore(string? missionId, bool skipWorldSpawn = false)
     {
+        _fleetGalleryMode = false;
         _world?.Dispose();
         _fighterEntities.Clear();
         _resourceNodeEntities.Clear();
@@ -416,17 +418,20 @@ public partial class EngineWindow
         }
 
         string buildingType = def.Components?.Building?.BuildingType ?? buildingId;
-        var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType);
+        var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType, playerId);
+        string raceId = ResolveFactionRaceId(playerId, isEnemy: playerId != _humanPlayerId);
 
         var building = _world.CreateEntity();
         _world.AddComponent(building, new TransformComponent { Position = worldPos, Scale = scale });
-        _world.AddComponent(building, new RenderComponent
+        var buildingRender = new RenderComponent
         {
             MeshId = meshId,
             VertexCount = vertCount,
             Visible = true,
             PrimitiveType = (int)PrimitiveType.Triangles,
-        });
+        };
+        ApplyRaceTexturing(buildingRender, raceId, playerId);
+        _world.AddComponent(building, buildingRender);
         _world.AddComponent(building, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
 
         var healthDef = def.Components?.Health;
@@ -568,15 +573,18 @@ public partial class EngineWindow
             }
         }
 
+        bool gallery = missionId.Equals("ship_gallery", StringComparison.OrdinalIgnoreCase);
         Vector3 spawnCenter = GridCellToWorld(start?.PlayerSpawn ?? [3, 3]);
-        _rtsCamera.Target = spawnCenter;
-        RevealAreaAt(spawnCenter, 18);
+        _rtsCamera.Target = gallery ? FleetGalleryLayout.ZoneWorldCenter(0) : spawnCenter;
+        RevealAreaAt(spawnCenter, gallery ? 120 : 18);
 
-        if (start?.StartingUnits is { Length: > 0 })
+        if (gallery)
         {
-            bool gallery = missionId.Equals("ship_gallery", StringComparison.OrdinalIgnoreCase);
-            int columns = gallery ? 5 : start.StartingUnits.Length;
-            float spacing = gallery ? 22f : 18f;
+            SpawnFleetGalleryWorld();
+        }
+        else if (start?.StartingUnits is { Length: > 0 })
+        {
+            float spacing = 18f;
 
             for (int i = 0; i < start.StartingUnits.Length; i++)
             {
@@ -585,17 +593,12 @@ public partial class EngineWindow
                     def = _assetManager?.Load<EntityDefinition>($"Ships/{unitId}");
                 if (def == null) continue;
 
-                Vector3 offset = gallery
-                    ? GalleryGridOffset(i, columns, spacing)
-                    : new Vector3(
-                        MathF.Cos(MathF.PI * 2f * i / start.StartingUnits.Length) * spacing,
-                        0f,
-                        MathF.Sin(MathF.PI * 2f * i / start.StartingUnits.Length) * spacing);
+                Vector3 offset = new Vector3(
+                    MathF.Cos(MathF.PI * 2f * i / start.StartingUnits.Length) * spacing,
+                    0f,
+                    MathF.Sin(MathF.PI * 2f * i / start.StartingUnits.Length) * spacing);
                 SpawnPlayerUnit(def, spawnCenter + offset, selectFirst: i == 0);
             }
-
-            if (gallery)
-                RevealAreaAt(spawnCenter + new Vector3(columns * spacing * 0.5f, 0f, 0f), 40);
         }
         else
         {
@@ -604,7 +607,8 @@ public partial class EngineWindow
 
         string mapId = string.IsNullOrWhiteSpace(mission.Map) ? "sector_alpha" : mission.Map;
         SpawnMapContent(mapId);
-        SpawnPlayerBase();
+        if (!gallery)
+            SpawnPlayerBase();
     }
 
     private static Vector3 GridCellToWorld(int[] cell) =>
@@ -710,12 +714,17 @@ public partial class EngineWindow
             render.Color = color;
             render.Visible = true;
             render.PrimitiveType = (int)PrimitiveType.Triangles;
+            string raceId = ResolveFactionRaceId(playerId, isEnemy);
+            ApplyRaceTexturing(render, raceId, playerId);
         }
 
         if (!_world.HasComponent<BuildingComponent>(entity))
             ApplyShipDisplayScale(_world.GetComponent<TransformComponent>(entity));
 
-        bool isAiControlled = isEnemy || playerId != _humanPlayerId;
+        bool isGalleryShowcase = _fleetGalleryMode && playerId != _humanPlayerId;
+        bool isAiControlled = !isGalleryShowcase && (isEnemy || playerId != _humanPlayerId);
+        if (isGalleryShowcase)
+            ConfigureGalleryShowcaseUnit(entity);
         if (isAiControlled)
         {
             _world.AddComponent(entity, new AIControlledComponent { PlayerId = playerId, Aggressiveness = 0.6f });

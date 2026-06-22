@@ -11,6 +11,13 @@ class Program
 {
     static void Main(string[] args)
     {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            string message = e.ExceptionObject?.ToString() ?? "Unknown error";
+            Console.Error.WriteLine(message);
+            try { File.WriteAllText("sharpopengl-crash.log", message); } catch { }
+        };
+
         bool screenshotMode = args.Contains("--screenshot");
         bool demoRecordingMode = args.Contains("--demo-recording");
         string screenshotPath = "screenshot.png";
@@ -35,10 +42,14 @@ class Program
             Title = demoRecordingMode
                 ? $"SharpOpenGL Demo — {demoMissionId}"
                 : "SharpOpenGL - Space RTS",
+            APIVersion = new Version(3, 3),
+            Profile = ContextProfile.Core,
             Flags = headlessCapture
                 ? ContextFlags.Offscreen
                 : ContextFlags.Default,
             WindowBorder = WindowBorder.Resizable,
+            StartVisible = true,
+            StartFocused = true,
         };
 
         var gameWindowSettings = new GameWindowSettings
@@ -46,14 +57,24 @@ class Program
             UpdateFrequency = 60.0
         };
 
-        using var game = new EngineWindow(
-            gameWindowSettings,
-            nativeWindowSettings,
-            screenshotMode,
-            screenshotPath,
-            demoRecordingMode,
-            demoMissionId,
-            demoOutputPath);
-        game.Run();
+        try
+        {
+            using var game = new EngineWindow(
+                gameWindowSettings,
+                nativeWindowSettings,
+                screenshotMode,
+                screenshotPath,
+                demoRecordingMode,
+                demoMissionId,
+                demoOutputPath);
+            game.Run();
+        }
+        catch (Exception ex)
+        {
+            string message = ex.ToString();
+            Console.Error.WriteLine(message);
+            try { File.WriteAllText("sharpopengl-crash.log", message); } catch { }
+            System.Environment.ExitCode = 1;
+        }
     }
 }

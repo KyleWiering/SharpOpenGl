@@ -21,10 +21,20 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
+      - name: Configure Pages for GitHub Actions deployment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/${{ github.repository }}/pages" \
+            --method PUT \
+            --input - <<'EOF'
+          {"build_type":"workflow"}
+          EOF
 
       - name: Setup .NET 8
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: '8.0.x'
 
@@ -60,11 +70,20 @@ jobs:
           cp _md_backup/*.md docs/ 2>/dev/null || true
           cp _demo_backup/gameplay-demo.mp4 _demo_backup/gameplay-demo-poster.png docs/ 2>/dev/null || true
           rm -f docs/engine.js docs/engine.min.js
+          touch docs/.nojekyll
+          cp docs/index.html docs/404.html
+
+      - name: Verify Pages artifact
+        run: |
+          test -f docs/index.html || (echo "❌ docs/index.html missing after publish" && exit 1)
+          test -f docs/_framework/blazor.webassembly.js || (echo "❌ Blazor _framework assets missing" && exit 1)
+          echo "✅ Pages artifact ready ($(du -sh docs | cut -f1))"
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: 'docs'
+          include-hidden-files: true
 
       - name: Deploy to GitHub Pages
         id: deployment

@@ -47,7 +47,9 @@ public class MissionLoaderTests
 
         Assert.NotNull(mission);
         Assert.Equal("ship_gallery", mission.Id);
-        Assert.Equal(19, mission.StartConditions!.StartingUnits.Length);
+        Assert.Single(mission.StartConditions!.StartingUnits);
+        Assert.Equal("hero_default", mission.StartConditions.StartingUnits[0]);
+        Assert.Empty(mission.Triggers);
         Assert.Null(mission.PrerequisiteMissionId);
     }
 

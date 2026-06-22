@@ -33,4 +33,10 @@ public sealed class RenderComponent
 
     /// <summary>OpenGL primitive type (e.g. GL_TRIANGLES = 4, GL_LINES = 1).</summary>
     public int PrimitiveType { get; set; } = 4; // GL_TRIANGLES
+
+    /// <summary>Procedural race texture shader index (0–7), or -1 to skip race plating.</summary>
+    public int RaceTextureIndex { get; set; } = -1;
+
+    /// <summary>Per-player faction tint multiplied with race texture in the shader.</summary>
+    public Vector3 TeamTint { get; set; } = Vector3.One;
 }

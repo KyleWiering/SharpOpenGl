@@ -36,6 +36,21 @@ public partial class EngineWindow
         return Path.Combine(ResolveRepoRoot(), "docs", GameplayDemoFileName);
     }
 
+    private void InitializeScreenshotCapture()
+    {
+        EnsureAssets();
+        var definition = _missionLoader!.Load(_demoMissionId);
+        if (definition == null)
+        {
+            Console.WriteLine($"[Screenshot] Mission '{_demoMissionId}' not found — using sandbox.");
+            return;
+        }
+
+        _missionController!.StartMission(_demoMissionId);
+        _pendingMissionId = _demoMissionId;
+        Console.WriteLine($"[Screenshot] Capturing mission '{_demoMissionId}'.");
+    }
+
     private void InitializeDemoRecording()
     {
         EnsureAssets();
