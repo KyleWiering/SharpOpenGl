@@ -12,6 +12,7 @@ public sealed class BrowserGameplayRenderer
 {
     private readonly WebGlRenderer _renderer;
     private readonly BrowserMeshLibrary _meshes;
+    private float _auraPulse;
     private readonly RtsCameraController _camera = new()
     {
         Target = Vector3.Zero,
@@ -31,8 +32,9 @@ public sealed class BrowserGameplayRenderer
 
     public RtsCameraController Camera => _camera;
 
-    public void Render(World world, int viewportWidth, int viewportHeight, ExplosionVfxController? explosionVfx = null)
+    public void Render(World world, int viewportWidth, int viewportHeight, ExplosionVfxController? explosionVfx = null, float deltaTime = 0.016f)
     {
+        _auraPulse += deltaTime;
         float aspect = viewportWidth / (float)Math.Max(1, viewportHeight);
         Matrix4 projection = _camera.GetProjectionMatrix(aspect);
         Matrix4 view = _camera.GetViewMatrix();
@@ -45,6 +47,8 @@ public sealed class BrowserGameplayRenderer
         var (gridMesh, gridCount) = _meshes.GetGridForHeight(
             _camera.Height, _camera.MinHeight, _camera.MaxHeight);
         _renderer.DrawMesh(gridMesh, gridCount, gridModel, Vector4.Zero, GlPrimitive.Lines);
+
+        RenderTeamAuras(world);
 
         foreach (var (entity, render) in world.Query<RenderComponent>())
         {
@@ -84,13 +88,15 @@ public sealed class BrowserGameplayRenderer
                 ? BuildProjectileModel(transform, projectile, visual)
                 : transform.GetModelMatrix();
 
-            Vector4 color = isProjectile
-                ? render.Color
-                : world.HasComponent<ResourceNodeComponent>(entity) || world.HasComponent<AIControlledComponent>(entity)
+            Vector4 color = render.RaceTextureIndex >= 0
+                ? Vector4.Zero
+                : isProjectile
                     ? render.Color
-                    : Vector4.Zero;
+                    : world.HasComponent<ResourceNodeComponent>(entity) || world.HasComponent<AIControlledComponent>(entity)
+                        ? render.Color
+                        : Vector4.Zero;
 
-            _renderer.DrawMesh(render.MeshId, render.VertexCount, model, color, render.PrimitiveType);
+            _renderer.DrawMesh(render.MeshId, render.VertexCount, model, color, render.PrimitiveType, render.RaceTextureIndex, render.TeamTint);
         }
 
         foreach (var (entity, sel) in world.Query<SelectionComponent>())
@@ -114,6 +120,43 @@ public sealed class BrowserGameplayRenderer
         }
 
         _renderer.EndFrame();
+    }
+
+    private void RenderTeamAuras(World world)
+    {
+        if (_meshes.TeamAuraDiscCount <= 0) return;
+
+        float pulse = 0.78f + 0.22f * MathF.Sin(_auraPulse * 2.4f);
+        const float baseRingRadius = 3f;
+
+        foreach (var (entity, render) in world.Query<RenderComponent>())
+        {
+            if (!render.Visible || render.RaceTextureIndex < 0) continue;
+
+            var transform = world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            int playerId = TeamVisualResolver.ResolvePlayerId(world, entity);
+            float selRadius = world.GetComponent<SelectionComponent>(entity)?.SelectionRadius ?? 7f;
+            float auraRadius = selRadius * 0.68f;
+
+            Matrix4 discModel = Matrix4.CreateScale(auraRadius) *
+                                Matrix4.CreateTranslation(transform.Position with { Y = 0.12f });
+            _renderer.DrawMesh(_meshes.TeamAuraDisc, _meshes.TeamAuraDiscCount, discModel,
+                PlayerColorPalette.GetAuraColor(playerId, pulse), GlPrimitive.Triangles);
+
+            float outerScale = auraRadius / baseRingRadius * 1.35f;
+            Matrix4 outerModel = Matrix4.CreateScale(outerScale) *
+                                  Matrix4.CreateTranslation(transform.Position with { Y = 0.16f });
+            _renderer.DrawMesh(_meshes.SelectionRing, _meshes.SelectionRingCount, outerModel,
+                PlayerColorPalette.GetAuraOuterColor(playerId, pulse), GlPrimitive.Lines);
+
+            float ringScale = auraRadius / baseRingRadius * 1.08f;
+            Matrix4 ringModel = Matrix4.CreateScale(ringScale) *
+                                Matrix4.CreateTranslation(transform.Position with { Y = 0.2f });
+            _renderer.DrawMesh(_meshes.SelectionRing, _meshes.SelectionRingCount, ringModel,
+                PlayerColorPalette.GetAuraRingColor(playerId, pulse), GlPrimitive.Lines);
+        }
     }
 
     private static Matrix4 BuildProjectileModel(TransformComponent transform, ProjectileComponent? proj,

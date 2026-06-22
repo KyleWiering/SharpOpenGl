@@ -38,12 +38,15 @@ public sealed class WebGlRenderer : IRenderer
             MatrixToArray(projection), MatrixToArray(view));
     }
 
-    public void DrawMesh(int vao, int vertexCount, Matrix4 model, Vector4 color, int primitiveType)
+    public void DrawMesh(int vao, int vertexCount, Matrix4 model, Vector4 color, int primitiveType,
+        int raceTextureIndex = -1, Vector3 teamTint = default)
     {
         if (!_inFrame || vao <= 0 || vertexCount <= 0) return;
         _ = _js.InvokeVoidAsync("sharpGl.drawMesh",
             vao, vertexCount, MatrixToArray(model),
-            new[] { color.X, color.Y, color.Z, color.W }, primitiveType);
+            new[] { color.X, color.Y, color.Z, color.W }, primitiveType,
+            raceTextureIndex,
+            new[] { teamTint.X, teamTint.Y, teamTint.Z });
     }
 
     public void DrawPoints(int meshId, float[] vertices, int pointCount, Matrix4 model, float pointSize = 5f)

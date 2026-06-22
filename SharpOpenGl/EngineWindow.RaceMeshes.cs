@@ -1,5 +1,6 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Entities;
+using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Rendering;
@@ -13,57 +14,86 @@ public partial class EngineWindow
     private int _humanPlayerId = 1;
     private readonly Dictionary<int, string> _factionRaceIds = new();
     private readonly Dictionary<string, (int vao, int vbo, int vertCount)> _raceMeshCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (int vao, int vbo, int vertCount)> _raceBuildingMeshCache = new(StringComparer.OrdinalIgnoreCase);
+    private bool _fleetGalleryMode;
 
     private (int vao, int vertCount) GetDesignMesh(ShipDesignSpec design)
     {
         if (!_raceMeshCache.TryGetValue(design.DesignId, out var mesh))
         {
-            Vector3? tint = null;
-            if (RaceVisualSchema.TryGetRace(design.RaceId, out var race) && race.Palette.Primary.Length >= 3)
-                tint = new Vector3(race.Palette.Primary[0], race.Palette.Primary[1], race.Palette.Primary[2]);
+            try
+            {
+                Vector3? tint = null;
+                if (RaceVisualSchema.TryGetRace(design.RaceId, out var race) && race.Palette.Primary.Length >= 3)
+                    tint = new Vector3(race.Palette.Primary[0], race.Palette.Primary[1], race.Palette.Primary[2]);
 
-            float[] vertices = RaceShipMeshes.BuildDesign(design, tint);
-            var uploaded = MeshBuilder.UploadProcedural(vertices);
-            mesh = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+                float[] vertices = RaceShipMeshes.BuildDesign(design, tint);
+                var uploaded = MeshBuilder.UploadProcedural(vertices);
+                mesh = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Mesh] Failed '{design.DesignId}': {ex.Message}");
+                var fallback = MeshBuilder.UploadProcedural(
+                    RaceShipMeshes.BuildForDefinition("fighter_basic", design.RaceId));
+                mesh = (fallback.vao, fallback.vbo, fallback.vertexCount);
+            }
+
             _raceMeshCache[design.DesignId] = mesh;
         }
 
         return (mesh.vao, mesh.vertCount);
     }
 
+    private (int vao, int vertCount, Vector3 scale) ResolveRaceBuildingMesh(string buildingType, string raceId)
+    {
+        string cacheKey = $"{buildingType}:{raceId}";
+        if (!_raceBuildingMeshCache.TryGetValue(cacheKey, out var mesh))
+        {
+            float[] vertices = RaceBuildingMeshes.Build(buildingType, raceId);
+            var uploaded = MeshBuilder.UploadProcedural(vertices);
+            mesh = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+            _raceBuildingMeshCache[cacheKey] = mesh;
+        }
+
+        Vector3 scale = buildingType switch
+        {
+            "shipyard_small" => new Vector3(1.6f, 1.6f, 1.6f),
+            "shipyard_medium" or "shipyard" => new Vector3(2.2f, 2.2f, 2.2f),
+            "shipyard_large" => new Vector3(2.8f, 2.8f, 2.8f),
+            "defense_turret" => new Vector3(1.4f, 1.4f, 1.4f),
+            "sensor_array" => new Vector3(1.8f, 1.8f, 1.8f),
+            "resource_refinery" => new Vector3(2f, 2f, 2f),
+            "repair_bay" => new Vector3(2.4f, 2.4f, 2.4f),
+            "power_reactor" => new Vector3(1.8f, 1.8f, 1.8f),
+            "supply_depot" => new Vector3(1.6f, 1.6f, 1.6f),
+            _ => new Vector3(2f, 2f, 2f),
+        };
+
+        return (mesh.vao, mesh.vertCount, scale);
+    }
+
     private (int vao, int vertCount, Vector4 color) ResolveRaceMeshForDefinition(
         EntityDefinition def, int playerId, bool isEnemy)
     {
         string raceId = ResolveFactionRaceId(playerId, isEnemy);
-        ShipDesignSpec design = isEnemy
-            ? ShipDesignCatalog.ResolveForEnemy(def.Id)
-            : ShipDesignCatalog.Resolve(def.Id, raceId);
+        ShipDesignSpec design = ShipDesignCatalog.Resolve(def.Id, raceId);
 
         var (vao, vertCount) = GetDesignMesh(design);
-        Vector4 color = ResolveFactionTeamColor(design.RaceId, playerId == _humanPlayerId);
-        return (vao, vertCount, color);
+        return (vao, vertCount, Vector4.Zero);
+    }
+
+    private static void ApplyRaceTexturing(RenderComponent render, string raceId, int playerId)
+    {
+        render.RaceTextureIndex = RaceTextureIndex.Resolve(raceId);
+        render.TeamTint = PlayerColorPalette.GetTint(playerId);
+        render.Color = Vector4.Zero;
     }
 
     private string ResolveFactionRaceId(int playerId, bool isEnemy) =>
         _factionRaceIds.TryGetValue(playerId, out string? raceId)
             ? raceId
             : isEnemy ? _aiRaceId : _playerRaceId;
-
-    private static Vector4 ResolveFactionTeamColor(string raceId, bool isHumanPlayer)
-    {
-        if (RaceVisualSchema.TryGetRace(raceId, out var race) && race.Palette.Primary.Length >= 3)
-        {
-            return new Vector4(
-                race.Palette.Primary[0],
-                race.Palette.Primary[1],
-                race.Palette.Primary[2],
-                1f);
-        }
-
-        return isHumanPlayer
-            ? GameplayEntityDisplay.FriendlyColor
-            : GameplayEntityDisplay.HostileColor;
-    }
 
     private void ConfigureFactionRaces(IReadOnlyList<MultiplayerPlayerSlot> players)
     {
@@ -92,27 +122,32 @@ public partial class EngineWindow
         _factionRaceIds[2] = _aiRaceId;
     }
 
-    private static Vector4 ResolveFriendlyTint(EntityDefinition def)
+    private void ConfigureFleetGalleryFactions()
     {
-        string id = def.Id.ToLowerInvariant();
-        string cat = def.Category.ToLowerInvariant();
-        if (id.Contains("hero")) return new Vector4(0.2f, 0.8f, 1f, 1f);
-        if (id.Contains("dreadnought") || cat.Contains("dreadnought")) return new Vector4(0.85f, 0.3f, 0.55f, 1f);
-        if (id.Contains("carrier")) return new Vector4(0.6f, 0.6f, 0.8f, 1f);
-        if (id.Contains("cruiser") || cat.Contains("cruiser")) return new Vector4(0.55f, 0.5f, 0.9f, 1f);
-        if (id.Contains("gunship") || cat.Contains("gunship")) return new Vector4(0.95f, 0.45f, 0.25f, 1f);
-        if (id.Contains("destroyer") || cat.Contains("destroyer")) return new Vector4(0.7f, 0.2f, 0.9f, 1f);
-        if (id.Contains("frigate") || cat.Contains("frigate")) return new Vector4(0.5f, 0.7f, 0.95f, 1f);
-        if (id.Contains("corvette") || cat.Contains("corvette")) return new Vector4(0.45f, 0.8f, 1f, 1f);
-        if (id.Contains("bomber") || cat.Contains("bomber")) return new Vector4(0.9f, 0.5f, 0.2f, 1f);
-        if (id.Contains("miner") || cat.Contains("miner")) return new Vector4(0.9f, 0.8f, 0.2f, 1f);
-        if (id.Contains("transport") || id.Contains("freighter") || id.Contains("hauler") || cat.Contains("transport"))
-            return new Vector4(0.55f, 0.75f, 0.95f, 1f);
-        if (id.Contains("drone") || cat.Contains("drone")) return new Vector4(0.75f, 0.9f, 1f, 1f);
-        if (id.Contains("support") || cat.Contains("support")) return new Vector4(0.65f, 0.85f, 0.75f, 1f);
-        if (id.Contains("scout") || cat.Contains("scout")) return new Vector4(0.55f, 0.95f, 1f, 1f);
-        if (id.Contains("fighter") || id.Contains("interceptor") || cat.Contains("fighter"))
-            return new Vector4(0.4f, 1f, 0.4f, 1f);
-        return new Vector4(0.5f, 0.8f, 1f, 1f);
+        _factionRaceIds.Clear();
+        _humanPlayerId = 1;
+        for (int i = 0; i < RaceTextureIndex.AllRaceIds.Count; i++)
+            _factionRaceIds[i + 1] = RaceTextureIndex.AllRaceIds[i];
+        _playerRaceId = RaceShipMeshes.DefaultRace;
+        _aiRaceId = "vesper";
+    }
+
+    private void PrewarmFleetGalleryMeshes()
+    {
+        foreach (string raceId in RaceTextureIndex.AllRaceIds)
+        {
+            foreach (string shipId in FleetGalleryLayout.AllShipIds)
+            {
+                if (!_definitions.TryGetValue(shipId, out var def))
+                    def = _assetManager?.Load<EntityDefinition>($"Ships/{shipId}");
+                if (def == null) continue;
+
+                ShipDesignSpec design = ShipDesignCatalog.Resolve(def.Id, raceId);
+                GetDesignMesh(design);
+            }
+
+            foreach (string baseId in FleetGalleryLayout.AllBaseIds)
+                ResolveRaceBuildingMesh(baseId, raceId);
+        }
     }
 }

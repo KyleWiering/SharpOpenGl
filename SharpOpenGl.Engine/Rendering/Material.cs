@@ -4,7 +4,7 @@ namespace SharpOpenGl.Engine.Rendering;
 
 /// <summary>
 /// Visual material properties for a mesh.
-/// Applied via shader uniforms — no texture support yet (Phase 8 prototype).
+/// Applied via shader uniforms and procedural race surface textures.
 /// </summary>
 public sealed class Material
 {

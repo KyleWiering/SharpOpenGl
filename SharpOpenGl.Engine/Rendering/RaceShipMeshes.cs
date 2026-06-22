@@ -49,9 +49,12 @@ public static class RaceShipMeshes
         BuildHullCore(writer, design.HullClass, race, hull, len, wid, hgt);
         ApplyRaceStyle(writer, race, design.HullClass, len, wid, hgt, hull.EngineScale, sweep, span, asym, protrusion, engines);
         ShipDesignVariantGeometry.Apply(writer, design, variant, len, wid, hgt, race.Style);
+        RaceSurfaceDetail.ApplyShipDetail(writer, race, design.HullClass, len, wid, hgt);
 
         Vector3 primary = tint ?? ToVector3(race.Palette.Primary);
         writer.RecolorPrimary(primary, ToVector3(race.Palette.Secondary), ToVector3(race.Palette.Accent), ToVector3(race.Palette.Engine));
+        writer.ApplySubstrateVariation(RaceSubstrateProfile.ForRace(race));
+        writer.ApplyBakedLighting(new Vector3(0.35f, 0.9f, 0.25f));
         return writer.ToArray();
     }
 
@@ -71,30 +74,7 @@ public static class RaceShipMeshes
         RaceMeshWriter w, string hullKey, RaceVisualDefinition race, HullClassProfile hull,
         float len, float wid, float hgt)
     {
-        switch (hullKey)
-        {
-            case "scout":       BuildScoutCore(w, len, wid, hgt); break;
-            case "fighter":     BuildFighterCore(w, len, wid, hgt); break;
-            case "interceptor": BuildInterceptorCore(w, len, wid, hgt); break;
-            case "drone":       BuildDroneCore(w, len, wid, hgt); break;
-            case "corvette":    BuildCorvetteCore(w, len, wid, hgt); break;
-            case "frigate":     BuildFrigateCore(w, len, wid, hgt); break;
-            case "gunship":     BuildGunshipCore(w, len, wid, hgt); break;
-            case "bomber":      BuildBomberCore(w, len, wid, hgt); break;
-            case "destroyer":   BuildDestroyerCore(w, len, wid, hgt); break;
-            case "cruiser":     BuildCruiserCore(w, len, wid, hgt); break;
-            case "carrier":     BuildCarrierCore(w, len, wid, hgt); break;
-            case "dreadnought": BuildDreadnoughtCore(w, len, wid, hgt); break;
-            case "miner":       BuildMinerCore(w, len, wid, hgt); break;
-            case "transport":   BuildTransportCore(w, len, wid, hgt); break;
-            case "freighter":   BuildFreighterCore(w, len, wid, hgt); break;
-            case "support":     BuildSupportCore(w, len, wid, hgt); break;
-            case "hero":        BuildHeroCore(w, len, wid, hgt); break;
-            default:            BuildFighterCore(w, len, wid, hgt); break;
-        }
-
-        if (race.Modifiers.FacetSharpness > 0.4f)
-            AddCrystalFacets(w, len, wid, hgt, race.Modifiers.FacetSharpness);
+        RaceHullSilhouette.Build(w, race, hullKey, len, wid, hgt);
     }
 
     private static void ApplyRaceStyle(
@@ -109,47 +89,7 @@ public static class RaceShipMeshes
         float len, float wid, float hgt, float engineScale,
         float sweep, float span, float asym, float protrusion, int engineCount)
     {
-        var m = race.Modifiers;
-
-        switch (race.Style.ToLowerInvariant())
-        {
-            case "sleek":
-                AddSleekSpine(w, len, wid * 0.35f, hgt * 0.6f);
-                AddMinimalStabilizers(w, len * 0.15f, wid * 0.25f * span, sweep * 0.4f, hgt);
-                break;
-            case "blocky":
-                AddArmorBelt(w, len * 0.1f, wid * 1.05f, hgt * 0.55f);
-                AddSponsonBlocks(w, len * 0.05f, wid * 0.95f, hgt * 0.45f, protrusion);
-                break;
-            case "organic":
-                AddFlowFins(w, len * 0.2f, wid * span, sweep, hgt * 1.2f);
-                AddBioPods(w, len * -0.55f, wid * 0.55f, hgt, engineCount);
-                break;
-            case "asymmetric":
-                AddMandibleProngs(w, len * 0.82f, wid * 0.45f, hgt, asym);
-                AddOffsetPod(w, len * -0.35f, wid * 0.65f * (1f + asym), hgt * 0.8f, asym);
-                break;
-            case "radiant":
-                AddSolarFins(w, len * 0.05f, wid * span * 1.15f, hgt * 1.4f, m.Superstructure);
-                AddCrownBridge(w, len * -0.15f, wid * 0.35f, hgt * (1.2f + m.Superstructure));
-                break;
-            case "spiny":
-                AddVoidSpines(w, len, wid, hgt, protrusion, asym);
-                AddRiftInset(w, len * -0.25f, wid * 0.35f, hgt * 0.2f);
-                break;
-            case "crystalline":
-                AddIceShards(w, len * 0.35f, wid * span, hgt * 1.3f, m.FacetSharpness);
-                AddPrismBridge(w, len * 0.05f, wid * 0.28f, hgt * 0.9f);
-                break;
-            default: // angular / terran
-                AddDeltaWings(w, len * 0.15f, wid * span, sweep, hgt);
-                AddCockpitHump(w, len * 0.45f, wid * 0.22f, hgt * 1.1f);
-                break;
-        }
-
         AddEngines(w, len, wid, hgt, engineCount, engineScale, race.Style);
-        if (m.Superstructure > 0.4f && hullKey is "cruiser" or "carrier" or "dreadnought" or "hero")
-            AddCommandTower(w, len * -0.1f, wid * 0.28f, hgt * (0.8f + m.Superstructure), race.Style);
     }
 
     // ── Hull class cores ──────────────────────────────────────────────────────
@@ -308,14 +248,14 @@ public static class RaceShipMeshes
 
     private static void AddDeltaWings(RaceMeshWriter w, float z, float wid, float sweep, float hgt)
     {
-        float back = z - sweep * wid;
-        w.Tri(-wid * 0.25f, hgt * 0.05f, z, -wid * 0.95f, 0, back, -wid * 0.35f, 0, z - wid * 0.15f);
-        w.Tri(wid * 0.25f, hgt * 0.05f, z, wid * 0.35f, 0, z - wid * 0.15f, wid * 0.95f, 0, back);
+        float back = z - sweep * wid * 0.6f;
+        w.Tri(-wid * 0.22f, hgt * 0.08f, z, -wid * 0.62f, hgt * 0.02f, back, -wid * 0.28f, hgt * 0.04f, z - wid * 0.1f);
+        w.Tri(wid * 0.22f, hgt * 0.08f, z, wid * 0.28f, hgt * 0.04f, z - wid * 0.1f, wid * 0.62f, hgt * 0.02f, back);
     }
 
     private static void AddCockpitHump(RaceMeshWriter w, float z, float wid, float hgt)
     {
-        w.Tri(0, hgt, z, -wid, hgt * 0.45f, z - wid * 0.5f, wid, hgt * 0.45f, z - wid * 0.5f);
+        w.Tri(0, hgt, z, -wid, hgt * 0.55f, z - wid * 0.12f, wid, hgt * 0.55f, z - wid * 0.12f);
     }
 
     private static void AddSleekSpine(RaceMeshWriter w, float len, float wid, float hgt)
@@ -337,15 +277,15 @@ public static class RaceShipMeshes
 
     private static void AddSponsonBlocks(RaceMeshWriter w, float z, float wid, float hgt, float protrusion)
     {
-        float p = protrusion * wid;
-        w.Tri(-wid * 0.72f - p, hgt * 0.2f, z, -wid * 0.72f, 0, z - wid * 0.2f, -wid * 0.55f, hgt * 0.15f, z);
-        w.Tri(wid * 0.72f + p, hgt * 0.2f, z, wid * 0.55f, hgt * 0.15f, z, wid * 0.72f, 0, z - wid * 0.2f);
+        float p = protrusion * wid * 0.4f;
+        w.Tri(-wid * 0.55f - p, hgt * 0.22f, z, -wid * 0.58f, hgt * 0.06f, z - wid * 0.12f, -wid * 0.48f, hgt * 0.16f, z);
+        w.Tri(wid * 0.55f + p, hgt * 0.22f, z, wid * 0.48f, hgt * 0.16f, z, wid * 0.58f, hgt * 0.06f, z - wid * 0.12f);
     }
 
     private static void AddFlowFins(RaceMeshWriter w, float z, float wid, float sweep, float hgt)
     {
-        w.Tri(-wid * 0.2f, hgt * 0.5f, z, -wid * 0.85f, hgt * 0.15f, z - sweep * wid, -wid * 0.35f, 0, z - wid * 0.25f);
-        w.Tri(wid * 0.2f, hgt * 0.5f, z, wid * 0.35f, 0, z - wid * 0.25f, wid * 0.85f, hgt * 0.15f, z - sweep * wid);
+        w.Tri(-wid * 0.18f, hgt * 0.42f, z, -wid * 0.58f, hgt * 0.14f, z - sweep * wid * 0.6f, -wid * 0.28f, hgt * 0.06f, z - wid * 0.14f);
+        w.Tri(wid * 0.18f, hgt * 0.42f, z, wid * 0.28f, hgt * 0.06f, z - wid * 0.14f, wid * 0.58f, hgt * 0.14f, z - sweep * wid * 0.6f);
     }
 
     private static void AddBioPods(RaceMeshWriter w, float z, float wid, float hgt, int count)
@@ -380,8 +320,8 @@ public static class RaceShipMeshes
 
     private static void AddCrownBridge(RaceMeshWriter w, float z, float wid, float hgt)
     {
-        w.Tri(0, hgt, z, -wid, hgt * 0.55f, z - wid * 0.35f, wid, hgt * 0.55f, z - wid * 0.35f);
-        w.Tri(-wid * 0.35f, hgt * 0.75f, z + wid * 0.1f, wid * 0.35f, hgt * 0.75f, z + wid * 0.1f, 0, hgt * 1.15f, z + wid * 0.25f);
+        w.Tri(0, hgt, z, -wid, hgt * 0.58f, z - wid * 0.12f, wid, hgt * 0.58f, z - wid * 0.12f);
+        w.Tri(-wid * 0.28f, hgt * 0.72f, z + wid * 0.06f, wid * 0.28f, hgt * 0.72f, z + wid * 0.06f, 0, hgt * 0.88f, z + wid * 0.12f);
     }
 
     private static void AddVoidSpines(RaceMeshWriter w, float len, float wid, float hgt, float protrusion, float asym)
@@ -417,8 +357,8 @@ public static class RaceShipMeshes
 
     private static void AddCommandTower(RaceMeshWriter w, float z, float wid, float hgt, string style)
     {
-        float cap = style == "radiant" ? 1.35f : 1.05f;
-        w.Tri(wid * 0.35f, hgt * 0.55f, z, wid * 0.55f, hgt * 0.55f, z - wid * 0.25f, wid * 0.42f, hgt * cap, z - wid * 0.1f);
+        float cap = style == "radiant" ? 0.95f : 0.88f;
+        w.Tri(wid * 0.32f, hgt * 0.52f, z, wid * 0.48f, hgt * 0.52f, z - wid * 0.14f, wid * 0.38f, hgt * cap, z - wid * 0.06f);
     }
 
     private static void AddEngines(RaceMeshWriter w, float len, float wid, float hgt, int count, float scale, string style)

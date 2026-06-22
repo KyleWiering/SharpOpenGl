@@ -83,6 +83,32 @@ public static class ProceduralMeshes
         return verts.ToArray();
     }
 
+    /// <summary>Soft radial disc for faction aura (vertex luminance = falloff mask).</summary>
+    public static float[] BuildTeamAuraDisc(float radius = 1f, int segments = 32)
+    {
+        var verts = new List<float>();
+        float y = 0.08f;
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle0 = MathF.PI * 2f * i / segments;
+            float angle1 = MathF.PI * 2f * (i + 1) / segments;
+
+            float x0 = MathF.Cos(angle0) * radius;
+            float z0 = MathF.Sin(angle0) * radius;
+            float x1 = MathF.Cos(angle1) * radius;
+            float z1 = MathF.Sin(angle1) * radius;
+
+            float fade0 = 0.12f + 0.88f * (1f - (i + 0.5f) / segments);
+            float fade1 = 0.12f + 0.88f * (1f - (i + 1.5f) / segments);
+            verts.AddRange(new[] { 0f, y, 0f, 1f, 1f, 1f });
+            verts.AddRange(new[] { x0, y, z0, fade0, fade0, fade0 });
+            verts.AddRange(new[] { x1, y, z1, fade1, fade1, fade1 });
+        }
+
+        return verts.ToArray();
+    }
+
     public static float[] BuildSelectionRing(Vector3 color, float radius = 2.5f, int segments = 24)
     {
         float r = color.X, g = color.Y, b = color.Z;
@@ -604,7 +630,7 @@ public static class ProceduralMeshes
 
     public static int VertexCount(float[] vertices) => vertices.Length / Stride;
 
-    private static float[] ClampColors(float[] vertices)
+    internal static float[] ClampColors(float[] vertices)
     {
         for (int i = 0; i < vertices.Length; i += Stride)
         {

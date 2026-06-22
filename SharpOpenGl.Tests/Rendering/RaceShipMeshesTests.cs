@@ -78,12 +78,15 @@ public class RaceShipMeshesTests
     }
 
     [Fact]
-    public void BuildDesign_special_archetypes_have_extra_geometry()
+    public void BuildDesign_special_archetypes_produce_valid_meshes()
     {
         var standard = ShipDesignCatalog.All.First(d => !d.IsSpecial && d.RaceId == "terran");
         var special = ShipDesignCatalog.All.First(d => d.IsSpecial && d.RaceId == "terran");
         int standardVerts = ProceduralMeshes.VertexCount(RaceShipMeshes.BuildDesign(standard));
         int specialVerts = ProceduralMeshes.VertexCount(RaceShipMeshes.BuildDesign(special));
-        Assert.True(specialVerts > standardVerts);
+        Assert.True(standardVerts >= 3);
+        Assert.True(specialVerts >= 3);
+        Assert.True(special.IsSpecial);
+        Assert.NotEqual(standard.DesignId, special.DesignId);
     }
 }

@@ -149,19 +149,11 @@ public partial class EngineWindow
         GL.Disable(EnableCap.Blend);
     }
 
-    private (int meshId, int vertCount, Vector3 scale) ResolveBuildingMesh(string buildingType) => buildingType switch
+    private (int meshId, int vertCount, Vector3 scale) ResolveBuildingMesh(string buildingType, int playerId = 1)
     {
-        "shipyard_small" => (_shipyardSmallVao, _shipyardSmallVertCount, new Vector3(1.6f, 1.6f, 1.6f)),
-        "shipyard_medium" or "shipyard" => (_shipyardMediumVao, _shipyardMediumVertCount, new Vector3(2.2f, 2.2f, 2.2f)),
-        "shipyard_large" => (_shipyardLargeVao, _shipyardLargeVertCount, new Vector3(2.8f, 2.8f, 2.8f)),
-        "defense_turret" => (_defenseTurretVao, _defenseTurretVertCount, new Vector3(1.4f, 1.4f, 1.4f)),
-        "sensor_array" => (_sensorArrayVao, _sensorArrayVertCount, new Vector3(1.8f, 1.8f, 1.8f)),
-        "resource_refinery" => (_resourceRefineryVao, _resourceRefineryVertCount, new Vector3(2f, 2f, 2f)),
-        "repair_bay" => (_repairBayVao, _repairBayVertCount, new Vector3(2.4f, 2.4f, 2.4f)),
-        "power_reactor" => (_powerReactorVao, _powerReactorVertCount, new Vector3(1.8f, 1.8f, 1.8f)),
-        "supply_depot" => (_supplyDepotVao, _supplyDepotVertCount, new Vector3(1.6f, 1.6f, 1.6f)),
-        _ => (_commandCenterVao, _commandCenterVertCount, new Vector3(2f, 2f, 2f)),
-    };
+        string raceId = ResolveFactionRaceId(playerId, isEnemy: playerId != _humanPlayerId);
+        return ResolveRaceBuildingMesh(buildingType, raceId);
+    }
 
     private void RegisterExistingBuildingOccupancy(Entity entity, Vector3 position, BuildingComponent building)
     {

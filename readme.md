@@ -95,13 +95,14 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 3. Move your fleet to the waypoint at sector center
 4. Eliminate enemy scouts that spawn when you approach
 
-## Fleet Gallery (all hull types)
+## Fleet Gallery (all hull types, stations, and race textures)
 
-The `ship_gallery` mission spawns every playable hull type in a grid for visual inspection — no prerequisite, always unlocked on the star map (Arsenal Station, lower-right):
+The `ship_gallery` mission spreads **all 8 races** across the sector in grid formations — each zone shows every hull type and every station type. Ships use distinct **race silhouettes** (not one shared wedge): Terran angular delta-wings, Vesper narrow needles, Korath stacked box decks, Aetherian bulbous pods, Nexar open lattice truss frames, Solari wide solar decks, Voidborn spiny spines, Cryo faceted gems — plus greebles, baked lighting, substrate variation, and GLSL plating. Per-player faction tints stack on top in skirmish/multiplayer. No prerequisite; always unlocked on the star map (Arsenal Station, lower-right):
 
 1. Select **Fleet Gallery** from mission select
-2. Pan east to compare your Terran fleet with the passive enemy showcase row (each hull uses a different race design seed)
-3. Build any hull from a large shipyard — all 18 producible types including `miner_eva` and `miner_tractor` appear in the build panel
+2. Pan across the map to visit eight race zones (Terran, Vesper, Korath, Aetherian, Nexar, Solari, Voidborn, Cryo)
+3. Each zone displays 19 ships in a 5-column grid plus 10 station types in a second grid row
+4. In skirmish/multiplayer, race textures combine with per-player colors (blue, red, green, gold, etc.) so owners are easy to spot
 
 ## Controls
 
