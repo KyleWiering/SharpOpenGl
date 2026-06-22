@@ -40,6 +40,18 @@ public class MissionLoaderTests
     }
 
     [Fact]
+    public void Load_ship_gallery_includes_full_roster()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("ship_gallery");
+
+        Assert.NotNull(mission);
+        Assert.Equal("ship_gallery", mission.Id);
+        Assert.Equal(19, mission.StartConditions!.StartingUnits.Length);
+        Assert.Null(mission.PrerequisiteMissionId);
+    }
+
+    [Fact]
     public void Load_returns_null_for_missing_file()
     {
         var loader = CreateLoader();

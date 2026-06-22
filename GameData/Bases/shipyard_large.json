@@ -25,6 +25,8 @@
     "interceptor_mk2",
     "drone_swarm",
     "miner_basic",
+    "miner_eva",
+    "miner_tractor",
     "bomber_heavy",
     "corvette_fast",
     "frigate_strike",

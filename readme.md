@@ -76,7 +76,7 @@ dotnet test
 
 ## Game Features
 
-- **Ships**: 19 data-driven vessel types (fighters, scouts, corvettes, frigates, gunships, capitals, drones, support)
+- **Ships**: 19 data-driven vessel types (fighters, scouts, corvettes, frigates, gunships, capitals, drones, miners, support) with 500 procedural race-specific silhouettes across 8 factions
 - **Shipyards**: Small / medium / large tiers with tier-appropriate build queues
 - **Audio**: OpenAL desktop SFX (weapon fire, launches, explosions, UI clicks) via procedural placeholders
 - **Movement**: A* pathfinding with terrain costs, waypoint queues, patrol mode
@@ -94,6 +94,14 @@ The `example_scenario` mission demonstrates fleet movement, combat, and objectiv
 2. Select "First Contact" from the mission select screen
 3. Move your fleet to the waypoint at sector center
 4. Eliminate enemy scouts that spawn when you approach
+
+## Fleet Gallery (all hull types)
+
+The `ship_gallery` mission spawns every playable hull type in a grid for visual inspection — no prerequisite, always unlocked on the star map (Arsenal Station, lower-right):
+
+1. Select **Fleet Gallery** from mission select
+2. Pan east to compare your Terran fleet with the passive enemy showcase row (each hull uses a different race design seed)
+3. Build any hull from a large shipyard — all 18 producible types including `miner_eva` and `miner_tractor` appear in the build panel
 
 ## Controls
 
@@ -126,7 +134,7 @@ Ship definitions live in `GameData/Ships/*.json`. Each has distinct stats, weapo
 | Light | Scout, Fighter, Interceptor Mk.II, Swarm Drone |
 | Escort | Corvette, Frigate, Gunship |
 | Heavy | Bomber, Destroyer, Cruiser, Carrier, Dreadnought |
-| Utility | Miner, Transport, Bulk Freighter, Restoration Tender |
+| Utility | Miner (drone / EVA / tractor), Transport, Bulk Freighter, Restoration Tender |
 
 ## Shipyard Tiers
 
@@ -134,9 +142,9 @@ Place shipyards with **N** (cycles small, medium, large). Each tier limits which
 
 | Tier | Footprint | Supply | Typical production |
 |------|-----------|--------|-------------------|
-| Small | 2x2 | +6 | Scouts, fighters, drones, miners |
+| Small | 2x2 | +6 | Scouts, fighters, drones, all three miner variants |
 | Medium | 3x3 | +10 | Adds corvettes, frigates, destroyers, gunships, transports |
-| Large | 4x4 | +18 | Adds cruisers, carriers, dreadnoughts, freighters, support |
+| Large | 4x4 | +18 | Full roster except hero — cruisers, carriers, dreadnoughts, freighters, support |
 
 Definitions: `GameData/Bases/shipyard_small.json`, `shipyard_medium.json`, `shipyard_large.json`.
 

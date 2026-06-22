@@ -148,8 +148,13 @@ public sealed class TriggerSystem : GameSystem
         if (action.Position != null && action.Position.Length >= 2)
             pos = MapCoordinates.GridToWorld(action.Position[0], action.Position[1]);
 
-        foreach (string unitId in action.Units)
+        int unitCount = action.Units.Length;
+        int columns = unitCount >= 10 ? 6 : unitCount;
+        float spacing = unitCount >= 10 ? 22f : 14f;
+
+        for (int i = 0; i < unitCount; i++)
         {
+            string unitId = action.Units[i];
             EntityDefinition? def = null;
             if (_assets != null)
             {
@@ -163,7 +168,14 @@ public sealed class TriggerSystem : GameSystem
 
             Entity spawned = _unitFactory.Create(world, def);
             var tf = world.GetComponent<TransformComponent>(spawned);
-            if (tf != null) tf.Position = pos;
+            if (tf != null)
+            {
+                int col = i % columns;
+                int row = i / columns;
+                float x = (col - (columns - 1) * 0.5f) * spacing;
+                float z = row * spacing;
+                tf.Position = pos + new Vector3(x, 0f, z);
+            }
 
             if (!string.IsNullOrEmpty(action.Tag))
                 _state.RegisterEntityTag(action.Tag, spawned);

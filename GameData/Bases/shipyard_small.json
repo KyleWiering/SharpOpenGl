@@ -22,7 +22,9 @@
     "fighter_basic",
     "interceptor_mk2",
     "drone_swarm",
-    "miner_basic"
+    "miner_basic",
+    "miner_eva",
+    "miner_tractor"
   ],
   "cost": { "energy": 120, "minerals": 180, "data": 0, "crew": 2 },
   "buildTime": 40
