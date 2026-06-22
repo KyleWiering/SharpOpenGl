@@ -48,32 +48,36 @@ jobs:
             dotnet run --project SharpOpenGl --configuration Release --no-build -- \
             --demo-recording --mission example_scenario
 
-      - name: Publish Blazor WASM site
+      - name: Publish Blazor WASM to docs/
         run: |
-          mkdir -p _md_backup _demo_backup _site
+          set -euo pipefail
+          mkdir -p _md_backup _demo_backup
           cp docs/*.md _md_backup/ 2>/dev/null || true
-          cp docs/gameplay-demo.mp4 docs/gameplay-demo-poster.png _demo_backup/ 2>/dev/null || true
+          if [ -f docs/gameplay-demo.mp4 ]; then cp docs/gameplay-demo.mp4 _demo_backup/; fi
+          if [ -f docs/gameplay-demo-poster.png ]; then cp docs/gameplay-demo-poster.png _demo_backup/; fi
           dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
             --configuration Release \
-            --output _site \
+            --output docs \
             /p:BaseHref=/SharpOpenGl/
-          cp _md_backup/*.md _site/ 2>/dev/null || true
-          cp _demo_backup/gameplay-demo.mp4 _demo_backup/gameplay-demo-poster.png _site/ 2>/dev/null || true
-          rm -f _site/engine.js _site/engine.min.js
-          touch _site/.nojekyll
-          cp _site/index.html _site/404.html
+          cp _md_backup/*.md docs/ 2>/dev/null || true
+          if [ -f _demo_backup/gameplay-demo.mp4 ]; then cp _demo_backup/gameplay-demo.mp4 docs/; fi
+          if [ -f _demo_backup/gameplay-demo-poster.png ]; then cp _demo_backup/gameplay-demo-poster.png docs/; fi
+          rm -f docs/engine.js docs/engine.min.js
+          touch docs/.nojekyll
 
       - name: Verify Pages artifact
         run: |
-          test -f _site/index.html || (echo "❌ _site/index.html missing after publish" && exit 1)
-          test -f _site/_framework/blazor.webassembly.js || (echo "❌ Blazor _framework assets missing" && exit 1)
-          echo "✅ Pages artifact ready ($(du -sh _site | cut -f1))"
+          set -euo pipefail
+          test -f docs/index.html || (echo "❌ docs/index.html missing after publish" && exit 1)
+          test -f docs/_framework/blazor.webassembly.js || (echo "❌ Blazor _framework assets missing" && exit 1)
+          cp docs/index.html docs/404.html
+          echo "✅ Pages artifact ready ($(du -sh docs | cut -f1))"
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./_site
+          publish_dir: ./docs
           force_orphan: true
 
       - name: Point Pages at gh-pages branch
@@ -90,7 +94,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: '_site'
+          path: 'docs'
           include-hidden-files: true
 
       - name: Deploy to GitHub Pages
