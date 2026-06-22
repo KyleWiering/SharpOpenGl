@@ -48,36 +48,46 @@ jobs:
             dotnet run --project SharpOpenGl --configuration Release --no-build -- \
             --demo-recording --mission example_scenario
 
-      - name: Publish Blazor WASM to docs/
+      - name: Publish Blazor WASM
         run: |
-          set -euo pipefail
-          mkdir -p _md_backup _demo_backup
-          cp docs/*.md _md_backup/ 2>/dev/null || true
-          if [ -f docs/gameplay-demo.mp4 ]; then cp docs/gameplay-demo.mp4 _demo_backup/; fi
-          if [ -f docs/gameplay-demo-poster.png ]; then cp docs/gameplay-demo-poster.png _demo_backup/; fi
           dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
             --configuration Release \
-            --output docs \
+            --output dist/pages \
             /p:BaseHref=/SharpOpenGl/
-          cp _md_backup/*.md docs/ 2>/dev/null || true
-          if [ -f _demo_backup/gameplay-demo.mp4 ]; then cp _demo_backup/gameplay-demo.mp4 docs/; fi
-          if [ -f _demo_backup/gameplay-demo-poster.png ]; then cp _demo_backup/gameplay-demo-poster.png docs/; fi
-          rm -f docs/engine.js docs/engine.min.js
-          touch docs/.nojekyll
+
+      - name: Assemble GitHub Pages site
+        run: |
+          set -euo pipefail
+          rm -rf pages_site
+          mkdir -p pages_site
+          cp -a dist/pages/. pages_site/
+          cp docs/*.md pages_site/ 2>/dev/null || true
+          if [ -f docs/gameplay-demo.mp4 ]; then cp docs/gameplay-demo.mp4 pages_site/; fi
+          if [ -f docs/gameplay-demo-poster.png ]; then cp docs/gameplay-demo-poster.png pages_site/; fi
+          rm -f pages_site/engine.js pages_site/engine.min.js
+          touch pages_site/.nojekyll
 
       - name: Verify Pages artifact
         run: |
           set -euo pipefail
-          test -f docs/index.html || (echo "❌ docs/index.html missing after publish" && exit 1)
-          test -f docs/_framework/blazor.webassembly.js || (echo "❌ Blazor _framework assets missing" && exit 1)
-          cp docs/index.html docs/404.html
-          echo "✅ Pages artifact ready ($(du -sh docs | cut -f1))"
+          if [ ! -f pages_site/index.html ]; then
+            echo "❌ pages_site/index.html missing after publish"
+            ls -la pages_site || true
+            exit 1
+          fi
+          if [ ! -f pages_site/_framework/blazor.boot.json ]; then
+            echo "❌ pages_site/_framework/blazor.boot.json missing"
+            ls -la pages_site/_framework 2>/dev/null || true
+            exit 1
+          fi
+          cp pages_site/index.html pages_site/404.html
+          echo "✅ Pages artifact ready ($(du -sh pages_site | cut -f1))"
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
+          publish_dir: ./pages_site
           force_orphan: true
 
       - name: Point Pages at gh-pages branch
@@ -94,7 +104,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: 'docs'
+          path: 'pages_site'
           include-hidden-files: true
 
       - name: Deploy to GitHub Pages
