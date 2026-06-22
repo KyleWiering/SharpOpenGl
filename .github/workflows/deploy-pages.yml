@@ -31,13 +31,36 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Restore dependencies
+        run: dotnet restore
+
+      # Publish Blazor BEFORE any desktop Release build — desktop build corrupts
+      # incremental WASM publish output (CI build-browser publishes in isolation).
+      - name: Publish Blazor WASM
+        run: |
+          set -euo pipefail
+          rm -rf dist/pages
+          dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
+            --configuration Release \
+            --no-restore \
+            --output dist/pages \
+            /p:BaseHref=/SharpOpenGl/
+          if [ ! -f dist/pages/index.html ]; then
+            echo "❌ dist/pages/index.html missing after publish"
+            ls -la dist/pages || true
+            exit 1
+          fi
+          if [ ! -f dist/pages/_framework/blazor.boot.json ]; then
+            echo "❌ dist/pages/_framework/blazor.boot.json missing"
+            ls -la dist/pages/_framework 2>/dev/null || true
+            exit 1
+          fi
+          echo "✅ Blazor WASM published ($(du -sh dist/pages | cut -f1))"
+
       - name: Install Mesa, OpenGL, and ffmpeg dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y mesa-utils libgl1-mesa-dev libglu1-mesa-dev xvfb libopengl0 libglfw3 ffmpeg
-
-      - name: Restore dependencies
-        run: dotnet restore
 
       - name: Build desktop project for demo capture
         run: dotnet build SharpOpenGl/SharpOpenGl.csproj --configuration Release --no-restore
@@ -47,13 +70,6 @@ jobs:
           xvfb-run -a -s "-screen 0 1024x768x24" \
             dotnet run --project SharpOpenGl --configuration Release --no-build -- \
             --demo-recording --mission example_scenario
-
-      - name: Publish Blazor WASM
-        run: |
-          dotnet publish SharpOpenGl.Browser/SharpOpenGl.Browser.csproj \
-            --configuration Release \
-            --output dist/pages \
-            /p:BaseHref=/SharpOpenGl/
 
       - name: Assemble GitHub Pages site
         run: |
@@ -66,21 +82,12 @@ jobs:
           if [ -f docs/gameplay-demo-poster.png ]; then cp docs/gameplay-demo-poster.png pages_site/; fi
           rm -f pages_site/engine.js pages_site/engine.min.js
           touch pages_site/.nojekyll
-
-      - name: Verify Pages artifact
-        run: |
-          set -euo pipefail
-          if [ ! -f pages_site/index.html ]; then
-            echo "❌ pages_site/index.html missing after publish"
+          cp pages_site/index.html pages_site/404.html
+          if [ ! -f pages_site/_framework/blazor.boot.json ]; then
+            echo "❌ pages_site/_framework/blazor.boot.json missing after assemble"
             ls -la pages_site || true
             exit 1
           fi
-          if [ ! -f pages_site/_framework/blazor.boot.json ]; then
-            echo "❌ pages_site/_framework/blazor.boot.json missing"
-            ls -la pages_site/_framework 2>/dev/null || true
-            exit 1
-          fi
-          cp pages_site/index.html pages_site/404.html
           echo "✅ Pages artifact ready ($(du -sh pages_site | cut -f1))"
 
       - name: Deploy to gh-pages branch
