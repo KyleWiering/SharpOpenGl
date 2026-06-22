@@ -1,0 +1,49 @@
+{
+  "_comment": "Global resource configuration. Adjust values here to tune economy without code changes.",
+  "resources": {
+    "energy": {
+      "displayName": "Plasma Cores",
+      "startingAmount": 500,
+      "maxStorage": 2000,
+      "baseIncomePerSecond": 5,
+      "conversionRates": {
+        "minerals": 0.5,
+        "data": 0.25,
+        "crew": 0.1
+      }
+    },
+    "minerals": {
+      "displayName": "Astrium Ore",
+      "startingAmount": 300,
+      "maxStorage": 5000,
+      "baseIncomePerSecond": 0,
+      "conversionRates": {
+        "energy": 2.0,
+        "data": 0.5,
+        "crew": 0.2
+      }
+    },
+    "data": {
+      "displayName": "Quantum Fragments",
+      "startingAmount": 0,
+      "maxStorage": 1000,
+      "baseIncomePerSecond": 0,
+      "conversionRates": {
+        "energy": 4.0,
+        "minerals": 2.0,
+        "crew": 0.5
+      }
+    },
+    "crew": {
+      "displayName": "Personnel",
+      "startingAmount": 10,
+      "maxStorage": 200,
+      "baseIncomePerSecond": 0.1,
+      "conversionRates": {
+        "energy": 10.0,
+        "minerals": 5.0,
+        "data": 2.0
+      }
+    }
+  }
+}

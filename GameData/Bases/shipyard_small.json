@@ -1,0 +1,31 @@
+{
+  "id": "shipyard_small",
+  "displayName": "Small Shipyard",
+  "category": "base",
+  "mesh": "meshes/shipyard_small.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 800, "shields": 0, "armor": 50 },
+    "building": {
+      "buildingType": "shipyard_small",
+      "productionRate": 1.2,
+      "buildQueue": [],
+      "footprint": [2, 2]
+    },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 18, "range": 280, "fireRate": 2.8 }
+    ],
+    "sightRadius": 8
+  },
+  "producible": [
+    "scout_light",
+    "fighter_basic",
+    "interceptor_mk2",
+    "drone_swarm",
+    "miner_basic",
+    "miner_eva",
+    "miner_tractor"
+  ],
+  "cost": { "energy": 120, "minerals": 180, "data": 0, "crew": 2 },
+  "buildTime": 40
+}

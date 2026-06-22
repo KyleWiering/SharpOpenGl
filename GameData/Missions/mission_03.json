@@ -1,0 +1,94 @@
+{
+  "id": "mission_03",
+  "displayName": "Rescue Op",
+  "description": "Extract the stranded science team before their life support fails.",
+  "map": "sector_gamma",
+  "planetName": "Valkyr Outpost",
+  "starMapPosition": [0.45, 0.62],
+  "planetColor": "#66E0A3",
+  "prerequisiteMissionId": "mission_02",
+  "briefing": {
+    "text": "Commander, a science vessel has been disabled in Sector Gamma. The crew has taken refuge in an escape pod. Escort them to the extraction beacon while neutralising the pirate blockade.",
+    "objectivesPreview": ["Escort the escape pod to the beacon", "Destroy the pirate blockade", "Keep the pod intact"]
+  },
+  "startConditions": {
+    "playerSpawn": [2, 8],
+    "startingUnits": ["hero_default", "fighter_basic", "fighter_basic", "fighter_basic"],
+    "startingResources": { "energy": 600, "minerals": 100, "data": 20, "crew": 18 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "destroy_blockade",
+        "type": "destroy_target",
+        "target": "pirate_blockade_leader",
+        "description": "Destroy the pirate blockade commander"
+      },
+      {
+        "id": "reach_beacon",
+        "type": "reach_area",
+        "area": { "x": 50, "y": 50, "radius": 8 },
+        "entity": "escape_pod",
+        "description": "Escort the escape pod to the extraction beacon"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "pod_intact",
+        "type": "condition",
+        "condition": "escape_pod.health > 0",
+        "description": "Keep the escape pod from being destroyed"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "pod_spawned",
+      "condition": { "type": "timer", "seconds": 0 },
+      "actions": [
+        { "type": "spawn_units", "units": ["escape_pod"], "position": [20, 40] },
+        { "type": "dialog", "speaker": "Science Team", "text": "SOS! Please hurry, life support is failing!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "blockade_reinforced",
+      "condition": { "type": "timer", "seconds": 60 },
+      "actions": [
+        { "type": "spawn_units", "units": ["pirate_fighter", "pirate_fighter"], "position": [45, 45] },
+        { "type": "dialog", "speaker": "Pirate", "text": "No-one passes through our blockade alive!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "pod_low_health",
+      "condition": { "type": "kill_count", "count": 2 },
+      "actions": [
+        { "type": "dialog", "speaker": "AI", "text": "Two hostiles neutralised — the path is clearing." }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": { "energy": 400, "minerals": 150, "data": 150, "crew": 5 },
+    "xp": 350,
+    "unlocks": ["gunship_basic"]
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [2, 8], "height": 200 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "all" },
+    { "type": "attack_move", "position": [22, 40] },
+    { "type": "wait", "seconds": 8 },
+    { "type": "attack_move", "position": [45, 45] },
+    { "type": "wait", "seconds": 10 },
+    { "type": "attack_target", "targetTag": "pirate_blockade_leader" },
+    { "type": "wait", "seconds": 20 },
+    { "type": "move_to", "position": [50, 50] },
+    { "type": "wait", "seconds": 15 },
+    { "type": "camera_pan", "position": [50, 50], "height": 220 },
+    { "type": "wait", "seconds": 2 }
+  ]
+}

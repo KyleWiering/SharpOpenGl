@@ -1,0 +1,19 @@
+{
+  "id": "supply_depot",
+  "displayName": "Supply Depot",
+  "category": "base",
+  "mesh": "meshes/supply_depot.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 650, "shields": 0, "armor": 35 },
+    "building": {
+      "buildingType": "supply_depot",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [2, 2]
+    },
+    "sightRadius": 6
+  },
+  "cost": { "energy": 90, "minerals": 120, "data": 0, "crew": 1 },
+  "buildTime": 25
+}

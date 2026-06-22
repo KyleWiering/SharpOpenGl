@@ -1,0 +1,137 @@
+{
+  "id": "mission_05",
+  "displayName": "The Reckoning",
+  "description": "Assault the enemy flagship and bring down their command network.",
+  "map": "sector_omega",
+  "planetName": "Obsidian Gate",
+  "starMapPosition": [0.78, 0.58],
+  "planetColor": "#FF4D6D",
+  "prerequisiteMissionId": "mission_04",
+  "briefing": {
+    "text": "Commander, intelligence has pinpointed the enemy command ship — the Dreadnought Malthus — in Sector Omega. Destroy its four shield generators to expose the core, then finish it. This is the decisive battle.",
+    "objectivesPreview": [
+      "Destroy all four shield generators",
+      "Destroy the Dreadnought Malthus",
+      "Keep hero ship alive"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [5, 5],
+    "startingUnits": [
+      "hero_default",
+      "fighter_basic", "fighter_basic", "fighter_basic",
+      "gunship_basic",  "bomber_basic"
+    ],
+    "startingResources": { "energy": 2000, "minerals": 1000, "data": 500, "crew": 50 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "destroy_generator_1",
+        "type": "destroy_target",
+        "target": "shield_generator_1",
+        "description": "Destroy Shield Generator Alpha"
+      },
+      {
+        "id": "destroy_generator_2",
+        "type": "destroy_target",
+        "target": "shield_generator_2",
+        "description": "Destroy Shield Generator Beta"
+      },
+      {
+        "id": "destroy_generator_3",
+        "type": "destroy_target",
+        "target": "shield_generator_3",
+        "description": "Destroy Shield Generator Gamma"
+      },
+      {
+        "id": "destroy_generator_4",
+        "type": "destroy_target",
+        "target": "shield_generator_4",
+        "description": "Destroy Shield Generator Delta"
+      },
+      {
+        "id": "destroy_flagship",
+        "type": "destroy_target",
+        "target": "dreadnought_malthus",
+        "description": "Destroy the Dreadnought Malthus"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "flawless_hero",
+        "type": "condition",
+        "condition": "hero.health == hero.maxHealth",
+        "description": "Finish the battle with your hero at full health"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "flagship_spawn",
+      "condition": { "type": "timer", "seconds": 0 },
+      "actions": [
+        {
+          "type": "spawn_units",
+          "units": [
+            "shield_generator_1", "shield_generator_2",
+            "shield_generator_3", "shield_generator_4",
+            "dreadnought_malthus"
+          ],
+          "position": [70, 70]
+        },
+        { "type": "dialog", "speaker": "Enemy Admiral", "text": "Your fleet ends here, Commander. Open fire!" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "first_gen_down",
+      "condition": { "type": "kill_count", "count": 1 },
+      "actions": [
+        { "type": "dialog", "speaker": "AI", "text": "Shield generator down — press the advantage!" },
+        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic"], "position": [68, 72] }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "half_gens_down",
+      "condition": { "type": "kill_count", "count": 2 },
+      "actions": [
+        { "type": "dialog", "speaker": "Enemy Admiral", "text": "Impossible! All wings, protect the generators!" },
+        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic", "gunship_enemy"], "position": [72, 68] }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "flagship_exposed",
+      "condition": { "type": "kill_count", "count": 4 },
+      "actions": [
+        { "type": "dialog", "speaker": "AI", "text": "All generators destroyed — flagship core is exposed. Finish this!" },
+        { "type": "camera_pan", "position": [70, 70] }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": { "energy": 1000, "minerals": 800, "data": 600, "crew": 30 },
+    "xp": 1000,
+    "unlocks": ["dreadnought_basic"]
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [5, 5], "height": 220 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "all" },
+    { "type": "attack_move", "position": [65, 65] },
+    { "type": "wait", "seconds": 12 },
+    { "type": "attack_target", "targetTag": "shield_generator_1" },
+    { "type": "wait", "seconds": 15 },
+    { "type": "attack_target", "targetTag": "shield_generator_2" },
+    { "type": "wait", "seconds": 15 },
+    { "type": "attack_target", "targetTag": "dreadnought_malthus" },
+    { "type": "wait", "seconds": 30 },
+    { "type": "camera_pan", "position": [70, 70], "height": 260 },
+    { "type": "wait", "seconds": 2 }
+  ]
+}

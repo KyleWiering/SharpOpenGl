@@ -1,0 +1,39 @@
+{
+  "_comment": "Build map categories, prerequisites, and unlock rules.",
+  "categories": [
+    {
+      "id": "production",
+      "displayName": "Production",
+      "buildings": [
+        { "id": "command_center", "prerequisites": [] },
+        { "id": "shipyard_small", "prerequisites": ["command_center"] },
+        { "id": "shipyard_medium", "prerequisites": ["command_center", "shipyard_small"] },
+        { "id": "shipyard_large", "prerequisites": ["command_center", "shipyard_medium"] }
+      ]
+    },
+    {
+      "id": "defense",
+      "displayName": "Defense",
+      "buildings": [
+        { "id": "defense_turret", "prerequisites": ["command_center"] },
+        { "id": "sensor_array", "prerequisites": ["command_center"] }
+      ]
+    },
+    {
+      "id": "economy",
+      "displayName": "Economy",
+      "buildings": [
+        { "id": "resource_refinery", "prerequisites": ["command_center"] },
+        { "id": "power_reactor", "prerequisites": ["command_center"] }
+      ]
+    },
+    {
+      "id": "support",
+      "displayName": "Support",
+      "buildings": [
+        { "id": "repair_bay", "prerequisites": ["command_center", "shipyard_small"] },
+        { "id": "supply_depot", "prerequisites": ["command_center"] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+{
+  "id": "tutorial_01",
+  "displayName": "First Contact",
+  "description": "Learn the basics of fleet command.",
+  "map": "sector_alpha",
+  "planetName": "Helios Prime",
+  "starMapPosition": [0.15, 0.55],
+  "planetColor": "#4DA6FF",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, sensors have detected an enemy scout in Sector Alpha. Engage and destroy it to secure the area.",
+    "objectivesPreview": ["Destroy the enemy scout", "Protect your base"]
+  },
+  "startConditions": {
+    "playerSpawn": [5, 5],
+    "startingUnits": ["hero_default"],
+    "startingResources": { "energy": 500, "minerals": 300, "data": 0, "crew": 10 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "destroy_scout",
+        "type": "destroy_target",
+        "target": "enemy_scout_1",
+        "description": "Destroy the enemy scout ship"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "no_damage",
+        "type": "condition",
+        "condition": "hero.health == hero.maxHealth",
+        "description": "Complete without taking damage"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "spawn_enemy_scout",
+      "condition": { "type": "timer", "seconds": 5 },
+      "actions": [
+        { "type": "spawn_units", "units": ["scout_light"], "position": [50, 50], "tag": "enemy_scout_1" }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "spawn_wave_1",
+      "condition": { "type": "timer", "seconds": 30 },
+      "actions": [
+        { "type": "spawn_units", "units": ["fighter_basic", "fighter_basic"], "position": [55, 55], "tag": "enemy_reinforcements" },
+        { "type": "dialog", "speaker": "AI", "text": "Incoming hostiles detected!" }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": { "energy": 200, "minerals": 0, "data": 50, "crew": 0 },
+    "xp": 100,
+    "unlocks": ["fighter_advanced"]
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [5, 5], "height": 180 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "hero" },
+    { "type": "wait", "seconds": 6 },
+    { "type": "attack_move", "position": [48, 48] },
+    { "type": "wait", "seconds": 12 },
+    { "type": "attack_target", "targetTag": "enemy_scout_1" },
+    { "type": "wait", "seconds": 15 },
+    { "type": "wait_objective", "objectiveId": "destroy_scout" },
+    { "type": "camera_pan", "position": [5, 5], "height": 220 },
+    { "type": "wait", "seconds": 2 }
+  ]
+}

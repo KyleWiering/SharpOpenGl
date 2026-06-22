@@ -1,0 +1,19 @@
+{
+  "_comment": "Template for base/building definitions.",
+  "id": "base_template",
+  "displayName": "Unnamed Base",
+  "category": "base",
+  "mesh": "",
+  "fallbackMesh": "default",
+  "components": {
+    "health":   { "maxHP": 500,  "shields": 0, "armor": 50 },
+    "building": {
+      "buildingType": "generic",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [1, 1]
+    }
+  },
+  "cost":      { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 30
+}

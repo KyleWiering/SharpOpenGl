@@ -1,0 +1,21 @@
+{
+  "id": "miner_tractor",
+  "displayName": "Tractor Miner",
+  "category": "miner",
+  "mesh": "meshes/miner_basic.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 140, "shields": 0, "armor": 15 },
+    "movement": { "speed": 40, "acceleration": 55, "turnRate": 110 },
+    "weapons": [],
+    "resourceCollector": {
+      "harvestMode": "tractor_beam",
+      "harvestRange": 55,
+      "harvestRate": 12,
+      "harvestRateMultiplier": 0.8,
+      "carryCapacity": 115
+    }
+  },
+  "cost": { "energy": 80, "minerals": 120, "data": 10, "crew": 2 },
+  "buildTime": 24
+}

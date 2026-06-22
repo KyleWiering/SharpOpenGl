@@ -1,0 +1,159 @@
+{
+  "_comment": "Game balance tables. Tune numbers here without code changes.",
+  "combat": {
+    "globalWeaponRangeMultiplier": 0.6,
+    "globalProjectileScaleMultiplier": 1.5,
+    "damageFormula": "finalDamage = baseDamage * (100 / (100 + armor)) - shieldAbsorb",
+    "minimumDamage": 1,
+    "hitRadius": 2.0,
+    "projectileBaseSpeed": 400.0,
+    "projectileBaseLifetime": 5.0,
+    "xpPerKill": 25,
+    "targetingRange": {
+      "fighter_basic": 200,
+      "hero_default": 600
+    },
+    "projectileTypes": {
+      "laser":   { "type": "instant", "speed": 0,    "lifetime": 0   },
+      "default": { "type": "linear",  "speed": 400,  "lifetime": 5   },
+      "missile": { "type": "homing",  "speed": 300,  "lifetime": 8   },
+      "grenade": { "type": "aoe",     "speed": 200,  "lifetime": 6,   "blastRadius": 15 }
+    },
+    "abilities": {
+      "shield_boost": { "cooldown": 30, "shieldRestorePercent": 0.5 },
+      "emp_burst":    { "cooldown": 60 }
+    }
+  },
+  "unitStats": {
+    "fighter_basic": {
+      "maxHP": 100,
+      "shields": 0,
+      "armor": 10,
+      "speed": 80,
+      "weaponDamage": 15,
+      "weaponRange": 200,
+      "weaponFireRate": 2.0,
+      "cost": { "energy": 50, "minerals": 75, "data": 0, "crew": 1 }
+    },
+    "hero_default": {
+      "maxHP": 1000,
+      "shields": 500,
+      "armor": 50,
+      "speed": 120,
+      "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 5 }
+    },
+    "bomber_basic": {
+      "maxHP": 120,
+      "shields": 0,
+      "armor": 5,
+      "speed": 60,
+      "weaponDamage": 60,
+      "weaponRange": 150,
+      "weaponFireRate": 0.5,
+      "cost": { "energy": 80, "minerals": 120, "data": 10, "crew": 2 }
+    },
+    "gunship_basic": {
+      "maxHP": 250,
+      "shields": 50,
+      "armor": 25,
+      "speed": 70,
+      "weaponDamage": 30,
+      "weaponRange": 250,
+      "weaponFireRate": 1.5,
+      "cost": { "energy": 120, "minerals": 200, "data": 20, "crew": 3 }
+    },
+    "capital_ship_basic": {
+      "maxHP": 2000,
+      "shields": 1000,
+      "armor": 150,
+      "speed": 30,
+      "weaponDamage": 200,
+      "weaponRange": 400,
+      "weaponFireRate": 0.25,
+      "cost": { "energy": 500, "minerals": 800, "data": 200, "crew": 20 }
+    },
+    "fighter_advanced": {
+      "maxHP": 150,
+      "shields": 30,
+      "armor": 15,
+      "speed": 100,
+      "weaponDamage": 25,
+      "weaponRange": 250,
+      "weaponFireRate": 2.5,
+      "cost": { "energy": 75, "minerals": 100, "data": 25, "crew": 1 }
+    }
+  },
+  "buildingStats": {
+    "command_center": {
+      "maxHP": 2000,
+      "armor": 100,
+      "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+      "buildTime": 0
+    },
+    "shipyard_small": {
+      "maxHP": 800,
+      "armor": 50,
+      "cost": { "energy": 120, "minerals": 180, "data": 0, "crew": 2 },
+      "buildTime": 40
+    },
+    "shipyard_medium": {
+      "maxHP": 1500,
+      "armor": 75,
+      "cost": { "energy": 220, "minerals": 320, "data": 25, "crew": 4 },
+      "buildTime": 55
+    },
+    "shipyard_large": {
+      "maxHP": 2200,
+      "armor": 90,
+      "cost": { "energy": 380, "minerals": 520, "data": 60, "crew": 6 },
+      "buildTime": 75
+    },
+    "defense_turret": {
+      "maxHP": 600,
+      "armor": 40,
+      "cost": { "energy": 60, "minerals": 90, "data": 0, "crew": 1 },
+      "buildTime": 18
+    },
+    "sensor_array": {
+      "maxHP": 450,
+      "armor": 25,
+      "cost": { "energy": 80, "minerals": 70, "data": 15, "crew": 1 },
+      "buildTime": 22
+    },
+    "resource_refinery": {
+      "maxHP": 900,
+      "armor": 55,
+      "cost": { "energy": 140, "minerals": 200, "data": 10, "crew": 2 },
+      "buildTime": 35
+    },
+    "repair_bay": {
+      "maxHP": 1100,
+      "armor": 60,
+      "cost": { "energy": 160, "minerals": 240, "data": 20, "crew": 3 },
+      "buildTime": 42
+    },
+    "power_reactor": {
+      "maxHP": 750,
+      "armor": 45,
+      "cost": { "energy": 100, "minerals": 150, "data": 5, "crew": 2 },
+      "buildTime": 30
+    },
+    "supply_depot": {
+      "maxHP": 650,
+      "armor": 35,
+      "cost": { "energy": 90, "minerals": 120, "data": 0, "crew": 1 },
+      "buildTime": 25
+    }
+  },
+  "economy": {
+    "upkeepPerShip": { "energy": 0.5, "crew": 0.1 },
+    "resourceNodeRespawnSeconds": 120
+  },
+  "movement": {
+    "globalSpeedMultiplier": 0.2,
+    "globalAccelerationMultiplier": 0.3
+  },
+  "visual": {
+    "globalShipScaleMultiplier": 3.5
+  }
+}

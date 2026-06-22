@@ -1,0 +1,44 @@
+{
+  "id": "shipyard_large",
+  "displayName": "Large Shipyard",
+  "category": "base",
+  "mesh": "meshes/shipyard_large.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 2500, "shields": 100, "armor": 90 },
+    "building": {
+      "buildingType": "shipyard_large",
+      "productionRate": 0.85,
+      "buildQueue": [],
+      "footprint": [4, 4]
+    },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 35, "range": 420, "fireRate": 2.2 },
+      { "slot": 1, "type": "cannon", "damage": 80, "range": 480, "fireRate": 0.65 },
+      { "slot": 2, "type": "missile", "damage": 110, "range": 580, "fireRate": 0.3 }
+    ],
+    "sightRadius": 12
+  },
+  "producible": [
+    "scout_light",
+    "fighter_basic",
+    "interceptor_mk2",
+    "drone_swarm",
+    "miner_basic",
+    "miner_eva",
+    "miner_tractor",
+    "bomber_heavy",
+    "corvette_fast",
+    "frigate_strike",
+    "destroyer_assault",
+    "gunship_heavy",
+    "transport_cargo",
+    "freighter_bulk",
+    "support_repair",
+    "cruiser_heavy",
+    "carrier_command",
+    "dreadnought"
+  ],
+  "cost": { "energy": 400, "minerals": 550, "data": 80, "crew": 8 },
+  "buildTime": 80
+}

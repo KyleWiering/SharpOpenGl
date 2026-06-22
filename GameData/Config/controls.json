@@ -1,0 +1,32 @@
+{
+  "_comment": "Default key bindings. Keys are OpenTK Keys enum names.",
+  "keyboard": {
+    "CameraMoveForward":  "W",
+    "CameraMoveBack":     "S",
+    "CameraMoveLeft":     "A",
+    "CameraMoveRight":    "D",
+    "CameraHeightUp":     "Z",
+    "CameraHeightDown":   "X",
+    "Pause":              "Escape",
+    "Ability1":           "D1",
+    "Ability2":           "D2",
+    "Ability3":           "D3",
+    "Ability4":           "D4",
+    "BuildMenu":          "B",
+    "Confirm":            "Enter",
+    "Cancel":             "Escape"
+  },
+  "mouse": {
+    "Select":             "LeftButton",
+    "MoveCommand":        "RightButton",
+    "CameraPan":          "RightButtonDrag",
+    "AttackCommand":      "RightButtonOnEnemy"
+  },
+  "touch": {
+    "Select":             "Tap",
+    "MoveCommand":        "DoubleTap",
+    "AttackCommand":      "LongPress",
+    "CameraPan":          "TwoFingerDrag",
+    "CameraZoom":         "Pinch"
+  }
+}

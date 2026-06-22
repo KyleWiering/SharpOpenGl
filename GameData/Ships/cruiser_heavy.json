@@ -1,0 +1,19 @@
+{
+  "id": "cruiser_heavy",
+  "displayName": "Ironclad Cruiser",
+  "category": "cruiser",
+  "mesh": "meshes/cruiser_heavy.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 400, "shields": 100, "armor": 30 },
+    "movement": { "speed": 35, "acceleration": 25, "turnRate": 45 },
+    "weapons": [
+      { "slot": 0, "type": "cannon", "damage": 50, "range": 300, "fireRate": 0.8 },
+      { "slot": 1, "type": "missile", "damage": 80, "range": 400, "fireRate": 0.3 }
+    ],
+    "sightRadius": 5
+  },
+  "defaultStance": "aggressive",
+  "cost": { "energy": 200, "minerals": 350, "data": 50, "crew": 8 },
+  "buildTime": 45
+}
