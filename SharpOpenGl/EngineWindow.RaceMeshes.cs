@@ -21,6 +21,15 @@ public partial class EngineWindow
     {
         if (!_raceMeshCache.TryGetValue(design.DesignId, out var mesh))
         {
+            string designKey = MeshManifest.DesignKey(design.RaceId, design.DesignId);
+            var objMesh = TryGetObjMesh(designKey);
+            if (objMesh.vao != 0)
+            {
+                mesh = (objMesh.vao, 0, objMesh.vertCount);
+                _raceMeshCache[design.DesignId] = mesh;
+                return (mesh.vao, mesh.vertCount);
+            }
+
             try
             {
                 Vector3? tint = null;
@@ -50,9 +59,19 @@ public partial class EngineWindow
         string cacheKey = $"{buildingType}:{raceId}";
         if (!_raceBuildingMeshCache.TryGetValue(cacheKey, out var mesh))
         {
-            float[] vertices = RaceBuildingMeshes.Build(buildingType, raceId);
-            var uploaded = MeshBuilder.UploadProcedural(vertices);
-            mesh = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+            string stationKey = MeshManifest.StationKey(raceId, buildingType);
+            var objMesh = TryGetObjMesh(stationKey);
+            if (objMesh.vao != 0)
+            {
+                mesh = (objMesh.vao, 0, objMesh.vertCount);
+            }
+            else
+            {
+                float[] vertices = RaceBuildingMeshes.Build(buildingType, raceId);
+                var uploaded = MeshBuilder.UploadProcedural(vertices);
+                mesh = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+            }
+
             _raceBuildingMeshCache[cacheKey] = mesh;
         }
 

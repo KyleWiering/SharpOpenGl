@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl.Engine.UI.Screens;
@@ -12,7 +13,10 @@ namespace SharpOpenGl.Engine.UI.Screens;
 /// </remarks>
 public sealed class ShipDesignerScreen : UIScreen
 {
-    private string _shipId = "default";
+    private string _shipId = "fighter_basic";
+    private string _raceId = RaceShipMeshes.DefaultRace;
+    private int _shipIndex;
+    private int _raceIndex;
 
     // ── Exposed controls ──────────────────────────────────────────────────────
 
@@ -24,6 +28,15 @@ public sealed class ShipDesignerScreen : UIScreen
 
     /// <summary>Current model rotation angle in degrees (0–360).</summary>
     public float RotationDegrees { get; private set; }
+
+    /// <summary>Active faction for mesh resolution.</summary>
+    public string RaceId => _raceId;
+
+    /// <summary>Active hull definition id.</summary>
+    public string ShipId => _shipId;
+
+    /// <summary>Manifest mesh key for the current race + hull selection.</summary>
+    public string MeshKey => MeshManifest.ShipKey(_raceId, _shipId);
 
     // ── Widgets ───────────────────────────────────────────────────────────────
 
@@ -45,7 +58,6 @@ public sealed class ShipDesignerScreen : UIScreen
     /// <summary>Build the ship designer UI.</summary>
     public ShipDesignerScreen()
     {
-        // Right-hand control panel (width 400, full height)
         _controlPanel = new Panel
         {
             Name = "ControlPanel",
@@ -64,9 +76,38 @@ public sealed class ShipDesignerScreen : UIScreen
     /// Set which ship definition is being edited.
     /// Call before pushing this screen.
     /// </summary>
-    public void LoadShip(string shipId)
+    public void LoadShip(string shipId, string? raceId = null)
     {
         _shipId = shipId;
+        if (!string.IsNullOrWhiteSpace(raceId))
+            _raceId = raceId;
+
+        _shipIndex = Array.IndexOf(FleetGalleryLayout.AllShipIds, _shipId);
+        if (_shipIndex < 0) _shipIndex = 0;
+
+        _raceIndex = 0;
+        for (int i = 0; i < RaceTextureIndex.AllRaceIds.Count; i++)
+        {
+            if (RaceTextureIndex.AllRaceIds[i].Equals(_raceId, StringComparison.OrdinalIgnoreCase))
+            {
+                _raceIndex = i;
+                break;
+            }
+        }
+    }
+
+    /// <summary>Cycle to the next playable race and keep the current hull slot.</summary>
+    public void CycleRace()
+    {
+        _raceIndex = (_raceIndex + 1) % RaceTextureIndex.AllRaceIds.Count;
+        _raceId = RaceTextureIndex.AllRaceIds[_raceIndex];
+    }
+
+    /// <summary>Cycle to the next hull in the fleet roster.</summary>
+    public void CycleShip()
+    {
+        _shipIndex = (_shipIndex + 1) % FleetGalleryLayout.AllShipIds.Length;
+        _shipId = FleetGalleryLayout.AllShipIds[_shipIndex];
     }
 
     /// <summary>Rotate the model preview by <paramref name="degrees"/> (relative delta).</summary>
@@ -84,7 +125,6 @@ public sealed class ShipDesignerScreen : UIScreen
         float btnH = 48f;
         float gap = 12f;
 
-        // Primary colour presets
         AddPresetButton("Primary: Blue",   new Vector4(0.2f, 0.4f, 0.8f, 1f), true,  ref y, btnW, btnH, gap);
         AddPresetButton("Primary: Red",    new Vector4(0.8f, 0.2f, 0.2f, 1f), true,  ref y, btnW, btnH, gap);
         AddPresetButton("Primary: Green",  new Vector4(0.2f, 0.7f, 0.3f, 1f), true,  ref y, btnW, btnH, gap);
@@ -92,15 +132,40 @@ public sealed class ShipDesignerScreen : UIScreen
 
         y += gap * 2f;
 
-        // Accent colour presets
         AddPresetButton("Accent: Gold",   new Vector4(0.8f, 0.6f, 0.1f, 1f), false, ref y, btnW, btnH, gap);
         AddPresetButton("Accent: Silver", new Vector4(0.7f, 0.7f, 0.8f, 1f), false, ref y, btnW, btnH, gap);
         AddPresetButton("Accent: Red",    new Vector4(0.9f, 0.2f, 0.2f, 1f), false, ref y, btnW, btnH, gap);
         AddPresetButton("Accent: White",  new Vector4(1.0f, 1.0f, 1.0f, 1f), false, ref y, btnW, btnH, gap);
 
-        y += gap * 3f;
+        y += gap;
 
-        // Confirm / Cancel
+        var raceBtn = new Button
+        {
+            Name = "CycleRace",
+            Label = "Next Race",
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(20f, y),
+            Size = new Vector2(btnW, btnH),
+            FontSize = 16f,
+        };
+        raceBtn.Clicked += CycleRace;
+        _controlPanel.AddChild(raceBtn);
+        y += btnH + gap;
+
+        var shipBtn = new Button
+        {
+            Name = "CycleShip",
+            Label = "Next Hull",
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(20f, y),
+            Size = new Vector2(btnW, btnH),
+            FontSize = 16f,
+        };
+        shipBtn.Clicked += CycleShip;
+        _controlPanel.AddChild(shipBtn);
+
+        y += gap * 2f;
+
         var confirmBtn = new Button
         {
             Name = "Confirm",

@@ -1,22 +1,30 @@
 ---
-description: Keep AGENTS.md in sync with code changes so future AI sessions skip full re-analysis
+description: Keep AGENTS.md in sync with code changes; agents use Agent Intake to skip redundant discovery
 alwaysApply: true
 ---
 
 # AI Documentation Maintenance
 
-Before finishing any task, read `AGENTS.md` and update it when your changes affect:
+## Intake (every session)
+
+1. **Do not re-discover** what `AGENTS.md` already maps — use **Agent Intake → Task router** and open ≤3 files.
+2. **Attached / @-referenced files** are primary scope; grep neighbors only if needed.
+3. **Tier 0** for run/build/test commands — execute from Command cheat sheet in `AGENTS.md`.
+4. Avoid directory trees, whole-repo globs, and subagent exploration on single-file or command-only tasks.
+
+Before finishing any task, update `AGENTS.md` when your changes affect:
 
 - Project structure, entry points, or scene/UI flow
 - ECS components, systems, or namespaces
 - GameData JSON schemas or content paths
 - GitHub Actions workflows or build/test commands
 - Known issues, conventions, or active branch context
-- Test file locations for new subsystems
+- Test locations for new subsystems
+- **Task router** rows (new subsystem → add one row)
 
 ## Rules
 
-1. **AGENTS.md is canonical** — future AI calls should read it first, not re-scan the repo.
+1. **AGENTS.md is canonical** — route from Agent Intake, not full-repo scans.
 2. **Update in the same PR/commit** as the code change; do not defer.
 3. **Be concise** — tables and file paths over long prose.
 4. **Mark resolved issues** — move fixed bugs out of "Known Issues" or note the fix.
@@ -27,8 +35,9 @@ Before finishing any task, read `AGENTS.md` and update it when your changes affe
 
 | Change type | Update |
 |-------------|--------|
-| New screen/widget | AGENTS.md UI section + tests map |
-| New ECS component | AGENTS.md ECS section |
+| New screen/widget | AGENTS.md UI section + Task router + tests map |
+| New ECS component | AGENTS.md ECS section + Task router if new area |
 | New workflow | AGENTS.md Quick Start table |
 | Bug fix | AGENTS.md Known Issues + Active Branch |
-| New JSON content type | AGENTS.md GameData table |
+| New JSON content type | AGENTS.md GameData table + Task router |
+| New top-level subsystem | AGENTS.md Task router row |

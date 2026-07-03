@@ -1,0 +1,17 @@
+# Exported from SharpOpenGl procedural mesh
+o laser
+# vertices 6
+v 0 0 0
+v 0 0.096 0
+v 0 0 1.2
+v 0 0 0
+v 0 0 1.2
+v 0 -0.096 0
+vn 1 0 0
+vn 1 0 0
+vn 1 0 0
+vn 1 0 -0
+vn 1 0 -0
+vn 1 0 -0
+f 1//1 2//2 3//3
+f 4//4 5//5 6//6

@@ -154,9 +154,10 @@ public partial class EngineWindow
     }
 
     internal void ShowShipDesigner()
-    {
+{
+        EnsureMeshAssets();
         var designer = new ShipDesignerScreen();
-        designer.LoadShip("hero_default");
+        designer.LoadShip("hero_default", _playerRaceId);
         designer.DesignConfirmed += (_, _, _) => _uiManager.Pop();
         designer.Cancelled += () => _uiManager.Pop();
         _uiManager.Push(designer);

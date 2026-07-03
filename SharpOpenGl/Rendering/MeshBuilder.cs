@@ -163,6 +163,10 @@ public static class MeshBuilder
     public static (int vao, int vbo, int vertexCount) UploadProcedural(float[] vertices, bool lines = false)
         => Upload(vertices, 6, lines ? PrimitiveType.Lines : PrimitiveType.Triangles);
 
+    /// <summary>Upload parsed OBJ data (pos+normal, stride 6).</summary>
+    public static (int vao, int vbo, int vertexCount) UploadObj(ObjMeshData data)
+        => Upload(data.Vertices, ObjMeshData.Stride, PrimitiveType.Triangles);
+
     /// <summary>Delete a previously built mesh's GPU resources.</summary>
     public static void DeleteMesh(int vao, int vbo)
     {

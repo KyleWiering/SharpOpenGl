@@ -26,7 +26,7 @@ CI regenerates `docs/gameplay-demo.mp4` (H.264, under 15 MB) on every push to `m
 
 A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 8, featuring an Entity Component System (ECS) architecture, procedural map generation, A* pathfinding, fog of war, and data-driven ship/mission definitions.
 
-> **AI assistants:** Read [`AGENTS.md`](AGENTS.md) first for architecture, conventions, and CI workflow. Keep it updated per [`.cursor/rules/ai-documentation.mdc`](.cursor/rules/ai-documentation.mdc).
+> **AI assistants:** Route from [`AGENTS.md`](AGENTS.md) **Agent Intake** (task router + command cheat sheet) — avoid full-repo discovery. Keep it updated per [`.cursor/rules/ai-documentation.mdc`](.cursor/rules/ai-documentation.mdc).
 
 - **.NET 8** SDK-style project
 - **OpenTK 4.8** with GameWindow (cross-platform desktop)
