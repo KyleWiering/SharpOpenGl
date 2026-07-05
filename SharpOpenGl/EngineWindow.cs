@@ -361,17 +361,17 @@ public partial class EngineWindow : GameWindow
         (_gunshipVao, _gunshipVbo, _gunshipVertCount) =
             ShipMeshExtensions.BuildGunshipMesh(new Vector3(0.85f, 0.45f, 0.35f), 3.2f);
         (_cruiserVao, _cruiserVbo, _cruiserVertCount) =
-            ShipMeshExtensions.BuildCruiserMesh(new Vector3(0.6f, 0.55f, 0.85f), 4.2f);
+            ShipMeshExtensions.BuildCruiserMesh(new Vector3(0.6f, 0.55f, 0.85f), 4.8f);
         (_transportVao, _transportVbo, _transportVertCount) =
             ShipMeshExtensions.BuildTransportMesh(new Vector3(0.55f, 0.75f, 0.95f), 3.8f);
         (_dreadnoughtVao, _dreadnoughtVbo, _dreadnoughtVertCount) =
-            ShipMeshExtensions.BuildDreadnoughtMesh(new Vector3(0.75f, 0.35f, 0.55f), 5.5f);
+            ShipMeshExtensions.BuildDreadnoughtMesh(new Vector3(0.75f, 0.35f, 0.55f), 6.3f);
         (_bomberVao, _bomberVbo, _bomberVertCount) =
             ShipMeshExtensions.BuildBomberMesh(new Vector3(0.9f, 0.5f, 0.2f), 2.5f);
         (_destroyerVao, _destroyerVbo, _destroyerVertCount) =
-            ShipMeshExtensions.BuildDestroyerMesh(new Vector3(0.7f, 0.2f, 0.9f), 3.5f);
+            ShipMeshExtensions.BuildDestroyerMesh(new Vector3(0.7f, 0.2f, 0.9f), 4.0f);
         (_carrierVao, _carrierVbo, _carrierVertCount) =
-            ShipMeshExtensions.BuildCarrierMesh(new Vector3(0.6f, 0.6f, 0.8f), 4f);
+            ShipMeshExtensions.BuildCarrierMesh(new Vector3(0.6f, 0.6f, 0.8f), 4.6f);
         (_engineTrailVao, _engineTrailVbo, _engineTrailVertCount) =
             ShipMeshBuilder.BuildEngineTrail(new Vector3(1.0f, 0.6f, 0.1f), 2.5f);
         (_selectionVao, _selectionVbo, _selectionVertCount) =
@@ -653,6 +653,9 @@ public partial class EngineWindow : GameWindow
 
         if (_sceneManager.State != GameState.Playing)
             _environment.Render(_shaderProgram, _uniformModel, _uniformColor);
+
+        if (_uiManager.Current is ShipDesignerScreen designerScreen)
+            RenderShipDesignerPreview(designerScreen, projection, (float)args.Time);
 
         // Render gameplay 3D content only when playing
         if (_sceneManager.State == GameState.Playing && _world != null)

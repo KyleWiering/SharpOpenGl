@@ -27,8 +27,10 @@ public sealed class ShipDesignerScreen : UIScreen
     private DesignerAssetCategory _category = DesignerAssetCategory.Ship;
 
     private readonly Panel _controlPanel;
+    private readonly Label _previewLabel;
     private readonly Label _raceLabel;
     private readonly Label _modelLabel;
+    private readonly Button _loadModelBtn;
     private readonly Button _categoryBtn;
 
     // ── Exposed controls ──────────────────────────────────────────────────────
@@ -56,6 +58,9 @@ public sealed class ShipDesignerScreen : UIScreen
         ? MeshManifest.StationKey(_raceId, _modelId)
         : MeshManifest.ShipKey(_raceId, _modelId);
 
+    /// <summary>Whether the game layer has loaded a mesh for the current selection.</summary>
+    public bool PreviewMeshReady { get; private set; }
+
     /// <inheritdoc/>
     public override string ScreenName => "ShipDesigner";
 
@@ -63,6 +68,9 @@ public sealed class ShipDesignerScreen : UIScreen
 
     /// <summary>Fired when race, category, or model selection changes.</summary>
     public event Action? SelectionChanged;
+
+    /// <summary>Fired when the player explicitly requests a 3-D preview refresh.</summary>
+    public event Action? PreviewRequested;
 
     /// <summary>Fired when the player confirms the design (ship ID + colours).</summary>
     public event Action<string, Vector4, Vector4>? DesignConfirmed;
@@ -75,6 +83,17 @@ public sealed class ShipDesignerScreen : UIScreen
     /// <summary>Build the ship designer UI.</summary>
     public ShipDesignerScreen()
     {
+        _previewLabel = new Label
+        {
+            Name = "PreviewLabel",
+            Anchor = Anchor.BottomLeft,
+            Position = new Vector2(32f, -72f),
+            Size = new Vector2(720f, 48f),
+            FontSize = 18f,
+            TextColor = new Vector4(0.75f, 0.82f, 0.95f, 1f),
+        };
+        AddWidget(_previewLabel);
+
         _controlPanel = new Panel
         {
             Name = "ControlPanel",
@@ -106,12 +125,24 @@ public sealed class ShipDesignerScreen : UIScreen
         };
         _controlPanel.AddChild(_modelLabel);
 
+        _loadModelBtn = new Button
+        {
+            Name = "LoadModel",
+            Label = "Load Model",
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(20f, 112f),
+            Size = new Vector2(360f, 40f),
+            FontSize = 16f,
+        };
+        _loadModelBtn.Clicked += RequestPreviewLoad;
+        _controlPanel.AddChild(_loadModelBtn);
+
         _categoryBtn = new Button
         {
             Name = "CategoryToggle",
             Label = "Ships",
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(20f, 120f),
+            Position = new Vector2(20f, 160f),
             Size = new Vector2(360f, 40f),
             FontSize = 16f,
         };
@@ -158,14 +189,31 @@ public sealed class ShipDesignerScreen : UIScreen
             : DesignerAssetCategory.Ship;
         _modelIndex = 0;
         _modelId = ActiveModelIds[0];
+        PreviewMeshReady = false;
         RefreshSelectionLabels();
         SelectionChanged?.Invoke();
+        PreviewRequested?.Invoke();
     }
 
     /// <summary>Rotate the model preview by <paramref name="degrees"/> (relative delta).</summary>
     public void Rotate(float degrees)
     {
         RotationDegrees = (RotationDegrees + degrees) % 360f;
+    }
+
+    /// <summary>Ask the game layer to load and display the current mesh selection.</summary>
+    public void RequestPreviewLoad()
+    {
+        PreviewMeshReady = false;
+        RefreshSelectionLabels();
+        PreviewRequested?.Invoke();
+    }
+
+    /// <summary>Called by the game layer once the preview mesh is registered.</summary>
+    public void NotifyPreviewMeshReady(bool ready)
+    {
+        PreviewMeshReady = ready;
+        RefreshSelectionLabels();
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -196,6 +244,7 @@ public sealed class ShipDesignerScreen : UIScreen
         if (_modelIndex >= 0 && _modelIndex < ActiveModelIds.Length)
             _modelId = ActiveModelIds[_modelIndex];
 
+        PreviewMeshReady = false;
         RefreshSelectionLabels();
     }
 
@@ -206,8 +255,10 @@ public sealed class ShipDesignerScreen : UIScreen
 
         _raceIndex = ((index % count) + count) % count;
         _raceId = RaceTextureIndex.AllRaceIds[_raceIndex];
+        PreviewMeshReady = false;
         RefreshSelectionLabels();
         SelectionChanged?.Invoke();
+        PreviewRequested?.Invoke();
     }
 
     private void SelectModel(int index)
@@ -217,8 +268,10 @@ public sealed class ShipDesignerScreen : UIScreen
 
         _modelIndex = ((index % models.Length) + models.Length) % models.Length;
         _modelId = models[_modelIndex];
+        PreviewMeshReady = false;
         RefreshSelectionLabels();
         SelectionChanged?.Invoke();
+        PreviewRequested?.Invoke();
     }
 
     private void RefreshSelectionLabels()
@@ -226,6 +279,11 @@ public sealed class ShipDesignerScreen : UIScreen
         _raceLabel.Text = FormatDisplayName(_raceId);
         _modelLabel.Text = FormatDisplayName(_modelId);
         _categoryBtn.Label = _category == DesignerAssetCategory.Ship ? "Ships" : "Stations";
+        _loadModelBtn.Label = PreviewMeshReady ? "Reload Model" : "Load Model";
+        string assetKind = _category == DesignerAssetCategory.Ship ? "ship" : "station";
+        _previewLabel.Text = PreviewMeshReady
+            ? $"Previewing {FormatDisplayName(_modelId)} ({FormatDisplayName(_raceId)} {assetKind})"
+            : $"Select a {assetKind}, then use < > or Load Model to preview";
     }
 
     private static string FormatDisplayName(string id)
@@ -271,7 +329,7 @@ public sealed class ShipDesignerScreen : UIScreen
 
     private void BuildControls()
     {
-        float y = 176f;
+        float y = 216f;
         float btnW = 360f;
         float btnH = 48f;
         float gap = 12f;

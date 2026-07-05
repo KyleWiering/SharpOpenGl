@@ -42,6 +42,22 @@ public class ShipDesignerScreenTests
     }
 
     [Fact]
+    public void CycleModel_requests_preview_refresh()
+    {
+        var screen = new ShipDesignerScreen();
+        screen.LoadShip("fighter_basic", "terran");
+        screen.NotifyPreviewMeshReady(true);
+
+        int previewRequests = 0;
+        screen.PreviewRequested += () => previewRequests++;
+
+        screen.CycleModel();
+
+        Assert.Equal(1, previewRequests);
+        Assert.False(screen.PreviewMeshReady);
+    }
+
+    [Fact]
     public void ToggleCategory_switches_to_station_mesh_key()
     {
         var screen = new ShipDesignerScreen();
@@ -77,9 +93,36 @@ public class ShipDesignerScreenTests
         var screen = new ShipDesignerScreen();
         screen.LoadShip("fighter_basic", "terran");
 
-        bool consumed = screen.HandlePointerTapped(new Vector2(1312f, 180f), 0, Viewport);
+        bool consumed = screen.HandlePointerTapped(new Vector2(1312f, 220f), 0, Viewport);
 
         Assert.True(consumed);
         Assert.Equal(DesignerAssetCategory.Station, screen.Category);
+    }
+
+    [Fact]
+    public void Load_model_button_requests_preview()
+    {
+        var screen = new ShipDesignerScreen();
+        screen.LoadShip("fighter_basic", "terran");
+
+        int previewRequests = 0;
+        screen.PreviewRequested += () => previewRequests++;
+
+        bool consumed = screen.HandlePointerTapped(new Vector2(1312f, 172f), 0, Viewport);
+
+        Assert.True(consumed);
+        Assert.Equal(1, previewRequests);
+        Assert.False(screen.PreviewMeshReady);
+    }
+
+    [Fact]
+    public void NotifyPreviewMeshReady_updates_preview_state()
+    {
+        var screen = new ShipDesignerScreen();
+        screen.LoadShip("cruiser_heavy", "korath");
+
+        screen.NotifyPreviewMeshReady(true);
+
+        Assert.True(screen.PreviewMeshReady);
     }
 }

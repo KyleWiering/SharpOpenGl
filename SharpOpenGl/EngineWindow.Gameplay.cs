@@ -160,6 +160,7 @@ public partial class EngineWindow
         designer.LoadShip("hero_default", _playerRaceId);
         designer.DesignConfirmed += (_, _, _) => _uiManager.Pop();
         designer.Cancelled += () => _uiManager.Pop();
+        BindShipDesigner(designer);
         _uiManager.Push(designer);
     }
 
@@ -823,11 +824,13 @@ public partial class EngineWindow
     private float ResolveSelectionRadius(EntityDefinition def)
     {
         string id = def.Id.ToLowerInvariant();
-        if (id.Contains("dreadnought")) return 14f;
+        if (id.Contains("dreadnought")) return 16f;
 
-        if (id.Contains("carrier") || id.Contains("cruiser")) return 12f;
+        if (id.Contains("carrier") || id.Contains("cruiser")) return 14f;
 
-        if (id.Contains("destroyer") || id.Contains("gunship") || id.Contains("frigate")) return 9f;
+        if (id.Contains("destroyer")) return 10f;
+
+        if (id.Contains("gunship") || id.Contains("frigate")) return 9f;
 
         if (id.Contains("bomber") || id.Contains("corvette")) return 8f;
 

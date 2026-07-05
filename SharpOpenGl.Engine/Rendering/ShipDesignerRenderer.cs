@@ -40,39 +40,40 @@ public sealed class ShipDesignerRenderer : IDisposable
     /// <summary>
     /// Render the ship preview using the current state of <paramref name="screen"/>.
     /// </summary>
-    /// <param name="screen">Active ship designer screen (provides rotation + colours).</param>
-    /// <param name="meshKey">Asset key for the ship mesh to display.</param>
-    /// <param name="fallbackKey">Fallback mesh key if <paramref name="meshKey"/> is not registered.</param>
-    /// <param name="renderer">Platform renderer to issue draw calls against.</param>
-    /// <param name="projection">Current projection matrix.</param>
-    /// <param name="view">Current view (camera) matrix.</param>
     public void Render(
         ShipDesignerScreen screen,
         string meshKey,
         string fallbackKey,
         IRenderer renderer,
         Matrix4 projection,
-        Matrix4 view)
+        Matrix4 view,
+        float? previewScale = null,
+        int raceTextureIndex = -1,
+        Vector3 teamTint = default)
     {
         if (_disposed) return;
 
         MeshRegistry.MeshEntry? mesh = _registry.GetOrFallback(meshKey, fallbackKey);
         if (mesh == null || mesh.Vao == 0) return;
 
-        // Build model matrix: scale + Y-axis rotation from screen control
+        float scale = previewScale ?? PreviewScale;
         float yaw = MathHelper.DegreesToRadians(screen.RotationDegrees);
         Matrix4 model =
-            Matrix4.CreateScale(PreviewScale) *
+            Matrix4.CreateScale(scale) *
             Matrix4.CreateRotationY(yaw) *
             Matrix4.CreateTranslation(PreviewOrigin);
+
+        Vector4 color = raceTextureIndex >= 0 ? Vector4.Zero : screen.PrimaryColor;
 
         renderer.BeginFrame(projection, view);
         renderer.DrawMesh(
             mesh.Vao,
             mesh.VertexCount,
             model,
-            screen.PrimaryColor,
-            4 /* GL_TRIANGLES */);
+            color,
+            4 /* GL_TRIANGLES */,
+            raceTextureIndex,
+            teamTint);
         renderer.EndFrame();
     }
 

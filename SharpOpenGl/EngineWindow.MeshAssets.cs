@@ -1,3 +1,4 @@
+using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.UI.Screens;
 using SharpOpenGl.Rendering;
@@ -9,6 +10,7 @@ public partial class EngineWindow
     private MeshRegistry? _meshRegistry;
     private MeshAssetService? _meshAssetService;
     private ShipDesignerRenderer? _shipDesignerRenderer;
+    private OpenGlRenderer? _openGlRenderer;
     private readonly Dictionary<string, (int vao, int vbo, int vertCount)> _objMeshCache = new(StringComparer.OrdinalIgnoreCase);
 
     private void EnsureMeshAssets()
@@ -40,7 +42,7 @@ public partial class EngineWindow
         if (!_meshRegistry.Contains("meshes/shared/default_ship.obj"))
         {
             var fallback = MeshBuilder.UploadProcedural(
-                ProceduralMeshes.BuildShipMesh(new OpenTK.Mathematics.Vector3(0.5f, 0.5f, 0.8f)));
+                ProceduralMeshes.BuildShipMesh(new Vector3(0.5f, 0.5f, 0.8f)));
             _meshRegistry.Register("meshes/shared/default_ship.obj", fallback);
         }
     }
@@ -62,18 +64,84 @@ public partial class EngineWindow
         return (0, 0);
     }
 
-    internal void RenderShipDesignerPreview(ShipDesignerScreen designer)
+    private void EnsureOpenGlRenderer()
+    {
+        _openGlRenderer ??= new OpenGlRenderer(
+            _shaderProgram,
+            _uniformProjection,
+            _uniformView,
+            _uniformModel,
+            _uniformColor,
+            _uniformRaceTextureIndex,
+            _uniformTeamTint);
+    }
+
+    private bool EnsureDesignerMeshLoaded(ShipDesignerScreen designer)
     {
         EnsureMeshAssets();
-        _shipDesignerRenderer ??= new ShipDesignerRenderer(_meshRegistry!);
-
         string meshKey = designer.MeshKey;
-        string fallback = "meshes/shared/default_ship.obj";
+        const string fallback = "meshes/shared/default_ship.obj";
 
         if (!_meshRegistry!.Contains(meshKey))
-            TryGetObjMesh(meshKey);
+        {
+            if (TryGetObjMesh(meshKey).vao == 0)
+            {
+                float[] vertices = designer.Category == DesignerAssetCategory.Station
+                    ? RaceBuildingMeshes.Build(designer.ShipId, designer.RaceId)
+                    : RaceShipMeshes.Build(designer.RaceId, designer.ShipId);
 
-        // Preview uses the platform renderer when available; designer overlay is UI-only for now.
-        _shipDesignerRenderer.AutoRotate(designer, 1f / 60f);
+                var uploaded = MeshBuilder.UploadProcedural(vertices);
+                _meshRegistry.Register(meshKey, uploaded);
+                _objMeshCache[meshKey] = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+            }
+        }
+
+        bool ready = _meshRegistry.GetOrFallback(meshKey, fallback)?.Vao > 0;
+        designer.NotifyPreviewMeshReady(ready);
+        return ready;
     }
+
+    private float ResolveDesignerPreviewScale(ShipDesignerScreen designer)
+    {
+        var hull = RaceVisualSchema.ResolveHullProfile(designer.ShipId);
+        return Math.Clamp(9f / Math.Max(hull.Size, 1f), 1.2f, 2.8f);
+    }
+
+    internal void RenderShipDesignerPreview(ShipDesignerScreen designer, Matrix4 projection, float deltaTime)
+    {
+        if (!EnsureDesignerMeshLoaded(designer))
+            return;
+
+        EnsureOpenGlRenderer();
+        _shipDesignerRenderer ??= new ShipDesignerRenderer(_meshRegistry!);
+        _shipDesignerRenderer.AutoRotate(designer, deltaTime);
+
+        var view = Matrix4.LookAt(new Vector3(14f, 9f, 14f), Vector3.Zero, Vector3.UnitY);
+        int raceTexture = RaceTextureIndex.Resolve(designer.RaceId);
+        float scale = ResolveDesignerPreviewScale(designer);
+
+        _shipDesignerRenderer.Render(
+            designer,
+            designer.MeshKey,
+            "meshes/shared/default_ship.obj",
+            _openGlRenderer!,
+            projection,
+            view,
+            scale,
+            raceTexture,
+            Vector3.One);
+    }
+
+    private void BindShipDesigner(ShipDesignerScreen designer)
+    {
+        void LoadPreview()
+        {
+            EnsureDesignerMeshLoaded(designer);
+        }
+
+        designer.SelectionChanged += LoadPreview;
+        designer.PreviewRequested += LoadPreview;
+        LoadPreview();
+    }
+
 }
