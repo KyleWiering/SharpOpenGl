@@ -21,7 +21,7 @@ public class RaceSilhouetteTests
     }
 
     [Theory]
-    [InlineData("korath", "blocky")]
+    [InlineData("korath", "truss")]
     [InlineData("vesper", "vasudan")]
     [InlineData("aetherian", "organic")]
     [InlineData("nexar", "asymmetric")]

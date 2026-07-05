@@ -20,9 +20,9 @@ public class UIScalerIntegrationTests
         menu.NewGameRequested += () => clicked = true;
         mgr.Push(menu);
 
-        // "New Game" is the first button at reference 1920×1080 → centre ≈ (960, 330).
+        // "New Game" is the first button at reference 1920×1080 → centre ≈ (960, 306).
         var scaler = new UIScaler(PhysicalViewport);
-        Vector2 logicalCenter = new(960f, 330f);
+        Vector2 logicalCenter = new(960f, 306f);
         Vector2 physicalTap = scaler.ScalePosition(logicalCenter);
 
         bool consumed = mgr.HandlePointerTapped(physicalTap, 0, PhysicalViewport);
@@ -39,7 +39,7 @@ public class UIScalerIntegrationTests
         mgr.Push(menu);
 
         var scaler = new UIScaler(PhysicalViewport);
-        Vector2 logicalCenter = new(960f, 330f);
+        Vector2 logicalCenter = new(960f, 306f);
         Vector2 physicalPoint = scaler.ScalePosition(logicalCenter);
 
         mgr.HandlePointerMove(physicalPoint, false, PhysicalViewport);
@@ -65,8 +65,8 @@ public class UIScalerIntegrationTests
         Assert.False(menu.HasSave);
 
         var scaler = new UIScaler(PhysicalViewport);
-        // Continue is the third button: centre ≈ (960, 486).
-        Vector2 physicalTap = scaler.ScalePosition(new Vector2(960f, 486f));
+        // Continue is the third button: centre ≈ (960, 462).
+        Vector2 physicalTap = scaler.ScalePosition(new Vector2(960f, 462f));
         bool consumed = mgr.HandlePointerTapped(physicalTap, 0, PhysicalViewport);
 
         Assert.False(consumed);
@@ -87,7 +87,7 @@ public class UIScalerIntegrationTests
         Assert.True(continueBtn.IsEnabled);
 
         var scaler = new UIScaler(PhysicalViewport);
-        Vector2 physicalTap = scaler.ScalePosition(new Vector2(960f, 486f));
+        Vector2 physicalTap = scaler.ScalePosition(new Vector2(960f, 462f));
         bool consumed = mgr.HandlePointerTapped(physicalTap, 0, PhysicalViewport);
 
         Assert.True(consumed);

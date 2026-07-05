@@ -10,7 +10,7 @@ public class ShipMeshCohesionTests
     [Theory]
     [InlineData("terran", "fighter_basic", 0.88f, 1.35f)]
     [InlineData("vesper", "destroyer_assault", 0.72f, 1.25f)]
-    [InlineData("korath", "cruiser_heavy", 1.05f, 1.5f)]
+    [InlineData("korath", "cruiser_heavy", 1.65f, 1.65f)]
     public void Race_ships_keep_geometry_within_hull_envelope(
         string raceId, string hullId, float maxWidthFactor, float maxHeightFactor)
     {

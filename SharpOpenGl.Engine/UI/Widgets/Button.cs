@@ -8,8 +8,6 @@ namespace SharpOpenGl.Engine.UI.Widgets;
 public sealed class Button : Widget
 {
     private const float TextPadding = 20f;
-    private const float HitPaddingTop = 10f;
-    private const float HitPaddingBottom = 4f;
 
     /// <summary>Text displayed on the button face.</summary>
     public string Label { get; set; } = string.Empty;
@@ -98,12 +96,9 @@ public sealed class Button : Widget
             HoverEntered?.Invoke();
     }
 
-    private bool PointInHitArea(Vector2 point, Vector2 containerPosition, Vector2 containerSize)
-    {
-        var (pos, size) = Resolve(containerPosition, containerSize);
-        return point.X >= pos.X && point.X < pos.X + size.X
-            && point.Y >= pos.Y - HitPaddingTop && point.Y < pos.Y + size.Y + HitPaddingBottom;
-    }
+    private bool PointInHitArea(Vector2 point, Vector2 containerPosition, Vector2 containerSize) =>
+        Contains(point, containerPosition, containerSize);
+
     /// <inheritdoc/>
     protected override void OnDraw(IUIRenderer renderer, Vector2 position, Vector2 size)
     {

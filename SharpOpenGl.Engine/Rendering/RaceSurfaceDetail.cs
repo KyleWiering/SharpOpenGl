@@ -18,6 +18,11 @@ internal static class RaceSurfaceDetail
         AddDockingRing(w, s * 0.65f, secondary);
         AddPerimeterLights(w, s, accent);
 
+        if (race.Style.Equals("truss", StringComparison.OrdinalIgnoreCase))
+        {
+            AddTrussBooms(w, s, secondary);
+            AddSolarArrayWings(w, s, accent);
+        }
         switch (buildingType.ToLowerInvariant())
         {
             case "command_center":
@@ -147,6 +152,22 @@ internal static class RaceSurfaceDetail
     private static void AddServiceArms(RaceMeshWriter w, float s, Vector3 accent)
     {
         w.TriColored(new Vector3(-s * 0.35f, s * 0.2f, 0), new Vector3(0, s * 0.42f, s * 0.2f), new Vector3(s * 0.35f, s * 0.2f, 0), accent);
+    }
+
+    private static void AddTrussBooms(RaceMeshWriter w, float s, Vector3 color)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            float z = (i - 1) * s * 0.22f;
+            w.TriColored(new Vector3(-s * 0.55f, s * 0.18f, z), new Vector3(s * 0.55f, s * 0.18f, z + s * 0.08f), new Vector3(-s * 0.55f, s * 0.42f, z + s * 0.05f), color);
+            w.TriColored(new Vector3(s * 0.55f, s * 0.18f, z + s * 0.08f), new Vector3(s * 0.55f, s * 0.42f, z + s * 0.05f), new Vector3(-s * 0.55f, s * 0.42f, z + s * 0.05f), color * 0.92f);
+        }
+    }
+
+    private static void AddSolarArrayWings(RaceMeshWriter w, float s, Vector3 accent)
+    {
+        w.TriColored(new Vector3(-s * 0.95f, s * 0.28f, s * 0.12f), new Vector3(-s * 0.55f, s * 0.28f, s * 0.12f), new Vector3(-s * 0.55f, s * 0.42f, -s * 0.08f), accent);
+        w.TriColored(new Vector3(s * 0.55f, s * 0.28f, s * 0.12f), new Vector3(s * 0.95f, s * 0.28f, s * 0.12f), new Vector3(s * 0.55f, s * 0.42f, -s * 0.08f), accent * 0.95f);
     }
 
     private static void AddCargoCrates(RaceMeshWriter w, float s, Vector3 color)

@@ -117,10 +117,10 @@ public partial class EngineWindow
     private void UpdateUiPointerState()
     {
         if (_uiManager.Current == null) return;
-        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
+        var screenPoint = UiMousePosition;
         bool pointerDown = MouseState.IsButtonDown(MouseButton.Left) ||
                            MouseState.IsButtonDown(MouseButton.Right);
-        _uiManager.HandlePointerMove(screenPoint, pointerDown, new Vector2(Size.X, Size.Y));
+        _uiManager.HandlePointerMove(screenPoint, pointerDown, UiViewportSize);
 
         Button? hovered = _uiManager.FindHoveredButton();
         if (hovered != null && hovered != _lastHoveredButton && hovered.IsEnabled)

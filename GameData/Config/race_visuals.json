@@ -1,4 +1,4 @@
-﻿{
+{
     "_comment":  "Visual schema for 8 playable races. Drives procedural ship silhouettes, per-race surface substrates (mesh micro-variation + shader texture indices 0â€“7), and team tint from PlayerColorPalette at runtime.",
     "version":  1,
     "races":  [
@@ -97,47 +97,47 @@
                   {
                       "id":  "korath",
                       "displayName":  "Korath Dominion",
-                      "style":  "blocky",
+                      "style":  "truss",
                       "palette":  {
                                       "primary":  [
-                                                      0.55,
-                                                      0.28,
-                                                      0.22
+                                                      0.84,
+                                                      0.86,
+                                                      0.9
                                                   ],
                                       "secondary":  [
-                                                        0.35,
-                                                        0.18,
-                                                        0.14
+                                                        0.46,
+                                                        0.5,
+                                                        0.56
                                                     ],
                                       "accent":  [
-                                                     1,
-                                                     0.45,
-                                                     0.12
+                                                     0.2,
+                                                     0.46,
+                                                     0.78
                                                  ],
                                       "engine":  [
-                                                     0.95,
-                                                     0.35,
-                                                     0.1
+                                                     0.38,
+                                                     0.62,
+                                                     0.92
                                                  ]
                                   },
                       "modifiers":  {
-                                        "wingSweep":  0.08,
-                                        "wingSpan":  0.85,
-                                        "hullLength":  0.82,
-                                        "hullWidth":  1.55,
-                                        "protrusion":  0.45,
-                                        "asymmetry":  0.1,
-                                        "facetSharpness":  0.55,
-                                        "engineCount":  4,
-                                        "superstructure":  0.5
+                                        "wingSweep":  0.02,
+                                        "wingSpan":  1.18,
+                                        "hullLength":  1.05,
+                                        "hullWidth":  1.42,
+                                        "protrusion":  0.38,
+                                        "asymmetry":  0.04,
+                                        "facetSharpness":  0.12,
+                                        "engineCount":  2,
+                                        "superstructure":  0.72
                                     },
                       "substrate":  {
-                                        "pattern":  "blocky",
-                                        "uvScale":  0.105,
-                                        "panelDepth":  0.063,
-                                        "grit":  0.147,
-                                        "accentBoost":  0.15,
-                                        "microFrequency":  0.990
+                                        "pattern":  "truss",
+                                        "uvScale":  0.09,
+                                        "panelDepth":  0.08,
+                                        "grit":  0.18,
+                                        "accentBoost":  0.14,
+                                        "microFrequency":  1.6
                                     }
                   },
                   {

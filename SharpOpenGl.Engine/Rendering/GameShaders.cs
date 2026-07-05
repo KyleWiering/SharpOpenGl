@@ -71,10 +71,13 @@ vec3 sampleRaceTexture(int raceIdx, vec2 uv, vec3 localPos) {
         return mix(base, base * vec3(1.06, 0.94, 0.8), keel * 0.12) * tint;
     }
     if (raceIdx == 2) {
-        float block = racePanel(uv, 2.2, 0.11);
-        float wear = smoothstep(0.35, 0.65, raceHash(floor(uv * 4.0)));
-        vec3 base = vec3(0.74 + 0.1 * block, 0.56 + 0.08 * panel, 0.52 + 0.06 * seam);
-        return mix(base, base * 0.94, wear * 0.1 + rivet * 0.03) * tint;
+        float girderX = racePanel(uv, 4.8, 0.04);
+        float girderY = racePanel(vec2(uv.y, uv.x), 4.8, 0.04);
+        float lattice = max(girderX, girderY);
+        float module = racePanel(uv, 2.0, 0.12);
+        float wear = smoothstep(0.38, 0.62, raceHash(floor(uv * 3.2)));
+        vec3 base = vec3(0.76 + 0.1 * module, 0.79 + 0.08 * lattice, 0.84 + 0.06 * seam);
+        return mix(base, base * vec3(0.94, 0.96, 1.0), rivet * 0.14 + lattice * 0.05 + wear * 0.06) * tint;
     }
     if (raceIdx == 3) {
         float wave = 0.5 + 0.5 * sin(uv.x * 3.5 + uv.y * 2.5);

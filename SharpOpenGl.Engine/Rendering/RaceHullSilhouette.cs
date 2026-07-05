@@ -15,6 +15,7 @@ internal static class RaceHullSilhouette
             case "retro":       BuildRetroBlocky(w, hullKey, len, wid, hgt); break;
             case "vasudan":     BuildVasudanHull(w, hullKey, len, wid, hgt); break;
             case "blocky":      BuildBlocky(w, hullKey, len, wid, hgt); break;
+            case "truss":       BuildOrbitalTruss(w, hullKey, len, wid, hgt); break;
             case "sleek":       BuildStreamlined(w, hullKey, len, wid, hgt); break;
             case "organic":     BuildBulbous(w, hullKey, len, wid, hgt); break;
             case "asymmetric":  BuildLatticeFrame(w, hullKey, len, wid, hgt); break;
@@ -86,7 +87,58 @@ internal static class RaceHullSilhouette
             w.Tri(-bw * 0.42f, bh * 0.28f, -l * 0.15f, bw * 0.42f, bh * 0.28f, -l * 0.15f, 0, bh * 0.42f, -l * 0.28f);
         }
     }
-    // ── Blocky (Korath) — stacked rectangular decks, flat armor faces ─────────
+    // ── Orbital truss (Korath) — station modules, girder spine, solar paddles ─
+
+    private static void BuildOrbitalTruss(RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float mass = MassScale(hullKey);
+        float l = len * (0.88f + mass * 0.08f);
+        float hw = wid * 0.36f;
+        float hh = hgt * 0.4f;
+        bool compact = hullKey is "drone" or "scout";
+
+        AddBox(w, -hw, hw, 0, hh * 1.35f, -l * 0.3f, l * 0.3f);
+
+        if (!compact)
+        {
+            AddBox(w, -hw * 0.62f, hw * 0.62f, hh * 0.05f, hh * 0.95f, l * 0.32f, l * 0.52f);
+            AddBox(w, -hw * 0.52f, hw * 0.52f, 0, hh * 0.82f, -l * 0.5f, -l * 0.18f);
+        }
+
+        int segments = hullKey is "dreadnought" or "carrier" ? 7 : compact ? 3 : 5;
+        for (int i = 0; i < segments; i++)
+        {
+            float z0 = MathHelper.Lerp(-l * 0.58f, l * 0.6f, i / (float)segments);
+            float z1 = MathHelper.Lerp(-l * 0.58f, l * 0.6f, (i + 1) / (float)segments);
+            AddStrut(w, -hw * 0.95f, hh * 1.5f, z0, -hw * 0.95f, hh * 1.5f, z1);
+            AddStrut(w, hw * 0.95f, hh * 1.5f, z0, hw * 0.95f, hh * 1.5f, z1);
+            AddStrut(w, -hw * 0.95f, hh * 1.5f, z0, hw * 0.95f, hh * 1.5f, z0);
+            AddStrut(w, -hw * 0.28f, hh * 1.15f, z0, hw * 0.28f, hh * 1.15f, z1);
+            AddStrut(w, -hw * 0.28f, 0, z0, -hw * 0.28f, -hh * 0.22f, z1);
+            AddStrut(w, hw * 0.28f, 0, z0, hw * 0.28f, -hh * 0.22f, z1);
+        }
+
+        if (!compact)
+        {
+            float panelSpan = wid * (hullKey is "carrier" or "dreadnought" ? 1.1f : 0.88f);
+            float panelZ = l * 0.04f;
+            float panelH = hh * 0.58f;
+            AddBox(w, -hw - panelSpan, -hw * 0.04f, panelH, panelH + hh * 0.18f, panelZ - l * 0.14f, panelZ + l * 0.14f);
+            AddBox(w, hw * 0.04f, hw + panelSpan, panelH, panelH + hh * 0.18f, panelZ - l * 0.14f, panelZ + l * 0.14f);
+            AddStrut(w, -hw, panelH + hh * 0.05f, panelZ, -hw - panelSpan * 0.55f, panelH + hh * 0.08f, panelZ);
+            AddStrut(w, hw, panelH + hh * 0.05f, panelZ, hw + panelSpan * 0.55f, panelH + hh * 0.08f, panelZ);
+        }
+
+        if (hullKey is not "drone" and not "scout" and not "miner")
+        {
+            AddBox(w, -hw * 0.32f, hw * 0.32f, hh * 1.25f, hh * 1.52f, l * 0.46f, l * 0.6f);
+            AddStrut(w, 0, hh * 1.38f, l * 0.36f, 0, hh * 1.48f, l * 0.58f);
+        }
+
+        AddStrut(w, -hw * 0.48f, -hh * 0.12f, -l * 0.12f, hw * 0.48f, -hh * 0.12f, l * 0.22f);
+    }
+
+    // ── Blocky — stacked rectangular decks, flat armor faces ──────────────────
 
     private static void BuildBlocky(RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {

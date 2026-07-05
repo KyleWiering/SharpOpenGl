@@ -29,8 +29,8 @@ public partial class EngineWindow
         if (_sceneManager.State != GameState.Playing)
             return;
 
-        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
-        var viewport = new Vector2(Size.X, Size.Y);
+        var screenPoint = UiMousePosition;
+        var viewport = UiViewportSize;
 
         if (_cameraPanDragActive && MouseState.IsButtonDown(MouseButton.Right))
         {

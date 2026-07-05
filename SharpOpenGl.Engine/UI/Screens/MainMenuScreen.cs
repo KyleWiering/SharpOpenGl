@@ -132,7 +132,7 @@ public sealed class MainMenuScreen : UIScreen
         float btnH = 64f;
         float gap = 14f;
         float totalH = 7 * btnH + 6 * gap;
-        float startY = (1080f - totalH) / 2f + 24f;
+        float startY = MathF.Max(248f, (1080f - totalH) * 0.5f);
 
         (string label, string name, Action? handler, bool enabled)[] entries =
         [

@@ -201,7 +201,8 @@ public partial class EngineWindow : GameWindow
 
         // UI Renderer
         _uiRenderer = new GLUIRenderer();
-        _uiRenderer.Initialize(Size.X, Size.Y);
+        var uiViewport = UiViewportSize;
+        _uiRenderer.Initialize((int)uiViewport.X, (int)uiViewport.Y);
 
         // Event bus & managers
         _eventBus = new EventBus();
@@ -211,7 +212,7 @@ public partial class EngineWindow : GameWindow
 
         _sceneManager = new SceneManager(_eventBus);
         _uiManager = new UIManager(_eventBus);
-        _uiManager.Resize(new Vector2(Size.X, Size.Y));
+        _uiManager.Resize(UiViewportSize);
 
         // Register scenes
         _sceneManager.Register(SceneMainMenu, () => new MainMenuScene(this));
@@ -918,9 +919,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseDown(e);
 
-        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
-        var viewportSize = new Vector2(Size.X, Size.Y);
-        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
+        var screenPoint = UiMousePosition;
+        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, UiViewportSize))
 
         {
 
@@ -1819,9 +1819,10 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     protected override void OnResize(ResizeEventArgs e)
     {
         base.OnResize(e);
-        GL.Viewport(0, 0, e.Width, e.Height);
-        _uiRenderer?.UpdateViewport(e.Width, e.Height);
-        _uiManager?.Resize(new Vector2(e.Width, e.Height));
+        var uiViewport = UiViewportSize;
+        GL.Viewport(0, 0, (int)uiViewport.X, (int)uiViewport.Y);
+        _uiRenderer?.UpdateViewport((int)uiViewport.X, (int)uiViewport.Y);
+        _uiManager?.Resize(uiViewport);
     }
 
     protected override void OnUnload()

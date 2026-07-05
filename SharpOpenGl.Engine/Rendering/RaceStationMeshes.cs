@@ -186,6 +186,11 @@ public static class RaceStationMeshes
                 w.TriColored(new Vector3(-s * 0.55f, h * 0.3f, s * 0.45f), new Vector3(-s * 0.55f, h * 0.3f, s * 0.65f), new Vector3(-s * 0.7f, h * 0.5f, s * 0.55f), ToVector3(race.Palette.Secondary));
                 w.TriColored(new Vector3(s * 0.55f, h * 0.3f, s * 0.45f), new Vector3(s * 0.7f, h * 0.5f, s * 0.55f), new Vector3(s * 0.55f, h * 0.3f, s * 0.65f), ToVector3(race.Palette.Secondary));
                 break;
+            case "truss":
+                w.TriColored(new Vector3(-s * 0.72f, h * 0.22f, s * 0.48f), new Vector3(-s * 0.72f, h * 0.38f, s * 0.62f), new Vector3(-s * 0.95f, h * 0.3f, s * 0.55f), ToVector3(race.Palette.Accent));
+                w.TriColored(new Vector3(s * 0.72f, h * 0.22f, s * 0.48f), new Vector3(s * 0.95f, h * 0.3f, s * 0.55f), new Vector3(s * 0.72f, h * 0.38f, s * 0.62f), ToVector3(race.Palette.Accent));
+                w.TriColored(new Vector3(-s * 0.18f, h * 0.55f, s * 0.58f), new Vector3(s * 0.18f, h * 0.55f, s * 0.58f), new Vector3(0, h * 0.82f, s * 0.72f), ToVector3(race.Palette.Secondary));
+                break;
             case "organic":
                 w.TriColored(new Vector3(-s * 0.35f, h * 0.2f, s * 0.55f), new Vector3(0, h * 0.55f, s * 0.75f), new Vector3(s * 0.35f, h * 0.2f, s * 0.55f), ToVector3(race.Palette.Accent));
                 break;

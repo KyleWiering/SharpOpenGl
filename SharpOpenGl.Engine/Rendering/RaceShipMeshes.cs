@@ -376,7 +376,7 @@ public static class RaceShipMeshes
 
         foreach (float x in offsets)
         {
-            float y = style is "blocky" ? hgt * 0.15f : hgt * 0.08f;
+            float y = style is "blocky" or "truss" ? hgt * 0.15f : hgt * 0.08f;
             w.Tri(x, y, z, x - nozzle, 0, z - nozzle * 2.2f, x + nozzle, 0, z - nozzle * 2.2f);
             if (style is "radiant" or "organic" or "crystalline")
             {

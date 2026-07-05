@@ -1,27 +1,31 @@
 ## Summary
 
-Fixes the GitHub Pages 404 and the failed deploy workflow (#38).
+Migrates all procedural ship, station, and effect geometry to organized Wavefront OBJ files with manifest-driven loading. Also updates agent documentation to reduce redundant repo discovery on new requests.
 
-## Root cause
+## Model migration
 
-1. **404** — Pages was serving the git `docs/` folder (markdown only, no `index.html`). The Blazor WASM build existed only in the Actions artifact, not in the committed `docs/` tree.
-2. **Deploy failure** — The `gh api … build_type:workflow` step exited with code 1 and blocked the entire deploy (run [#38](https://github.com/KyleWiering/SharpOpenGl/actions/runs/27929107262)).
+- **755 OBJ assets** under `GameData/Meshes/` (Ships/Designs/Stations per race, environment, projectiles, effects, shared)
+- `GameData/Config/mesh_manifest.json` — canonical key → path registry
+- `ProceduralMeshExporter`, `ModelMigrationExporter`, `MeshManifest`, `MeshAssetService`
+- Desktop loader prefers disk OBJ with procedural fallback (`EngineWindow.RaceMeshes`, `EngineWindow.MeshAssets`)
+- Ship Designer: race/hull cycling + manifest mesh keys
+- Tests: `ModelMigrationExporterTests`, `ModelMigrationProofTests` (764 manifest entries verified)
+- Docs: `docs/MODEL_MIGRATION_PLAN.md`, `docs/MODEL_MIGRATION_PROGRESS.md`
 
-## Fix
+## Agent intake
 
-- Build the site into `_site/` (keeps `docs/` as source-only guides in git)
-- Deploy via `peaceiris/actions-gh-pages@v4` → `gh-pages` branch (reliable branch-based hosting)
-- Best-effort API call to point Pages at `gh-pages` / `/` (`continue-on-error` so deploy never blocks)
-- Keep `deploy-pages` artifact upload as a secondary path
-- Add `.nojekyll`, `404.html`, and artifact verification
+- **Agent Intake** section in `AGENTS.md` — tiers, task router, command cheat sheet
+- Updated `.github/agents/my-agent.agent.md` and `.cursor/rules/ai-documentation.mdc`
+- `readme.md` AI pointer routes through intake instead of full-repo reads
 
-## CI actions (from prior commit)
+## Verify
 
-- Upgraded `actions/checkout`, `setup-dotnet`, `upload-artifact` to v5 (Node 24 runtime)
-- Removed obsolete `setup-node@20` terser step from `ci.yml`
+```bash
+dotnet test SharpOpenGl.Tests --filter "FullyQualifiedName~ModelMigrationProofTests"
+dotnet test SharpOpenGl.Tests --filter "FullyQualifiedName~RaceSubstrateCatalogTests"
+dotnet build && dotnet run --project SharpOpenGl
+```
 
-## Verify after merge
+## Excluded from commit
 
-1. [Deploy to GitHub Pages](https://github.com/KyleWiering/SharpOpenGl/actions/workflows/deploy-pages.yml) run succeeds
-2. [Live demo](https://kylewiering.github.io/SharpOpenGl/) loads the Blazor app (not 404)
-3. If still 404, set **Settings → Pages → Source** to `gh-pages` branch, `/` folder (one-time)
+Local scratch files (`_patch_startup.py`, `*-test.png`) left untracked.

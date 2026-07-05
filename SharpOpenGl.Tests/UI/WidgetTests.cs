@@ -164,6 +164,40 @@ public class WidgetTests
     }
 
     [Fact]
+    public void Button_Clicked_fires_at_top_edge_of_visual_bounds()
+    {
+        var btn = new Button
+        {
+            Anchor   = Anchor.TopLeft,
+            Position = new Vector2(100f, 100f),
+            Size     = new Vector2(200f, 60f),
+        };
+        bool clicked = false;
+        btn.Clicked += () => clicked = true;
+
+        btn.HandlePointerTapped(new Vector2(150f, 100f), 0, Vector2.Zero, Viewport);
+
+        Assert.True(clicked);
+    }
+
+    [Fact]
+    public void Button_Clicked_does_not_fire_below_bottom_edge()
+    {
+        var btn = new Button
+        {
+            Anchor   = Anchor.TopLeft,
+            Position = new Vector2(100f, 100f),
+            Size     = new Vector2(200f, 60f),
+        };
+        bool clicked = false;
+        btn.Clicked += () => clicked = true;
+
+        btn.HandlePointerTapped(new Vector2(150f, 160f), 0, Vector2.Zero, Viewport);
+
+        Assert.False(clicked);
+    }
+
+    [Fact]
     public void Button_disabled_does_not_fire_Clicked()
     {
         var btn = new Button
