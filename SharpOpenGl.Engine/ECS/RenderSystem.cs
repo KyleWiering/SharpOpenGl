@@ -43,7 +43,7 @@ public sealed class RenderSystem : GameSystem
             Matrix4 model = transform?.GetModelMatrix() ?? Matrix4.Identity;
 
             _renderer.DrawMesh(render.MeshId, render.VertexCount, model, render.Color, render.PrimitiveType,
-                render.RaceTextureIndex, render.TeamTint);
+                render.RaceTextureIndex, render.TeamTint, render.ComponentTextureIndex);
         }
 
         _renderer.EndFrame();

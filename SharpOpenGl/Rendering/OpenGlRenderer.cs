@@ -14,6 +14,7 @@ public sealed class OpenGlRenderer : IRenderer
     private readonly int _uniformColor;
     private readonly int _uniformRaceTextureIndex;
     private readonly int _uniformTeamTint;
+    private readonly int _uniformComponentTextureIndex;
 
     public OpenGlRenderer(
         int program,
@@ -22,7 +23,7 @@ public sealed class OpenGlRenderer : IRenderer
         int uniformModel,
         int uniformColor,
         int uniformRaceTextureIndex,
-        int uniformTeamTint)
+        int uniformTeamTint, int uniformComponentTextureIndex)
     {
         _program = program;
         _uniformProjection = uniformProjection;
@@ -31,6 +32,7 @@ public sealed class OpenGlRenderer : IRenderer
         _uniformColor = uniformColor;
         _uniformRaceTextureIndex = uniformRaceTextureIndex;
         _uniformTeamTint = uniformTeamTint;
+        _uniformComponentTextureIndex = uniformComponentTextureIndex;
     }
 
     public void BeginFrame(Matrix4 projection, Matrix4 view)
@@ -43,7 +45,7 @@ public sealed class OpenGlRenderer : IRenderer
 
     public void DrawMesh(
         int vao, int vertexCount, Matrix4 model, Vector4 color, int primitiveType,
-        int raceTextureIndex = -1, Vector3 teamTint = default)
+        int raceTextureIndex = -1, Vector3 teamTint = default, int componentTextureIndex = -1)
     {
         if (vao <= 0 || vertexCount <= 0) return;
 
@@ -51,6 +53,7 @@ public sealed class OpenGlRenderer : IRenderer
         GL.Uniform4(_uniformColor, color);
         GL.Uniform1(_uniformRaceTextureIndex, raceTextureIndex);
         GL.Uniform3(_uniformTeamTint, teamTint);
+        GL.Uniform1(_uniformComponentTextureIndex, componentTextureIndex);
         GL.BindVertexArray(vao);
         GL.DrawArrays((PrimitiveType)primitiveType, 0, vertexCount);
     }

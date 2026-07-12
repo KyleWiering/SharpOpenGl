@@ -39,4 +39,6 @@ public sealed class RenderComponent
 
     /// <summary>Per-player faction tint multiplied with race texture in the shader.</summary>
     public Vector3 TeamTint { get; set; } = Vector3.One;
+
+    public int ComponentTextureIndex { get; set; } = -1;
 }

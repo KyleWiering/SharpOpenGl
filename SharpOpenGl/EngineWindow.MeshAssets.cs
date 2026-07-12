@@ -73,7 +73,7 @@ public partial class EngineWindow
             _uniformModel,
             _uniformColor,
             _uniformRaceTextureIndex,
-            _uniformTeamTint);
+            _uniformTeamTint, _uniformComponentTextureIndex);
     }
 
     private bool EnsureDesignerMeshLoaded(ShipDesignerScreen designer)
@@ -84,16 +84,27 @@ public partial class EngineWindow
 
         if (!_meshRegistry!.Contains(meshKey))
         {
-            if (TryGetObjMesh(meshKey).vao == 0)
+            bool uploadedProcedural = false;
+            try
             {
                 float[] vertices = designer.Category == DesignerAssetCategory.Station
                     ? RaceBuildingMeshes.Build(designer.ShipId, designer.RaceId)
                     : RaceShipMeshes.Build(designer.RaceId, designer.ShipId);
-
-                var uploaded = MeshBuilder.UploadProcedural(vertices);
-                _meshRegistry.Register(meshKey, uploaded);
-                _objMeshCache[meshKey] = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+                if (vertices.Length > 0)
+                {
+                    var uploaded = MeshBuilder.UploadProcedural(vertices);
+                    _meshRegistry.Register(meshKey, uploaded);
+                    _objMeshCache[meshKey] = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+                    uploadedProcedural = true;
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Mesh] Designer procedural build failed '{meshKey}': {ex.Message}");
+            }
+
+            if (!uploadedProcedural)
+                TryGetObjMesh(meshKey);
         }
 
         bool ready = _meshRegistry.GetOrFallback(meshKey, fallback)?.Vao > 0;

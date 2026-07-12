@@ -18,7 +18,7 @@ public interface IRenderer
     /// <param name="color">Override color (alpha 0 = use vertex colors).</param>
     /// <param name="primitiveType">OpenGL primitive type.</param>
     void DrawMesh(int vao, int vertexCount, Matrix4 model, Vector4 color, int primitiveType,
-        int raceTextureIndex = -1, Vector3 teamTint = default);
+        int raceTextureIndex = -1, Vector3 teamTint = default, int componentTextureIndex = -1);
 
     /// <summary>End the current render frame and present to screen.</summary>
     void EndFrame();

@@ -52,9 +52,24 @@ public static class RaceShipMeshes
         RaceSurfaceDetail.ApplyShipDetail(writer, race, design.HullClass, len, wid, hgt);
 
         Vector3 primary = tint ?? ToVector3(race.Palette.Primary);
-        writer.RecolorPrimary(primary, ToVector3(race.Palette.Secondary), ToVector3(race.Palette.Accent), ToVector3(race.Palette.Engine));
+        if (race.Style.Equals("truss", StringComparison.OrdinalIgnoreCase))
+        {
+            writer.RecolorTrussNasa(primary, ToVector3(race.Palette.Secondary), ToVector3(race.Palette.Accent),
+                ToVector3(race.Palette.Secondary) * 0.55f, ToVector3(race.Palette.Engine));
+        }
+        else if (race.Style.Equals("vasudan", StringComparison.OrdinalIgnoreCase))
+        {
+            writer.RecolorVasudan(primary, ToVector3(race.Palette.Secondary), ToVector3(race.Palette.Accent), ToVector3(race.Palette.Engine));
+        }
+        else
+        {
+            writer.RecolorPrimary(primary, ToVector3(race.Palette.Secondary), ToVector3(race.Palette.Accent), ToVector3(race.Palette.Engine));
+        }
         writer.ApplySubstrateVariation(RaceSubstrateProfile.ForRace(race));
-        writer.ApplyBakedLighting(new Vector3(0.35f, 0.9f, 0.25f));
+        if (race.Style.Equals("vasudan", StringComparison.OrdinalIgnoreCase))
+            writer.ApplyBakedLighting(new Vector3(0.48f, 0.88f, 0.58f), 1.72f);
+        else
+            writer.ApplyBakedLighting(new Vector3(0.35f, 0.9f, 0.25f));
         return writer.ToArray();
     }
 
@@ -374,10 +389,14 @@ public static class RaceShipMeshes
             _ => [-wid * 0.42f, -wid * 0.14f, wid * 0.14f, wid * 0.42f],
         };
 
+        float nozzleReach = style.Equals("vasudan", StringComparison.OrdinalIgnoreCase) ? 0.55f : 2.2f;
+        float engineZ = style.Equals("vasudan", StringComparison.OrdinalIgnoreCase) ? -len * 0.14f : z;
+
         foreach (float x in offsets)
         {
             float y = style is "blocky" or "truss" ? hgt * 0.15f : hgt * 0.08f;
-            w.Tri(x, y, z, x - nozzle, 0, z - nozzle * 2.2f, x + nozzle, 0, z - nozzle * 2.2f);
+            float ez = style.Equals("vasudan", StringComparison.OrdinalIgnoreCase) ? engineZ : z;
+            w.Tri(x, y, ez, x - nozzle, 0, ez - nozzle * nozzleReach, x + nozzle, 0, ez - nozzle * nozzleReach);
             if (style is "radiant" or "organic" or "crystalline")
             {
                 w.Tri(x, y + hgt * 0.25f, z + nozzle * 0.5f, x - nozzle * 0.6f, y, z, x + nozzle * 0.6f, y, z);

@@ -6040,6 +6040,14 @@
       "modelId": "drone_worker",
       "displayName": "Drone Worker",
       "relativePath": "Units/drone_worker.obj"
+    },
+    {
+      "key": "meshes/units/shield_generator.obj",
+      "category": "unit",
+      "raceId": null,
+      "modelId": "shield_generator",
+      "displayName": "Shield Generator",
+      "relativePath": "Units/shield_generator.obj"
     }
   ]
 }

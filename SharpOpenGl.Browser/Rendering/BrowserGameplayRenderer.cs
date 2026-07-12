@@ -78,7 +78,7 @@ public sealed class BrowserGameplayRenderer
                                          Matrix4.CreateTranslation(0f, 0f, -0.5f) *
                                          transform.GetModelMatrix();
                     _renderer.DrawMesh(_meshes.EngineTrail, _meshes.EngineTrailCount, trailModel,
-                        Vector4.Zero, GlPrimitive.Triangles);
+                        Vector4.Zero, GlPrimitive.Triangles, componentTextureIndex: ComponentTextureIndex.Engine);
                 }
             }
 
@@ -88,15 +88,34 @@ public sealed class BrowserGameplayRenderer
                 ? BuildProjectileModel(transform, projectile, visual)
                 : transform.GetModelMatrix();
 
-            Vector4 color = render.RaceTextureIndex >= 0
-                ? Vector4.Zero
-                : isProjectile
+            int raceTex = render.RaceTextureIndex;
+            int compTex = -1;
+            Vector4 color;
+            if (render.RaceTextureIndex >= 0)
+            {
+                color = Vector4.Zero;
+            }
+            else if (isProjectile)
+            {
+                raceTex = -1;
+                compTex = ComponentTextureIndex.Weapon;
+                color = Vector4.Zero;
+            }
+            else if (render.ComponentTextureIndex >= 0)
+            {
+                raceTex = -1;
+                compTex = render.ComponentTextureIndex;
+                color = Vector4.Zero;
+            }
+            else
+            {
+                color = world.HasComponent<ResourceNodeComponent>(entity) || world.HasComponent<AIControlledComponent>(entity)
                     ? render.Color
-                    : world.HasComponent<ResourceNodeComponent>(entity) || world.HasComponent<AIControlledComponent>(entity)
-                        ? render.Color
-                        : Vector4.Zero;
+                    : Vector4.Zero;
+            }
 
-            _renderer.DrawMesh(render.MeshId, render.VertexCount, model, color, render.PrimitiveType, render.RaceTextureIndex, render.TeamTint);
+            _renderer.DrawMesh(render.MeshId, render.VertexCount, model, color, render.PrimitiveType,
+                raceTex, render.TeamTint, compTex);
         }
 
         foreach (var (entity, sel) in world.Query<SelectionComponent>())

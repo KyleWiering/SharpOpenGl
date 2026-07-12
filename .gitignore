@@ -26,7 +26,10 @@ screenshot.png
 agent-tools/
 terminals/
 mcps/
-.grok/
+# Grok runtime state (backlog progress, sessions) — keep shareable skills visible
+.grok/*
+!.grok/skills/
+!.grok/skills/**
 
 # Stale patch artifacts
 *.patch

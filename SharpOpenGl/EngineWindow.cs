@@ -48,6 +48,7 @@ public partial class EngineWindow : GameWindow
     private int _uniformColor;
     private int _uniformRaceTextureIndex;
     private int _uniformTeamTint;
+    private int _uniformComponentTextureIndex;
 
     // Scene & UI management
     private EventBus _eventBus = null!;
@@ -180,6 +181,7 @@ public partial class EngineWindow : GameWindow
         _uniformColor = ShaderManager.GetUniform(_shaderProgram, "overrideColor");
         _uniformRaceTextureIndex = ShaderManager.GetUniform(_shaderProgram, "raceTextureIndex");
         _uniformTeamTint = ShaderManager.GetUniform(_shaderProgram, "teamTint");
+        _uniformComponentTextureIndex = ShaderManager.GetUniform(_shaderProgram, "componentTextureIndex");
 
 
 
@@ -218,8 +220,9 @@ public partial class EngineWindow : GameWindow
         _sceneManager.Register(SceneMainMenu, () => new MainMenuScene(this));
         _sceneManager.Register(SceneGameplay, () => new GameplayScene(this));
 
-        // Start at main menu (or skip to gameplay in screenshot / demo mode)
-        if (_screenshotMode || _demoRecordingMode)
+                if (_meshPreviewMode)
+            InitializeMeshPreview();
+        else if (_screenshotMode || _demoRecordingMode)
         {
             if (_demoRecordingMode)
                 InitializeDemoRecording();
@@ -228,9 +231,7 @@ public partial class EngineWindow : GameWindow
             _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
         }
         else
-        {
             _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
-        }
 
         Console.WriteLine("SharpOpenGL RTS Engine initialized.");
     }
@@ -651,24 +652,30 @@ public partial class EngineWindow : GameWindow
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
         GL.UniformMatrix4(_uniformView, false, ref view);
 
-        if (_sceneManager.State != GameState.Playing)
+        if (_meshPreviewMode || _sceneManager.State != GameState.Playing)
             _environment.Render(_shaderProgram, _uniformModel, _uniformColor);
 
-        if (_uiManager.Current is ShipDesignerScreen designerScreen)
-            RenderShipDesignerPreview(designerScreen, projection, (float)args.Time);
-
-        // Render gameplay 3D content only when playing
-        if (_sceneManager.State == GameState.Playing && _world != null)
+        if (_meshPreviewMode)
         {
-            RenderGameplay(projection, view);
+            RenderMeshPreview(projection);
+        }
+        else
+        {
+            if (_uiManager.Current is ShipDesignerScreen designerScreen)
+                RenderShipDesignerPreview(designerScreen, projection, (float)args.Time);
+
+            if (_sceneManager.State == GameState.Playing && _world != null)
+                RenderGameplay(projection, view);
         }
 
-        // Render UI on top
-        _uiRenderer.Begin();
-        _uiManager.Draw(_uiRenderer);
-        if (_selectionBoxVisible)
-            DrawSelectionBox(_uiRenderer);
-        _uiRenderer.End();
+        if (!_meshPreviewMode)
+        {
+            _uiRenderer.Begin();
+            _uiManager.Draw(_uiRenderer);
+            if (_selectionBoxVisible)
+                DrawSelectionBox(_uiRenderer);
+            _uiRenderer.End();
+        }
 
         GL.BindVertexArray(0);
         SwapBuffers();
@@ -678,7 +685,7 @@ public partial class EngineWindow : GameWindow
         if (_demoRecordingMode && _demoRecorder != null && _frameCount >= 2)
             _demoRecorder.CaptureFrame(Size.X, Size.Y, _frameCount);
 
-        if (_screenshotMode && _frameCount >= 5)
+        if ((_screenshotMode || _meshPreviewMode) && _frameCount >= 5)
         {
             CaptureScreenshot(_screenshotPath);
             Console.WriteLine($"Screenshot saved to: {_screenshotPath}");
@@ -736,7 +743,9 @@ public partial class EngineWindow : GameWindow
                                          Matrix4.CreateTranslation(0f, 0f, -0.5f) *
                                          transform.GetModelMatrix();
                     GL.UniformMatrix4(_uniformModel, false, ref trailModel);
-                    GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
+                    GL.Uniform1(_uniformRaceTextureIndex, -1);
+                    GL.Uniform1(_uniformComponentTextureIndex, ComponentTextureIndex.Engine);
+                    GL.Uniform4(_uniformColor, Vector4.Zero);
                     GL.BindVertexArray(_engineTrailVao);
                     GL.DrawArrays(PrimitiveType.Triangles, 0, _engineTrailVertCount);
                 }
@@ -752,17 +761,26 @@ public partial class EngineWindow : GameWindow
             if (render.RaceTextureIndex >= 0)
             {
                 GL.Uniform1(_uniformRaceTextureIndex, render.RaceTextureIndex);
+                GL.Uniform1(_uniformComponentTextureIndex, -1);
                 GL.Uniform3(_uniformTeamTint, render.TeamTint);
                 GL.Uniform4(_uniformColor, Vector4.Zero);
             }
             else if (isProjectile)
             {
                 GL.Uniform1(_uniformRaceTextureIndex, -1);
-                GL.Uniform4(_uniformColor, render.Color);
+                GL.Uniform1(_uniformComponentTextureIndex, ComponentTextureIndex.Weapon);
+                GL.Uniform4(_uniformColor, Vector4.Zero);
+            }
+            else if (render.ComponentTextureIndex >= 0)
+            {
+                GL.Uniform1(_uniformRaceTextureIndex, -1);
+                GL.Uniform1(_uniformComponentTextureIndex, render.ComponentTextureIndex);
+                GL.Uniform4(_uniformColor, Vector4.Zero);
             }
             else
             {
                 GL.Uniform1(_uniformRaceTextureIndex, -1);
+                GL.Uniform1(_uniformComponentTextureIndex, -1);
                 var displayKind = GameplayEntityDisplay.Classify(_world, entity);
                 Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
                 bool useOverride = tint.W > 0f || render.Color.W > 0f;

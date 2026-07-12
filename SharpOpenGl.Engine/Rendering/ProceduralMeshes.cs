@@ -302,6 +302,57 @@ public static class ProceduralMeshes
         return ClampColors(verts.ToArray());
     }
 
+
+    /// <summary>Capital-ship shield emitter — dome, ring capacitors, hex emitter grid.</summary>
+    public static float[] BuildShieldGenerator(Vector3 color, float size = 4f)
+    {
+        float r = color.X, g = color.Y, b = color.Z;
+        float s = size;
+        var verts = new List<float>();
+
+        void Box(float x0, float x1, float y0, float y1, float z0, float z1, float cr, float cg, float cb)
+        {
+            float[][] faces =
+            [
+                [x0,y0,z0,x1,y0,z0,x1,y1,z0],[x0,y0,z0,x1,y1,z0,x0,y1,z0],
+                [x0,y0,z1,x1,y1,z1,x1,y0,z1],[x0,y0,z1,x0,y1,z1,x1,y1,z1],
+                [x0,y0,z0,x0,y0,z1,x1,y0,z1],[x0,y0,z0,x1,y0,z1,x1,y0,z0],
+                [x0,y1,z0,x1,y1,z1,x0,y1,z1],[x0,y1,z0,x1,y1,z0,x1,y1,z1],
+                [x0,y0,z0,x0,y1,z0,x0,y1,z1],[x0,y0,z0,x0,y1,z1,x0,y0,z1],
+                [x1,y0,z0,x1,y0,z1,x1,y1,z1],[x1,y0,z0,x1,y1,z1,x1,y1,z0],
+            ];
+            foreach (var f in faces)
+                verts.AddRange(new[] { f[0],f[1],f[2],cr,cg,cb, f[3],f[4],f[5],cr*0.95f,cg*0.95f,cb*0.98f, f[6],f[7],f[8],cr*0.9f,cg*0.92f,cb*1.02f });
+        }
+
+        Box(-s*0.55f,s*0.55f,0,s*0.12f,-s*0.45f,s*0.45f,r*0.55f,g*0.58f,b*0.62f);
+        Box(-s*0.22f,s*0.22f,s*0.12f,s*0.42f,-s*0.18f,s*0.18f,r*0.7f,g*0.75f,b*0.82f);
+        Box(-s*0.14f,s*0.14f,s*0.08f,s*0.16f,-s*0.10f,s*0.10f,r*0.62f,g*0.68f,b*0.74f);
+        for (int i = 0; i < 4; i++)
+        {
+            float ang = i * MathF.PI * 0.5f;
+            float cx = MathF.Cos(ang) * s * 0.38f;
+            float cz = MathF.Sin(ang) * s * 0.38f;
+            Box(cx-s*0.08f,cx+s*0.08f,s*0.18f,s*0.34f,cz-s*0.08f,cz+s*0.08f,r*0.45f,g*0.82f,b*0.95f);
+            Box(cx-s*0.05f,cx+s*0.05f,s*0.28f,s*0.36f,cz-s*0.05f,cz+s*0.05f,r*0.52f,g*0.86f,b*0.98f);
+        }
+        for (int ring = 0; ring < 6; ring++)
+        {
+            float ang0 = ring * MathF.PI * 2f / 6f;
+            float ang1 = (ring + 1) * MathF.PI * 2f / 6f;
+            float rad = s * 0.28f;
+            AddTri(verts,
+                new Vector3(MathF.Cos(ang0)*rad, s*0.14f, MathF.Sin(ang0)*rad),
+                new Vector3(MathF.Cos(ang1)*rad, s*0.14f, MathF.Sin(ang1)*rad),
+                new Vector3(0, s*0.20f, 0), r*0.48f, g*0.80f, b*0.94f);
+        }
+        AddTri(verts, new Vector3(0,s*0.55f,0), new Vector3(-s*0.2f,s*0.38f,s*0.2f), new Vector3(s*0.2f,s*0.38f,s*0.2f), r*0.5f,g*0.88f,b*1f);
+        AddTri(verts, new Vector3(0,s*0.55f,0), new Vector3(s*0.2f,s*0.38f,s*0.2f), new Vector3(0,s*0.38f,-s*0.24f), r*0.5f,g*0.88f,b*1f);
+        AddTri(verts, new Vector3(0,s*0.55f,0), new Vector3(0,s*0.38f,-s*0.24f), new Vector3(-s*0.2f,s*0.38f,s*0.2f), r*0.5f,g*0.88f,b*1f);
+        AddTri(verts, new Vector3(0,s*0.38f,-s*0.24f), new Vector3(s*0.2f,s*0.38f,s*0.2f), new Vector3(-s*0.2f,s*0.38f,s*0.2f), r*0.42f,g*0.78f,b*0.92f);
+        AddTri(verts, new Vector3(0,s*0.48f,0), new Vector3(-s*0.12f,s*0.40f,s*0.12f), new Vector3(s*0.12f,s*0.40f,s*0.12f), r*0.55f,g*0.90f,b*1f);
+        return ClampColors(verts.ToArray());
+    }
     public static float[] BuildLaserBolt(Vector3 color, float length = 1.2f)
     {
         float r = color.X, g = color.Y, b = color.Z;

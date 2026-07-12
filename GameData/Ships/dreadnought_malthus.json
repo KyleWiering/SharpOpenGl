@@ -1,0 +1,20 @@
+{
+  "id": "dreadnought_malthus",
+  "displayName": "Dreadnought Malthus",
+  "category": "dreadnought",
+  "mesh": "meshes/dreadnought.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 2400, "shields": 600, "armor": 100 },
+    "movement": { "speed": 18, "acceleration": 12, "turnRate": 25 },
+    "weapons": [
+      { "slot": 0, "type": "railgun", "damage": 240, "range": 580, "fireRate": 0.45 },
+      { "slot": 1, "type": "cannon", "damage": 110, "range": 450, "fireRate": 0.65 },
+      { "slot": 2, "type": "missile", "damage": 180, "range": 700, "fireRate": 0.2 },
+      { "slot": 3, "type": "wave", "damage": 55, "range": 320, "fireRate": 0.12 }
+    ],
+    "sightRadius": 8
+  },
+  "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 0
+}

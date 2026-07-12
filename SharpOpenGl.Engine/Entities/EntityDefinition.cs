@@ -126,6 +126,8 @@ public sealed class EntityDefinition
     /// <summary>Asset key for the preferred mesh, relative to the mesh root.</summary>
     public string Mesh { get; set; } = string.Empty;
 
+    public string? ComponentTexture { get; set; }
+
     /// <summary>
     /// Fallback mesh key used when <see cref="Mesh"/> cannot be loaded.
     /// Defaults to "default", resolved via <see cref="Rendering.MeshRegistry"/> fallback.

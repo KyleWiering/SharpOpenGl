@@ -3,6 +3,7 @@ using Xunit;
 
 namespace SharpOpenGl.Tests.Rendering;
 
+[Collection("ModelMigrationExport")]
 public class ModelMigrationExporterTests
 {
     private static string GameDataRoot =>
@@ -37,6 +38,7 @@ public class ModelMigrationExporterTests
     public void Export_single_race_ships_match_substrate_catalog()
     {
         RaceVisualSchema.ResetForTests();
+        ModelMigrationExporter.ExportAll(GameDataRoot);
         foreach (var entry in RaceSubstrateCatalog.AllEntries().Where(e => e.Kind == RaceSubstrateCatalog.SubstrateKind.Ship))
         {
             string rel = $"Ships/{entry.RaceId}/{entry.ModelId}.obj";

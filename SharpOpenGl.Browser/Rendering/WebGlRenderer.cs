@@ -39,14 +39,15 @@ public sealed class WebGlRenderer : IRenderer
     }
 
     public void DrawMesh(int vao, int vertexCount, Matrix4 model, Vector4 color, int primitiveType,
-        int raceTextureIndex = -1, Vector3 teamTint = default)
+        int raceTextureIndex = -1, Vector3 teamTint = default, int componentTextureIndex = -1)
     {
         if (!_inFrame || vao <= 0 || vertexCount <= 0) return;
         _ = _js.InvokeVoidAsync("sharpGl.drawMesh",
             vao, vertexCount, MatrixToArray(model),
             new[] { color.X, color.Y, color.Z, color.W }, primitiveType,
             raceTextureIndex,
-            new[] { teamTint.X, teamTint.Y, teamTint.Z });
+            new[] { teamTint.X, teamTint.Y, teamTint.Z },
+            componentTextureIndex);
     }
 
     public void DrawPoints(int meshId, float[] vertices, int pointCount, Matrix4 model, float pointSize = 5f)

@@ -18,6 +18,7 @@ using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
 using SharpOpenGl.Engine.UI.Widgets;
+using SharpOpenGl.Rendering;
 
 namespace SharpOpenGl;
 
@@ -717,7 +718,17 @@ public partial class EngineWindow
             render.Visible = true;
             render.PrimitiveType = (int)PrimitiveType.Triangles;
             string raceId = ResolveFactionRaceId(playerId, isEnemy);
-            ApplyRaceTexturing(render, raceId, playerId);
+            int compTex = ComponentTextureIndex.Resolve(def.ComponentTexture);
+            if (compTex < 0 && def.Category.Equals("shield_generator", StringComparison.OrdinalIgnoreCase))
+                compTex = ComponentTextureIndex.ShieldGenerator;
+            if (compTex >= 0)
+            {
+                render.RaceTextureIndex = -1;
+                render.ComponentTextureIndex = compTex;
+                render.Color = Vector4.Zero;
+            }
+            else
+                ApplyRaceTexturing(render, raceId, playerId);
         }
 
         if (!_world.HasComponent<BuildingComponent>(entity))
@@ -843,7 +854,24 @@ public partial class EngineWindow
 
     private (int vao, int vertCount, Vector4 color) ResolveMeshForDefinition(
         EntityDefinition def, int playerId, bool isEnemy)
-        => ResolveRaceMeshForDefinition(def, playerId, isEnemy);
+    {
+        if (def.Category.Equals("shield_generator", StringComparison.OrdinalIgnoreCase)
+            || def.Id.StartsWith("shield_generator", StringComparison.OrdinalIgnoreCase))
+            return ResolveShieldGeneratorMesh(def);
+        return ResolveRaceMeshForDefinition(def, playerId, isEnemy);
+    }
+
+    private (int vao, int vertCount, Vector4 color) ResolveShieldGeneratorMesh(EntityDefinition def)
+    {
+        string meshKey = string.IsNullOrWhiteSpace(def.Mesh) ? "meshes/units/shield_generator.obj" : def.Mesh;
+        var obj = TryGetObjMesh(meshKey);
+        if (obj.vao != 0)
+            return (obj.vao, obj.vertCount, Vector4.Zero);
+
+        var uploaded = MeshBuilder.UploadProcedural(
+            ProceduralMeshes.BuildShieldGenerator(new Vector3(0.55f, 0.82f, 0.95f)));
+        return (uploaded.vao, uploaded.vertexCount, Vector4.Zero);
+    }
 
     private Vector3? ScreenToWorldGround(Vector2 screenPos)
     {

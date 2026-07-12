@@ -179,6 +179,8 @@ public sealed class TriggerSystem : GameSystem
 
             if (!string.IsNullOrEmpty(action.Tag))
                 _state.RegisterEntityTag(action.Tag, spawned);
+            else if (!string.IsNullOrEmpty(unitId))
+                _state.RegisterEntityTag(unitId, spawned);
 
             OnUnitSpawned?.Invoke(world, spawned, def, action.Tag);
         }

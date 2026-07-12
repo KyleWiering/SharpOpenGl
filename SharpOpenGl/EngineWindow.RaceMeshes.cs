@@ -21,28 +21,18 @@ public partial class EngineWindow
     {
         if (!_raceMeshCache.TryGetValue(design.DesignId, out var mesh))
         {
-            string designKey = MeshManifest.DesignKey(design.RaceId, design.DesignId);
-            var objMesh = TryGetObjMesh(designKey);
-            if (objMesh.vao != 0)
+            mesh = UploadProceduralDesignMesh(design);
+            if (mesh.vao == 0)
             {
-                mesh = (objMesh.vao, 0, objMesh.vertCount);
-                _raceMeshCache[design.DesignId] = mesh;
-                return (mesh.vao, mesh.vertCount);
+                string designKey = MeshManifest.DesignKey(design.RaceId, design.DesignId);
+                var objMesh = TryGetObjMesh(designKey);
+                if (objMesh.vao != 0)
+                    mesh = (objMesh.vao, 0, objMesh.vertCount);
             }
 
-            try
+            if (mesh.vao == 0)
             {
-                Vector3? tint = null;
-                if (RaceVisualSchema.TryGetRace(design.RaceId, out var race) && race.Palette.Primary.Length >= 3)
-                    tint = new Vector3(race.Palette.Primary[0], race.Palette.Primary[1], race.Palette.Primary[2]);
-
-                float[] vertices = RaceShipMeshes.BuildDesign(design, tint);
-                var uploaded = MeshBuilder.UploadProcedural(vertices);
-                mesh = (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[Mesh] Failed '{design.DesignId}': {ex.Message}");
+                Console.WriteLine($"[Mesh] Procedural and OBJ failed for '{design.DesignId}', using fighter fallback.");
                 var fallback = MeshBuilder.UploadProcedural(
                     RaceShipMeshes.BuildForDefinition("fighter_basic", design.RaceId));
                 mesh = (fallback.vao, fallback.vbo, fallback.vertexCount);
@@ -52,6 +42,32 @@ public partial class EngineWindow
         }
 
         return (mesh.vao, mesh.vertCount);
+    }
+
+    /// <summary>
+    /// Procedural ships carry vertex-color material bands required by race/component shaders.
+    /// Disk OBJs are pos+normal only and render flat without procedural texture wrap.
+    /// </summary>
+    private static (int vao, int vbo, int vertCount) UploadProceduralDesignMesh(ShipDesignSpec design)
+    {
+        try
+        {
+            Vector3? tint = null;
+            if (RaceVisualSchema.TryGetRace(design.RaceId, out var race) && race.Palette.Primary.Length >= 3)
+                tint = new Vector3(race.Palette.Primary[0], race.Palette.Primary[1], race.Palette.Primary[2]);
+
+            float[] vertices = RaceShipMeshes.BuildDesign(design, tint);
+            if (vertices.Length == 0)
+                return (0, 0, 0);
+
+            var uploaded = MeshBuilder.UploadProcedural(vertices);
+            return (uploaded.vao, uploaded.vbo, uploaded.vertexCount);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Mesh] Procedural build failed '{design.DesignId}': {ex.Message}");
+            return (0, 0, 0);
+        }
     }
 
     private (int vao, int vertCount, Vector3 scale) ResolveRaceBuildingMesh(string buildingType, string raceId)

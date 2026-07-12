@@ -98,6 +98,13 @@ public class AssetManagerTests
     }
 
     [Fact]
+    public void MeshExists_returns_true_for_vesper_fighter_on_disk()
+    {
+        string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "GameData"));
+        var manager = new AssetManager(root);
+        Assert.True(manager.MeshExists("meshes/ships/vesper/fighter_basic.obj"));
+    }
+    [Fact]
     public void RegisterProceduralMesh_makes_mesh_available_without_file()
     {
         string root = CreateTempDir();

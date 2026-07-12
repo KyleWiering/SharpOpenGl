@@ -7,6 +7,19 @@ public static class ModelMigrationExporter
 {
     public sealed record ExportResult(int Total, int Succeeded, int Failed, IReadOnlyList<string> Errors);
 
+    public static bool ExportShip(string gameDataRoot, string raceId, string hullId)
+    {
+        RaceVisualSchema.ResetForTests();
+        RaceVisualSchema.Load();
+
+        string rel = $"Ships/{raceId}/{hullId}.obj";
+        string fullPath = Path.Combine(gameDataRoot, "Meshes", rel.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        float[] mesh = RaceShipMeshes.Build(raceId, hullId);
+        ProceduralMeshExporter.WriteObj(mesh, fullPath, hullId);
+        return mesh.Length > 0;
+    }
+
     public static ExportResult ExportAll(string gameDataRoot)
     {
         RaceVisualSchema.ResetForTests();
@@ -146,6 +159,11 @@ public static class ModelMigrationExporter
             "meshes/units/drone_worker.obj", "Units/drone_worker.obj",
             "unit", null, "drone_worker", "Drone Worker",
             () => ProceduralMeshes.BuildMiningDrone(new Vector3(0.7f, 0.75f, 0.8f), 1f));
+
+        TryExport(entries, errors, ref succeeded, ref failed, gameDataRoot,
+            "meshes/units/shield_generator.obj", "Units/shield_generator.obj",
+            "unit", null, "shield_generator", "Shield Generator",
+            () => ProceduralMeshes.BuildShieldGenerator(new Vector3(0.55f, 0.82f, 0.95f)));
 
         TryExport(entries, errors, ref succeeded, ref failed, gameDataRoot,
             "meshes/shared/default_ship.obj", "Shared/default_ship.obj",

@@ -72,7 +72,7 @@ public class RaceShipMeshesTests
     public void Build_applies_custom_tint()
     {
         var tint = new Vector3(1f, 0.2f, 0.1f);
-        float[] mesh = RaceShipMeshes.Build("korath", "gunship_heavy", tint);
+        float[] mesh = RaceShipMeshes.Build("terran", "gunship_heavy", tint);
         Assert.InRange(mesh[3], 0.4f, 1f);
         Assert.InRange(mesh[4], 0f, 0.5f);
     }
