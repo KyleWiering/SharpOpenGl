@@ -1,5 +1,6 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Persistence;
+using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl.Engine.UI.Screens;
@@ -12,8 +13,14 @@ public sealed class LoadGameScreen : UIScreen
     private readonly SaveManager _saveManager;
     private readonly ScrollPanel _listPanel;
     private readonly Label _emptyLabel;
-    private readonly List<Button> _entryButtons = new();
-    private IReadOnlyList<SaveSlotInfo> _entries = [];
+    private readonly List<IconButton> _entryButtons = new();
+    private IReadOnlyList<LoadGameListEntry> _entries = [];
+
+    private sealed record LoadGameListEntry(
+        SaveSlotInfo Info,
+        bool IsSandboxSession,
+        string SandboxSeedText,
+        int ProceduralMapSeed);
 
     /// <inheritdoc/>
     public override string ScreenName => "LoadGame";
@@ -51,8 +58,8 @@ public sealed class LoadGameScreen : UIScreen
             Name = "SaveList",
             Anchor = Anchor.Center,
             Size = new Vector2(760f, 520f),
-            BackgroundColor = new Vector4(0.08f, 0.08f, 0.14f, 0.92f),
         };
+        MenuTheme.ApplyPanel(_listPanel);
         AddWidget(_listPanel);
 
         _emptyLabel = new Label
@@ -63,20 +70,26 @@ public sealed class LoadGameScreen : UIScreen
             Position = new Vector2(-250f, -20f),
             Size = new Vector2(500f, 40f),
             FontSize = 22f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(500f, 4f),
             TextColor = MenuTheme.SubtitleColor,
         };
         _listPanel.AddChild(_emptyLabel);
 
-        var back = new Button
+        var back = new IconButton
         {
             Name = "Back",
+            Icon = MenuIconKind.NavBack,
             Label = "Back",
-            Anchor = Anchor.BottomCenter,
-            Position = new Vector2(-180f, -48f),
-            Size = new Vector2(360f, 56f),
-            FontSize = 20f,
+            TooltipHint = "Return to main menu",
+            Layout = IconButtonLayout.IconLeftOfLabel,
+            IconSize = IconButton.TitleNavIconSize,
+            FontSize = 18f,
+            RequireMinimumHitExtent = true,
+            Anchor = Anchor.BottomLeft,
+            Position = new Vector2(40f, -80f),
+            Size = new Vector2(220f, 60f),
         };
-        MenuTheme.ApplyNavButton(back);
+        IconButton.ApplyMenuTheme(back, showGlow: true);
         back.Clicked += () => BackRequested?.Invoke();
         AddWidget(back);
 
@@ -86,7 +99,7 @@ public sealed class LoadGameScreen : UIScreen
     /// <summary>Reload save metadata from disk.</summary>
     public void RefreshList()
     {
-        foreach (Button button in _entryButtons)
+        foreach (IconButton button in _entryButtons)
             _listPanel.RemoveChild(button);
         _entryButtons.Clear();
 
@@ -96,7 +109,7 @@ public sealed class LoadGameScreen : UIScreen
                 string slotName = Path.GetFileNameWithoutExtension(
                     Path.GetFileNameWithoutExtension(path));
                 SaveData? data = _saveManager.Load(slotName);
-                return new SaveSlotInfo
+                var info = new SaveSlotInfo
                 {
                     SlotName = slotName,
                     FilePath = path,
@@ -105,35 +118,47 @@ public sealed class LoadGameScreen : UIScreen
                     ElapsedMissionTime = data?.ElapsedMissionTime ?? 0f,
                     HasData = data != null,
                 };
+                return new LoadGameListEntry(
+                    info,
+                    data?.IsSandboxSession ?? false,
+                    data?.SandboxSeedText ?? string.Empty,
+                    data?.ProceduralMapSeed ?? 0);
             })
-            .Where(e => e.HasData)
+            .Where(e => e.Info.HasData)
             .ToList();
 
         _emptyLabel.Visible = _entries.Count == 0;
         if (_entries.Count == 0)
+        {
+            _listPanel.RecalculateContentHeight(_listPanel.Size);
             return;
+        }
 
         const float btnW = 700f;
         const float btnH = 56f;
         const float gap = 10f;
         const float startY = 24f;
         const float labelFontSize = 17f;
-        float labelMaxWidth = UITextDrawing.ContentWrapWidth(btnW, 12f);
 
         for (int i = 0; i < _entries.Count; i++)
         {
-            SaveSlotInfo entry = _entries[i];
-            var btn = new Button
+            LoadGameListEntry entry = _entries[i];
+            var btn = new IconButton
             {
                 Name = $"Entry{i}",
-                Label = UITextDrawing.TruncateWithEllipsis(
-                    FormatEntryLabel(entry), labelMaxWidth, labelFontSize),
+                Icon = MenuIconKind.NavLoadGame,
+                Label = FormatEntryLabel(entry),
+                TooltipHint = "Load this save",
+                Layout = IconButtonLayout.IconLeftOfLabel,
+                IconSize = IconButton.TitleNavIconSize,
+                FontSize = labelFontSize,
+                RequireMinimumHitExtent = true,
                 Anchor = Anchor.TopLeft,
                 Position = new Vector2(30f, startY + i * (btnH + gap)),
                 Size = new Vector2(btnW, btnH),
-                FontSize = labelFontSize,
             };
-            string slot = entry.SlotName;
+            IconButton.ApplyMenuTheme(btn, showGlow: true);
+            string slot = entry.Info.SlotName;
             btn.Clicked += () => LoadRequested?.Invoke(slot);
             _listPanel.AddChild(btn);
             _entryButtons.Add(btn);
@@ -145,13 +170,45 @@ public sealed class LoadGameScreen : UIScreen
     /// <summary>Number of populated save entries currently shown.</summary>
     public int EntryCount => _entries.Count;
 
-    private static string FormatEntryLabel(SaveSlotInfo entry)
+    private const float EntryButtonWidth = 700f;
+    private const float EntryLabelFontSize = 17f;
+    private const float EntryLabelInnerWidth =
+        EntryButtonWidth - IconButton.TitleNavIconColumnWidth - IconButton.LabelPadding;
+
+    private static string FormatEntryLabel(LoadGameListEntry entry)
     {
-        string slot = SaveSlotNames.DisplayName(entry.SlotName);
-        string mission = string.IsNullOrWhiteSpace(entry.MissionId) ? "Free Play" : entry.MissionId;
-        string when = FormatSavedAt(entry.SavedAt);
-        string elapsed = FormatElapsed(entry.ElapsedMissionTime);
-        return $"{slot}  |  {mission}  |  {elapsed}  |  {when}";
+        string slot = SaveSlotNames.DisplayName(entry.Info.SlotName);
+        string mission = FormatMissionLabel(entry);
+        string when = FormatSavedAt(entry.Info.SavedAt);
+        string elapsed = FormatElapsed(entry.Info.ElapsedMissionTime);
+
+        string slotPart = $"{slot}  |  ";
+        string tailPart = $"  |  {elapsed}  |  {when}";
+        float slotWidth = UIFontMetrics.MeasureTextWidth(slotPart, EntryLabelFontSize);
+        float tailWidth = UIFontMetrics.MeasureTextWidth(tailPart, EntryLabelFontSize);
+        float missionBudget = EntryLabelInnerWidth - slotWidth - tailWidth;
+
+        string missionFit = missionBudget > 0f
+            ? UITextDrawing.TruncateWithEllipsis(mission, missionBudget, EntryLabelFontSize)
+            : "…";
+
+        return $"{slotPart}{missionFit}{tailPart}";
+    }
+
+    private static string FormatMissionLabel(LoadGameListEntry entry)
+    {
+        if (!string.IsNullOrWhiteSpace(entry.Info.MissionId))
+            return entry.Info.MissionId;
+
+        if (entry.IsSandboxSession)
+        {
+            string seed = !string.IsNullOrWhiteSpace(entry.SandboxSeedText)
+                ? entry.SandboxSeedText
+                : entry.ProceduralMapSeed.ToString();
+            return $"Sandbox · {seed}";
+        }
+
+        return "Free Play";
     }
 
     private static string FormatSavedAt(string savedAt)

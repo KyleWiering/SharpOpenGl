@@ -25,6 +25,14 @@ public enum InputAction
     AttackCommand,
     StopCommand,
     PatrolCommand,
+    UnitMove,
+    UnitAttack,
+    UnitAttackMove,
+    UnitHoldPosition,
+    UnitDefensiveStance,
+    UnitHarvest,
+    UnitFormationCycle,
+    UnitBuildStructures,
 
     // ── Hero abilities ─────────────────────────────────────────────────────
     Ability1,

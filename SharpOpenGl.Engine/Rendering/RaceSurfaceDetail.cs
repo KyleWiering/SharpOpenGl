@@ -1,8 +1,8 @@
-using OpenTK.Mathematics;
+﻿using OpenTK.Mathematics;
 
 namespace SharpOpenGl.Engine.Rendering;
 
-/// <summary>Subtle hull surface accents Ã¢â‚¬â€ kept flush to avoid spiky greeble clutter.</summary>
+/// <summary>Subtle hull surface accents ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â kept flush to avoid spiky greeble clutter.</summary>
 internal static class RaceSurfaceDetail
 {
     public static void ApplyShipDetail(RaceMeshWriter w, RaceVisualDefinition race, string hullKey, float len, float wid, float hgt)
@@ -23,6 +23,24 @@ internal static class RaceSurfaceDetail
             ApplyCrystallineShipDetail(w, race, hullKey, len, wid, hgt);
         else if (race.Style.Equals("spiny", StringComparison.OrdinalIgnoreCase))
             ApplySpinyShipDetail(w, race, hullKey, len, wid, hgt);
+
+        if (hullKey is "fighter_basic" or "destroyer_assault" or "gunship_heavy")
+        {
+            if (race.Style.Equals("vasudan", StringComparison.OrdinalIgnoreCase))
+                AddVasudanPriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
+            else if (race.Style.Equals("truss", StringComparison.OrdinalIgnoreCase))
+                AddKorathPriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
+            else if (race.Style.Equals("organic", StringComparison.OrdinalIgnoreCase))
+                AddOrganicPriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
+            else if (race.Style.Equals("asymmetric", StringComparison.OrdinalIgnoreCase))
+                AddAsymmetricPriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
+            else if (race.Style.Equals("radiant", StringComparison.OrdinalIgnoreCase))
+                AddRadiantPriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
+            else if (race.Style.Equals("crystalline", StringComparison.OrdinalIgnoreCase))
+                AddCrystallinePriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
+            else if (race.Style.Equals("spiny", StringComparison.OrdinalIgnoreCase))
+                AddSpinyPriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
+        }
     }
 
     private static void ApplyRetroShipDetail(
@@ -32,13 +50,14 @@ internal static class RaceSurfaceDetail
         ApplyTerranShipSubstrate(w, hullKey, len, wid, hgt, profile);
         AddTerranModernSurfaceOverlay(w, hullKey, len, wid, hgt, profile);
         AddTerranGameplayComponentBands(w, hullKey, len, wid, hgt);
+        AddTerranPriorityHullDistinctnessAccents(w, hullKey, len, wid, hgt);
     }
 
     public static void AppendRetroScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
         => AppendTerranScorerAccentBoost(w, hullKey, len, wid, hgt);
 
-    /// <summary>Terran loop-3 � exact palette accent patches for RaceIdentity (accent 0% recovery).</summary>
+    /// <summary>Terran loop-3 ï¿½ exact palette accent patches for RaceIdentity (accent 0% recovery).</summary>
     public static void AppendRetroIdentityAccentPatches(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt, Vector3 accent)
     {
@@ -74,60 +93,100 @@ internal static class RaceSurfaceDetail
         }
         else if (hullKey is "fighter" or "fighter_basic")
         {
-            for (int c = 0; c < 6; c++)
+            if (hullKey is "fighter_basic")
             {
-                float t = c / 5f;
-                float z = MathHelper.Lerp(len * 0.04f, len * 0.24f, t);
-                float y = hgt * (0.32f + t * 0.12f);
-                float halfW = hw * MathHelper.Lerp(0.12f, 0.05f, t);
-                w.TriRaceAccentIdentity(
-                    new Vector3(-halfW, y, z),
-                    new Vector3(halfW, y, z),
-                    new Vector3(0, y + hgt * 0.05f, z + len * 0.006f),
-                    accent);
-            }
-            // wo-02-02: flush mid-shoulder dorsal bands on two-box junction (accent ≥40% target).
-            for (int s = 0; s < 2; s++)
-            {
-                float z = len * (0.08f + s * 0.10f);
-                float y = hgt * (0.38f + s * 0.06f);
-                float halfW = hw * MathHelper.Lerp(0.16f, 0.12f, s);
-                w.TriRaceAccentIdentity(
-                    new Vector3(-halfW, y, z),
-                    new Vector3(halfW, y, z),
-                    new Vector3(0, y + hgt * 0.05f, z + len * 0.006f),
-                    accent);
-            }
-            for (int side = -1; side <= 1; side += 2)
-            {
-                float xNose = side * hw * 0.22f;
-                for (int e = 0; e < 3; e++)
+                // wo-06-11 loop 23: centered dorsal accent bands â€” no lateral chevrons (fishbone trim).
+                for (int c = 0; c < 2; c++)
                 {
-                    float z = MathHelper.Lerp(len * 0.12f, len * 0.02f, e / 2f);
+                    float t = c;
+                    float z0 = MathHelper.Lerp(len * 0.08f, len * 0.18f, t);
+                    float halfW = hw * MathHelper.Lerp(0.10f, 0.06f, t);
+                    float y0 = hgt * (0.36f + t * 0.06f);
+                    AddSurfaceBoxRaceAccentIdentity(w, accent,
+                        -halfW, halfW, y0, y0 + hgt * 0.05f, z0, z0 + len * 0.012f);
+                }
+            }
+            else
+            {
+                for (int c = 0; c < 6; c++)
+                {
+                    float t = c / 5f;
+                    float z = MathHelper.Lerp(len * 0.04f, len * 0.24f, t);
+                    float y = hgt * (0.32f + t * 0.12f);
+                    float halfW = hw * MathHelper.Lerp(0.12f, 0.05f, t);
                     w.TriRaceAccentIdentity(
-                        new Vector3(xNose, hgt * (0.24f + e * 0.02f), z),
-                        new Vector3(xNose - side * hw * 0.02f, hgt * (0.22f + e * 0.02f), z + len * 0.005f),
-                        new Vector3(xNose, hgt * (0.20f + e * 0.02f), z + len * 0.008f),
+                        new Vector3(-halfW, y, z),
+                        new Vector3(halfW, y, z),
+                        new Vector3(0, y + hgt * 0.05f, z + len * 0.006f),
                         accent);
+                }
+                for (int s = 0; s < 2; s++)
+                {
+                    float z = len * (0.08f + s * 0.10f);
+                    float y = hgt * (0.38f + s * 0.06f);
+                    float halfW = hw * MathHelper.Lerp(0.16f, 0.12f, s);
+                    w.TriRaceAccentIdentity(
+                        new Vector3(-halfW, y, z),
+                        new Vector3(halfW, y, z),
+                        new Vector3(0, y + hgt * 0.05f, z + len * 0.006f),
+                        accent);
+                }
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float xNose = side * hw * 0.22f;
+                    for (int e = 0; e < 3; e++)
+                    {
+                        float z = MathHelper.Lerp(len * 0.12f, len * 0.02f, e / 2f);
+                        w.TriRaceAccentIdentity(
+                            new Vector3(xNose, hgt * (0.24f + e * 0.02f), z),
+                            new Vector3(xNose - side * hw * 0.02f, hgt * (0.22f + e * 0.02f), z + len * 0.005f),
+                            new Vector3(xNose, hgt * (0.20f + e * 0.02f), z + len * 0.008f),
+                            accent);
+                    }
                 }
             }
         }
         else if (hullKey is "bomber_heavy")
         {
-            for (int s = 0; s < 4; s++)
+            // wo-mesh-r2-01: flush dorsal accent boxes — no chevron triangles (tri-pattern penalty).
+            for (int s = 0; s < 3; s++)
             {
-                float t = s / 3f;
-                float z = MathHelper.Lerp(len * 0.06f, len * 0.24f, t);
-                float y = hgt * (0.40f + t * 0.10f);
-                float halfW = hw * MathHelper.Lerp(0.14f, 0.08f, t);
-                w.TriRaceAccentIdentity(
-                    new Vector3(-halfW, y, z),
-                    new Vector3(halfW, y, z),
-                    new Vector3(0, y + hgt * 0.05f, z + len * 0.006f),
-                    accent);
+                float t = s / 2f;
+                float z0 = MathHelper.Lerp(len * 0.06f, len * 0.22f, t);
+                float halfW = hw * MathHelper.Lerp(0.12f, 0.06f, t);
+                float y0 = hgt * (0.40f + t * 0.10f);
+                AddSurfaceBoxRaceAccentIdentity(w, accent,
+                    -halfW, halfW, y0, y0 + hgt * 0.06f, z0, z0 + len * 0.014f);
             }
         }
-        else if (hullKey is "cruiser" or "cruiser_heavy")
+        else if (hullKey is "destroyer_assault")
+        {
+            AddSurfaceBoxRaceAccentIdentity(w, accent,
+                -hw * 0.10f, hw * 0.10f, hgt * 0.50f, hgt * 0.58f, len * 0.24f, len * 0.36f);
+            return;
+        }
+        else if (hullKey is "gunship_heavy")
+        {
+            AddSurfaceBoxRaceAccentIdentity(w, accent,
+                -hw * 0.10f, hw * 0.10f, hgt * 0.46f, hgt * 0.54f, len * 0.30f, len * 0.42f);
+            return;
+        }
+        else if (hullKey is "cruiser_heavy")
+        {
+            // wo-mesh-01-03: flush dorsal accent boxes â€” no chevron triangles (tri-pattern penalty).
+            for (int h = 0; h < 3; h++)
+            {
+                float t = h / 2f;
+                float z0 = MathHelper.Lerp(len * 0.06f, len * 0.22f, t);
+                float halfW = hw * MathHelper.Lerp(0.10f, 0.06f, t);
+                float y0 = hgt * (0.52f + t * 0.06f);
+                AddSurfaceBoxRaceAccentIdentity(w, accent,
+                    -halfW, halfW, y0, y0 + hgt * 0.06f, z0, z0 + len * 0.014f);
+            }
+            AddSurfaceBoxRaceAccentIdentity(w, accent,
+                -hw * 0.06f, hw * 0.06f, hgt * 0.62f, hgt * 0.76f, len * 0.52f, len * 0.68f);
+        }
+        else if (hullKey is "cruiser")
         {
             for (int b = 0; b < 4; b++)
             {
@@ -141,22 +200,34 @@ internal static class RaceSurfaceDetail
                     new Vector3(0, y + hgt * 0.04f, z + len * 0.005f),
                     accent);
             }
-            if (hullKey is "cruiser_heavy")
+        }
+        else if (hullKey is "freighter_bulk")
+        {
+            // wo-mesh-01-02: flush accent boxes â€” no chevron triangles (tri-pattern penalty).
+            for (int h = 0; h < 3; h++)
             {
-                for (int d = 0; d < 3; d++)
-                {
-                    float z = len * (0.04f + d * 0.08f);
-                    float y = hgt * (0.54f + d * 0.04f);
-                    w.TriRaceAccentIdentity(
-                        new Vector3(-hw * 0.08f, y, z),
-                        new Vector3(hw * 0.08f, y, z),
-                        new Vector3(0, y + hgt * 0.04f, z + len * 0.005f),
-                        accent);
-                }
+                float t = h / 2f;
+                float z0 = MathHelper.Lerp(len * 0.06f, len * 0.32f, t);
+                float halfW = hw * MathHelper.Lerp(0.10f, 0.05f, t);
+                float y0 = hgt * (0.40f + t * 0.08f);
+                AddSurfaceBoxRaceAccentIdentity(w, accent,
+                    -halfW, halfW, y0, y0 + hgt * 0.06f, z0, z0 + len * 0.014f);
             }
         }
-        else if (hullKey is "miner_basic" or "miner_eva" or "miner_tractor"
-            or "transport_cargo" or "freighter_bulk")
+        else if (hullKey is "transport_cargo")
+        {
+            // wo-mesh-r2-01: flush cargo accent boxes — no chevron triangles (tri-pattern penalty).
+            for (int h = 0; h < 3; h++)
+            {
+                float t = h / 2f;
+                float z0 = MathHelper.Lerp(len * 0.06f, len * 0.30f, t);
+                float halfW = hw * MathHelper.Lerp(0.10f, 0.05f, t);
+                float y0 = hgt * (0.40f + t * 0.08f);
+                AddSurfaceBoxRaceAccentIdentity(w, accent,
+                    -halfW, halfW, y0, y0 + hgt * 0.06f, z0, z0 + len * 0.014f);
+            }
+        }
+        else if (hullKey is "miner_basic" or "miner_eva" or "miner_tractor")
         {
             for (int h = 0; h < 5; h++)
             {
@@ -172,7 +243,7 @@ internal static class RaceSurfaceDetail
 
         if (hullKey is "dreadnought")
         {
-            // Loop-03: dorsal spine tiers + bow flank bands — longitudinal silhouette lift.
+            // Loop-03: dorsal spine tiers + bow flank bands â€” longitudinal silhouette lift.
             for (int d = 0; d < 10; d++)
             {
                 float t = d / 9f;
@@ -241,7 +312,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Aetherian loop-10 � exact palette accent/primary/secondary patches for RaceIdentity recovery.</summary>
+    /// <summary>Aetherian loop-10 ï¿½ exact palette accent/primary/secondary patches for RaceIdentity recovery.</summary>
     public static void AppendOrganicIdentityAccentPatches(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt,
         Vector3 accent, Vector3 primary, Vector3 secondary)
@@ -293,7 +364,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Terran loop-05 � re-anchors retro meshes to gameplay envelope (bow +Z, dorsal cap, stern trim).</summary>
+    /// <summary>Terran loop-05 ï¿½ re-anchors retro meshes to gameplay envelope (bow +Z, dorsal cap, stern trim).</summary>
     public static void AppendRetroEnvelopeAnchorBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -352,9 +423,14 @@ internal static class RaceSurfaceDetail
             AddSurfaceBoxMat(w, hull,
                 -hw * 0.12f, hw * 0.12f, hgt * 0.38f, hgt * 0.52f,
                 len * 0.34f, len * 0.50f);
+            return;
+        }
+
+        if (hullKey is "destroyer_assault")
+        {
             AddSurfaceBoxMat(w, hull,
-                -hw * 0.08f, hw * 0.08f, hgt * 0.48f, hgt * 0.58f,
-                len * 0.40f, len * 0.48f);
+                -hw * 0.14f, hw * 0.14f, hgt * 0.46f, hgt * 0.60f,
+                len * 0.18f, len * 0.42f);
             return;
         }
 
@@ -363,14 +439,16 @@ internal static class RaceSurfaceDetail
 
         if (isFighter)
         {
-            // Two-box shoulder (~len*0.25) + bow wedge tip (~len*0.72) — loop-5 flush deck bands.
-            float prowZ1 = len * 0.72f;
-            AddSurfaceBoxMat(w, hull,
-                -hw * 0.06f, hw * 0.06f, hgt * 0.28f, hgt * 0.50f,
-                prowZ1 - len * 0.08f, prowZ1);
-            AddSurfaceBoxMat(w, hull,
-                -hw * 0.10f, hw * 0.10f, hgt * 0.22f, hgt * 0.34f,
-                len * 0.18f, len * 0.28f);
+            if (hullKey is not "fighter_basic")
+            {
+                float prowZ1 = len * 0.72f;
+                AddSurfaceBoxMat(w, hull,
+                    -hw * 0.06f, hw * 0.06f, hgt * 0.28f, hgt * 0.50f,
+                    prowZ1 - len * 0.08f, prowZ1);
+                AddSurfaceBoxMat(w, hull,
+                    -hw * 0.10f, hw * 0.10f, hgt * 0.22f, hgt * 0.34f,
+                    len * 0.18f, len * 0.28f);
+            }
             return;
         }
 
@@ -415,7 +493,7 @@ internal static class RaceSurfaceDetail
         return bellSpreadBw * 2f;
     }
 
-    /// <summary>Terran iter-04 — TriScorerAccent on leading edges, engine bells, registry bands (post-relight).</summary>
+    /// <summary>Terran iter-04 â€” TriScorerAccent on leading edges, engine bells, registry bands (post-relight).</summary>
     private static void AppendTerranScorerAccentBoost(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -425,44 +503,76 @@ internal static class RaceSurfaceDetail
             or "interceptor" or "interceptor_mk2" or "drone" or "drone_swarm";
         bool isFighter = hullKey is "fighter" or "fighter_basic";
 
+        bool isTerranPriority = hullKey is "fighter_basic" or "destroyer_assault" or "gunship_heavy";
         float sternZ = len * TerranIntegratedSternZFrac(hullKey, isCapital);
         float engineDepth = len * 0.09f;
         float wellZ = sternZ + engineDepth * 0.72f;
         float nacelleSpread = TerranIntegratedBellSpreadHw(hullKey, isCapital);
-        for (int side = -1; side <= 1; side += 2)
+        if (isTerranPriority && hullKey is "fighter_basic" or "destroyer_assault" or "gunship_heavy")
+        {
+            AddSurfaceBoxScorerAccent(w,
+                -hw * 0.06f, hw * 0.06f, hgt * 0.04f, hgt * 0.10f, wellZ, wellZ + len * 0.012f);
+        }
+        else for (int side = -1; side <= 1; side += 2)
         {
             float xBell = side * hw * nacelleSpread;
-            for (int ring = 0; ring < 2; ring++)
+            if (isTerranPriority)
             {
-                float z = wellZ + len * ring * 0.010f;
-                w.TriScorerAccent(
-                    new Vector3(xBell - side * hw * 0.03f, hgt * 0.04f, z),
-                    new Vector3(xBell + side * hw * 0.03f, hgt * 0.04f, z),
-                    new Vector3(xBell, hgt * 0.10f, z + len * 0.006f));
+                AddSurfaceBoxScorerAccent(w,
+                    xBell - hw * 0.03f, xBell + hw * 0.03f,
+                    hgt * 0.04f, hgt * 0.10f, wellZ, wellZ + len * 0.012f);
+            }
+            else
+            {
+                for (int ring = 0; ring < 2; ring++)
+                {
+                    float z = wellZ + len * ring * 0.010f;
+                    w.TriScorerAccent(
+                        new Vector3(xBell - side * hw * 0.03f, hgt * 0.04f, z),
+                        new Vector3(xBell + side * hw * 0.03f, hgt * 0.04f, z),
+                        new Vector3(xBell, hgt * 0.10f, z + len * 0.006f));
+                }
             }
         }
 
-        int registryBands = isCapital ? 4
-            : hullKey is "scout_light" ? 3
-            : isCompact ? 3 : 4;
-        float registryReach = isCapital ? 0.36f
-            : hullKey is "scout_light" ? 0.28f
-            : isFighter ? 0.26f
-            : isCompact ? 0.22f : 0.22f;
-        for (int r = 0; r < registryBands; r++)
+        if (!isTerranPriority)
         {
-            float t = r / MathF.Max(1f, registryBands - 1);
-            float z0 = MathHelper.Lerp(len * 0.04f, len * registryReach, t);
-            float z1 = z0 + len * 0.012f;
-            float y0 = hgt * (isFighter ? (0.30f + t * 0.14f) : (0.36f + t * 0.10f));
-            float y1 = y0 + hgt * 0.04f;
-            float halfW = hw * MathHelper.Lerp(isFighter ? 0.12f : 0.10f, 0.04f, t);
-            AddSurfaceBoxScorerAccent(w, -halfW, halfW, y0, y1, z0, z1);
+            int registryBands = isCapital ? 4
+                : hullKey is "scout_light" ? 3
+                : isCompact ? 3 : 4;
+            float registryReach = isCapital ? 0.36f
+                : hullKey is "scout_light" ? 0.28f
+                : isFighter ? 0.26f
+                : isCompact ? 0.22f : 0.22f;
+            for (int r = 0; r < registryBands; r++)
+            {
+                float t = r / MathF.Max(1f, registryBands - 1);
+                float z0 = MathHelper.Lerp(len * 0.04f, len * registryReach, t);
+                float z1 = z0 + len * 0.012f;
+                float y0 = hgt * (isFighter ? (0.30f + t * 0.14f) : (0.36f + t * 0.10f));
+                float y1 = y0 + hgt * 0.04f;
+                float halfW = hw * MathHelper.Lerp(isFighter ? 0.12f : 0.10f, 0.04f, t);
+                AddSurfaceBoxScorerAccent(w, -halfW, halfW, y0, y1, z0, z1);
+            }
+        }
+        else if (hullKey is "fighter_basic")
+        {
+            AddSurfaceBoxScorerAccent(w, -hw * 0.10f, hw * 0.10f, hgt * 0.32f, hgt * 0.40f, len * 0.10f, len * 0.20f);
         }
 
 
 
-        if (isCapital && hullKey is "cruiser" or "cruiser_heavy" or "dreadnought")
+        if (isCapital && hullKey is "cruiser_heavy")
+        {
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float xLead = side * hw * 0.44f;
+                AddSurfaceBoxScorerAccent(w,
+                    xLead - hw * 0.03f, xLead + hw * 0.03f,
+                    hgt * 0.16f, hgt * 0.22f, len * 0.02f, len * 0.08f);
+            }
+        }
+        else if (isCapital && hullKey is "cruiser" or "dreadnought")
         {
             for (int side = -1; side <= 1; side += 2)
             {
@@ -477,7 +587,7 @@ internal static class RaceSurfaceDetail
                 }
             }
         }
-        else if (isCompact)
+        else if (isCompact && hullKey is not "fighter_basic")
         {
             for (int side = -1; side <= 1; side += 2)
             {
@@ -492,47 +602,31 @@ internal static class RaceSurfaceDetail
                 }
             }
         }
+        else if (hullKey is "destroyer_assault")
+        {
+            AddSurfaceBoxScorerAccent(w, -hw * 0.10f, hw * 0.10f, hgt * 0.48f, hgt * 0.56f, len * 0.24f, len * 0.36f);
+        }
         else if (hullKey is "gunship_heavy")
         {
-            for (int d = 0; d < 5; d++)
-            {
-                float t = d / 4f;
-                float z = MathHelper.Lerp(len * 0.30f, len * 0.50f, t);
-                float halfW = hw * MathHelper.Lerp(0.12f, 0.06f, t);
-                AddSurfaceBoxScorerAccent(w, -halfW, halfW, hgt * (0.40f + t * 0.06f), hgt * (0.48f + t * 0.06f), z, z + len * 0.012f);
-            }
-            for (int s = 0; s < 3; s++)
-            {
-                float z = len * (0.06f + s * 0.05f);
-                w.TriScorerAccent(
-                    new Vector3(-hw * 0.10f, hgt * 0.04f, z), new Vector3(hw * 0.10f, hgt * 0.04f, z),
-                    new Vector3(0, hgt * 0.10f, z + len * 0.006f));
-            }
+            AddSurfaceBoxScorerAccent(w, -hw * 0.12f, hw * 0.12f, hgt * 0.42f, hgt * 0.50f, len * 0.32f, len * 0.44f);
         }
         else if (hullKey is "bomber_heavy")
         {
-            for (int d = 0; d < 4; d++)
+            for (int d = 0; d < 3; d++)
             {
-                float t = d / 3f;
-                float z = MathHelper.Lerp(len * 0.08f, len * 0.26f, t);
-                float halfW = hw * MathHelper.Lerp(0.12f, 0.06f, t);
+                float t = d / 2f;
+                float z = MathHelper.Lerp(len * 0.08f, len * 0.24f, t);
+                float halfW = hw * MathHelper.Lerp(0.10f, 0.05f, t);
                 AddSurfaceBoxScorerAccent(w, -halfW, halfW, hgt * (0.42f + t * 0.08f), hgt * (0.50f + t * 0.08f), z, z + len * 0.012f);
-            }
-            for (int s = 0; s < 3; s++)
-            {
-                float z = len * (0.10f + s * 0.06f);
-                w.TriScorerAccent(
-                    new Vector3(-hw * 0.08f, hgt * 0.46f, z), new Vector3(hw * 0.08f, hgt * 0.46f, z),
-                    new Vector3(0, hgt * 0.52f, z + len * 0.006f));
             }
         }
         else if (hullKey is "freighter_bulk" or "transport_cargo")
         {
-            int dorsalBands = hullKey is "freighter_bulk" ? 5 : 4;
+            int dorsalBands = 3;
             for (int d = 0; d < dorsalBands; d++)
             {
                 float t = d / MathF.Max(1f, dorsalBands - 1);
-                float z = MathHelper.Lerp(len * 0.06f, len * (hullKey is "freighter_bulk" ? 0.44f : 0.40f), t);
+                float z = MathHelper.Lerp(len * 0.08f, len * (hullKey is "freighter_bulk" ? 0.48f : 0.40f), t);
                 float halfW = hw * MathHelper.Lerp(0.10f, 0.04f, t);
                 AddSurfaceBoxScorerAccent(w, -halfW, halfW, hgt * (0.40f + t * 0.06f), hgt * (0.48f + t * 0.06f), z, z + len * 0.012f);
             }
@@ -808,21 +902,17 @@ internal static class RaceSurfaceDetail
 
         if (hullKey is "transport_cargo")
         {
-            for (int s = 0; s < 3; s++)
+            for (int s = 0; s < 2; s++)
             {
-                float z = len * (0.10f + s * 0.10f);
-                TriMat(w, facet,
-                    new Vector3(-hw * 0.06f, hgt * 0.42f, z),
-                    new Vector3(hw * 0.06f, hgt * 0.42f, z),
-                    new Vector3(0, hgt * 0.48f, z + len * 0.010f));
+                float z0 = len * (0.12f + s * 0.10f);
+                AddSurfaceBoxMat(w, facet,
+                    -hw * 0.06f, hw * 0.06f, hgt * 0.42f, hgt * 0.48f, z0, z0 + len * 0.010f);
             }
             for (int side = -1; side <= 1; side += 2)
             {
                 float cx = side * hw * 0.44f;
-                TriMat(w, weapon,
-                    new Vector3(cx - hw * 0.06f, hgt * 0.24f, len * 0.28f),
-                    new Vector3(cx + hw * 0.06f, hgt * 0.24f, len * 0.28f),
-                    new Vector3(cx, hgt * 0.30f, len * 0.32f));
+                AddSurfaceBoxMat(w, weapon,
+                    cx - hw * 0.06f, cx + hw * 0.06f, hgt * 0.24f, hgt * 0.30f, len * 0.28f, len * 0.32f);
             }
         }
 
@@ -852,7 +942,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank ice facet substrate bands � cyan crystal vein accents under team tint.</summary>
+    /// <summary>Belly/flank ice facet substrate bands ï¿½ cyan crystal vein accents under team tint.</summary>
     private static void AddCrystallineUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -1013,7 +1103,7 @@ internal static class RaceSurfaceDetail
         AddCrystallineGameplayComponentBands(w, hullKey, hw, hgt, len);
     }
 
-    /// <summary>Ice facet substrate bands for Cryo medium combat � vertex luminance under team tint.</summary>
+    /// <summary>Ice facet substrate bands for Cryo medium combat ï¿½ vertex luminance under team tint.</summary>
     private static void AddCrystallineMediumCombatSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -1193,7 +1283,7 @@ internal static class RaceSurfaceDetail
         AddCrystallineGameplayComponentBands(w, hullKey, hw, hgt, len);
     }
 
-    /// <summary>Ice facet substrate bands for Cryo capital hulls � belly/flank/dorsal luminance under team tint.</summary>
+    /// <summary>Ice facet substrate bands for Cryo capital hulls ï¿½ belly/flank/dorsal luminance under team tint.</summary>
     private static void AddCrystallineCapitalSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -1618,7 +1708,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Crystalline utility accent pass � cargo spine veins, tool-arm facet strips, repair antenna blooms.</summary>
+    /// <summary>Crystalline utility accent pass ï¿½ cargo spine veins, tool-arm facet strips, repair antenna blooms.</summary>
     private static void AppendCrystallineUtilityScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -2161,7 +2251,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank carapace membrane substrate bands � magenta spine veins readable under team tint.</summary>
+    /// <summary>Belly/flank carapace membrane substrate bands ï¿½ magenta spine veins readable under team tint.</summary>
     private static void AddSpinyUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -2482,7 +2572,7 @@ internal static class RaceSurfaceDetail
         AddAsymmetricMediumCombatGameplayComponentBands(w, hullKey, hw, hgt, len);
     }
 
-    /// <summary>Carapace membrane substrate bands for Voidborn medium combat � vertex luminance under team tint.</summary>
+    /// <summary>Carapace membrane substrate bands for Voidborn medium combat ï¿½ vertex luminance under team tint.</summary>
     private static void AddSpinyMediumCombatSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -2570,7 +2660,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Final-pass magenta accent bands � TriScorerAccent after relight, excluded from weapon snap.</summary>
+    /// <summary>Final-pass magenta accent bands ï¿½ TriScorerAccent after relight, excluded from weapon snap.</summary>
     private static void AppendSpinyMediumCombatScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -2742,7 +2832,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Final-pass magenta deck-spine / carapace seam accent bands for voidborn capital hulls � post-relight.</summary>
+    /// <summary>Final-pass magenta deck-spine / carapace seam accent bands for voidborn capital hulls ï¿½ post-relight.</summary>
     private static void AppendSpinyCapitalScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -3344,7 +3434,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank solar membrane substrate bands � amber panel veins under team tint.</summary>
+    /// <summary>Belly/flank solar membrane substrate bands ï¿½ amber panel veins under team tint.</summary>
     private static void AddRadiantUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -3441,7 +3531,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Embossed solar crown panel rows � vertex luminance bands for mesh-preview.</summary>
+    /// <summary>Embossed solar crown panel rows ï¿½ vertex luminance bands for mesh-preview.</summary>
     private static void AddRadiantSolarCrownSubstrate(
         RaceMeshWriter w, float hw, float hgt, float len, int rows, int cols, float z0Factor, float z1Factor)
     {
@@ -3752,7 +3842,7 @@ internal static class RaceSurfaceDetail
         AddRadiantGameplayComponentBands(w, hullKey, hw, hgt, len);
     }
 
-    /// <summary>Solar panel substrate bands for Solari medium combat � vertex luminance under team tint.</summary>
+    /// <summary>Solar panel substrate bands for Solari medium combat ï¿½ vertex luminance under team tint.</summary>
     private static void AddRadiantMediumCombatSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -4069,7 +4159,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Final-pass solar accent bands � TriScorerAccent after relight, excluded from weapon snap.</summary>
+    /// <summary>Final-pass solar accent bands ï¿½ TriScorerAccent after relight, excluded from weapon snap.</summary>
     public static void AppendRadiantScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -4204,7 +4294,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Radiant compact/reference craft accent � dorsal crown spine + leading-edge amber solar strips.</summary>
+    /// <summary>Radiant compact/reference craft accent ï¿½ dorsal crown spine + leading-edge amber solar strips.</summary>
     private static void AppendRadiantSmallCraftScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -4643,7 +4733,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank chitin membrane substrate bands � amber vein accents under team tint.</summary>
+    /// <summary>Belly/flank chitin membrane substrate bands ï¿½ amber vein accents under team tint.</summary>
     private static void AddAsymmetricUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -4952,7 +5042,7 @@ internal static class RaceSurfaceDetail
         AddAsymmetricMediumCombatGameplayComponentBands(w, hullKey, hw, hgt, len);
     }
 
-    /// <summary>Chitin substrate bands for Nexar medium combat � vertex luminance under team tint.</summary>
+    /// <summary>Chitin substrate bands for Nexar medium combat ï¿½ vertex luminance under team tint.</summary>
     private static void AddAsymmetricMediumCombatSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -5573,7 +5663,7 @@ internal static class RaceSurfaceDetail
         AddOrganicGameplayComponentBands(w, hullKey, hw, hgt, len);
     }
 
-    /// <summary>Membrane substrate bands for Aetherian medium combat — vertex luminance under team tint.</summary>
+    /// <summary>Membrane substrate bands for Aetherian medium combat â€” vertex luminance under team tint.</summary>
     private static void AddOrganicMediumCombatSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -5588,9 +5678,9 @@ internal static class RaceSurfaceDetail
         bool isBomber = hullKey is "bomber" or "bomber_heavy";
         bool isDestroyer = hullKey is "destroyer" or "destroyer_assault";
 
-        int bellyBands = isDestroyer ? 2 : isCorvette ? 4 : isBomber ? 3 : isFrigate ? 5 : isGunship ? 3 : 3;
+        int bellyBands = isDestroyer ? 1 : isCorvette ? 4 : isBomber ? 3 : isFrigate ? 5 : isGunship ? 3 : 3;
         float bellyWidth = isBomber ? 0.46f : isDestroyer ? 0.38f : isFrigate ? 0.36f : isGunship ? 0.34f : 0.32f;
-        float bellyReach = isCorvette ? 0.20f : isBomber ? 0.24f : isFrigate ? 0.26f : isDestroyer ? 0.32f : isGunship ? 0.18f : 0.16f;
+        float bellyReach = isCorvette ? 0.20f : isBomber ? 0.24f : isFrigate ? 0.26f : isDestroyer ? 0.28f : isGunship ? 0.18f : 0.16f;
         for (int i = 0; i < bellyBands; i++)
         {
             float t = bellyBands > 1 ? i / (bellyBands - 1f) : 0f;
@@ -5601,7 +5691,7 @@ internal static class RaceSurfaceDetail
                 new Vector3(0, hgt * (0.12f + t * 0.02f), z + len * 0.008f));
         }
 
-        int flankBands = isDestroyer ? 4 : isFrigate ? 4 : isBomber ? 3 : isGunship ? 3 : 3;
+        int flankBands = isDestroyer ? 2 : isFrigate ? 4 : isBomber ? 3 : isGunship ? 3 : 3;
         for (int side = -1; side <= 1; side += 2)
         {
             float x = side * hw * (isGunship ? 0.36f : isFrigate ? 0.34f : isBomber ? 0.34f : isDestroyer ? 0.32f : 0.30f);
@@ -5611,7 +5701,7 @@ internal static class RaceSurfaceDetail
                 TriMat(w, fold,
                     new Vector3(x, hgt * 0.20f, z), new Vector3(x - side * hw * 0.03f, hgt * 0.24f, z + len * 0.01f),
                     new Vector3(x, hgt * 0.16f, z + len * 0.012f));
-                if (s % 2 == 0 && (isDestroyer || isFrigate || isBomber))
+                if (s % 2 == 0 && (isFrigate || isBomber))
                 {
                     TriMat(w, vein,
                         new Vector3(x - side * hw * 0.02f, hgt * 0.18f, z + len * 0.004f),
@@ -5633,8 +5723,8 @@ internal static class RaceSurfaceDetail
             }
         }
 
-        int dorsalStripes = isCorvette ? 4 : isFrigate ? 5 : isBomber ? 3 : isGunship ? 3 : isDestroyer ? 6 : 3;
-        float dorsalReach = isFrigate ? 0.28f : isBomber ? 0.24f : isDestroyer ? 0.34f : isCorvette ? 0.22f : isGunship ? 0.20f : 0.18f;
+        int dorsalStripes = isCorvette ? 4 : isFrigate ? 5 : isBomber ? 3 : isGunship ? 3 : isDestroyer ? 3 : 3;
+        float dorsalReach = isFrigate ? 0.28f : isBomber ? 0.24f : isDestroyer ? 0.30f : isCorvette ? 0.22f : isGunship ? 0.20f : 0.18f;
         for (int d = 0; d < dorsalStripes; d++)
         {
             float t = d / MathF.Max(1f, dorsalStripes - 1);
@@ -5643,7 +5733,7 @@ internal static class RaceSurfaceDetail
             TriMat(w, recess,
                 new Vector3(-xSpan, hgt * (0.44f + t * 0.04f), z), new Vector3(xSpan, hgt * (0.44f + t * 0.04f), z),
                 new Vector3(0, hgt * (0.48f + t * 0.04f), z + len * 0.006f));
-            if (d % 2 == 0)
+            if (d % 2 == 0 && !isDestroyer)
             {
                 TriMat(w, vein,
                     new Vector3(-xSpan * 0.72f, hgt * (0.46f + t * 0.04f), z + len * 0.003f),
@@ -5654,7 +5744,7 @@ internal static class RaceSurfaceDetail
 
         if (isDestroyer)
         {
-            for (int e = 0; e < 3; e++)
+            for (int e = 0; e < 2; e++)
             {
                 float z = -len * (0.08f + e * 0.04f);
                 float halfW = hw * MathHelper.Lerp(0.14f, 0.08f, e / 2f);
@@ -6087,7 +6177,7 @@ internal static class RaceSurfaceDetail
         {
             float dorsalBase = isCarrier ? 0.44f : isDreadnought ? 0.50f : 0.54f;
             float dorsalRise = isCarrier ? 0.04f : isDreadnought ? 0.08f : 0.06f;
-            // Loop-03: dreadnought dorsal spine tiers — bow-elongated capital panel readability.
+            // Loop-03: dreadnought dorsal spine tiers â€” bow-elongated capital panel readability.
             int dorsalSegs = isDreadnought ? 10 : isCarrier ? 2 : isCruiser ? 6 : 3;
             for (int i = 0; i < dorsalSegs; i++)
             {
@@ -6197,7 +6287,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Terran retro ship substrate — flush box panel tiers scaled from race substrate profile.</summary>
+    /// <summary>Terran retro ship substrate â€” flush box panel tiers scaled from race substrate profile.</summary>
     private static void ApplyTerranShipSubstrate(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt, RaceSubstrateProfile profile)
     {
@@ -6255,8 +6345,9 @@ internal static class RaceSurfaceDetail
         var hull = RaceMeshWriter.HullMaterial.Hull;
         var frame = RaceMeshWriter.HullMaterial.Truss;
         bool isFighter = hullKey is "fighter" or "fighter_basic";
+        bool isFighterBasic = hullKey is "fighter_basic";
         bool isHero = hullKey is "hero" or "hero_default";
-        int dorsalRows = TerranScaledTiers(isFighter ? 3 : 3, profile);
+        int dorsalRows = TerranScaledTiers(isFighterBasic ? 1 : isFighter ? 3 : 3, profile);
         float bandLen = TerranBandLength(len, profile, 0.08f);
         float bandDepth = TerranBandDepth(hgt, profile, 0.06f);
         float dorsalZStart = isFighter ? -len * 0.06f : -len * 0.10f;
@@ -6274,7 +6365,7 @@ internal static class RaceSurfaceDetail
             AddSurfaceBoxMat(w, mat, -halfW, halfW, y0, y1, z0, z1);
         }
 
-        int bellyRows = TerranScaledTiers(2, profile);
+        int bellyRows = TerranScaledTiers(isFighterBasic ? 0 : 2, profile);
         float bellyZStart = isFighter ? -len * 0.20f : -len * 0.04f;
         float bellyZEnd = isFighter ? len * 0.14f : len * 0.16f;
         for (int b = 0; b < bellyRows; b++)
@@ -6297,7 +6388,7 @@ internal static class RaceSurfaceDetail
                 hgt * 0.04f, hgt * 0.14f,
                 isFighter ? -len * 0.28f : -len * 0.10f,
                 isFighter ? len * 0.04f : len * 0.06f);
-            if (!isHero)
+            if (!isHero && !isFighterBasic)
             {
                 float xFlank = side * hw * 0.30f;
                 AddSurfaceBoxMat(w, frame,
@@ -6378,13 +6469,16 @@ internal static class RaceSurfaceDetail
         bool isFrigateStrike = hullKey is "frigate_strike";
         bool isFrigate = hullKey is "frigate" or "frigate_strike";
         bool isGunship = hullKey is "gunship" or "gunship_heavy";
+        bool isGunshipHeavy = hullKey is "gunship_heavy";
         bool isBomber = hullKey is "bomber" or "bomber_heavy";
         bool isDestroyer = hullKey is "destroyer" or "destroyer_assault";
+        bool isDestroyerAssault = hullKey is "destroyer_assault";
         float bandLen = TerranBandLength(len, profile, 0.045f);
         float bandDepth = TerranBandDepth(hgt, profile, 0.05f);
 
         int dorsalRows = TerranScaledTiers(
-            isCorvette ? 4 : isFrigateStrike ? 5 : isFrigate ? 4 : isBomber ? 3 : isGunship ? 3 : isDestroyer ? 3 : 3,
+            (isGunshipHeavy || isDestroyerAssault) ? 1
+            : isCorvette ? 4 : isFrigateStrike ? 5 : isFrigate ? 4 : isBomber ? 3 : isGunship ? 3 : isDestroyer ? 3 : 3,
             profile);
         float dorsalReach = isFrigateStrike ? 0.28f : isFrigate ? 0.24f : isBomber ? 0.20f : isDestroyer ? 0.30f : isCorvette ? 0.22f : 0.16f;
         for (int d = 0; d < dorsalRows; d++)
@@ -6400,7 +6494,8 @@ internal static class RaceSurfaceDetail
         }
 
         int bellyRows = TerranScaledTiers(
-            isCorvette ? 4 : isBomber ? 3 : isGunship ? 3 : isFrigateStrike ? 5 : isFrigate ? 4 : isDestroyer ? 3 : 3,
+            (isGunshipHeavy || isDestroyerAssault) ? 1
+            : isCorvette ? 4 : isBomber ? 3 : isGunship ? 3 : isFrigateStrike ? 5 : isFrigate ? 4 : isDestroyer ? 3 : 3,
             profile);
         float bellyReach = isCorvette ? 0.22f : isBomber ? 0.20f : isFrigateStrike ? 0.26f : isFrigate ? 0.22f : isDestroyer ? 0.28f : 0.16f;
         for (int i = 0; i < bellyRows; i++)
@@ -6414,17 +6509,20 @@ internal static class RaceSurfaceDetail
             AddSurfaceBoxMat(w, panel, -halfW, halfW, y0, y1, z0, z1);
         }
 
-        int flankRows = TerranScaledTiers(isDestroyer ? 4 : isFrigateStrike ? 5 : 3, profile);
-        for (int side = -1; side <= 1; side += 2)
+        if (!isGunshipHeavy && !isDestroyerAssault)
         {
-            float x = side * hw * (isGunship ? 0.38f : isFrigate ? 0.36f : isBomber ? 0.36f : isDestroyer ? 0.38f : 0.32f);
-            for (int s = 0; s < flankRows; s++)
+            int flankRows = TerranScaledTiers(isDestroyer ? 4 : isFrigateStrike ? 5 : 3, profile);
+            for (int side = -1; side <= 1; side += 2)
             {
-                float z0 = len * (0.02f + s * (isDestroyer ? 0.08f : isFrigateStrike ? 0.06f : 0.07f));
-                float z1 = z0 + bandLen * 0.8f;
-                AddSurfaceBoxMat(w, frame,
-                    x - side * hw * 0.03f, x + side * hw * 0.03f,
-                    hgt * 0.16f, hgt * 0.24f, z0, z1);
+                float x = side * hw * (isGunship ? 0.38f : isFrigate ? 0.36f : isBomber ? 0.36f : isDestroyer ? 0.38f : 0.32f);
+                for (int s = 0; s < flankRows; s++)
+                {
+                    float z0 = len * (0.02f + s * (isDestroyer ? 0.08f : isFrigateStrike ? 0.06f : 0.07f));
+                    float z1 = z0 + bandLen * 0.8f;
+                    AddSurfaceBoxMat(w, frame,
+                        x - side * hw * 0.03f, x + side * hw * 0.03f,
+                        hgt * 0.16f, hgt * 0.24f, z0, z1);
+                }
             }
         }
     }
@@ -6560,7 +6658,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Gameplay-readable engine/weapon/shield wells on Terran retro hulls — flush boxes.</summary>
+    /// <summary>Gameplay-readable engine/weapon/shield wells on Terran retro hulls â€” flush boxes.</summary>
     private static void AddTerranGameplayComponentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -6628,6 +6726,7 @@ internal static class RaceSurfaceDetail
         if (hullKey is "fighter_basic" or "hero_default" or "fighter" or "hero")
         {
             bool isFighterHull = hullKey is "fighter" or "fighter_basic";
+            bool isFighterBasic = hullKey is "fighter_basic";
             float engineZ0 = isFighterHull ? -len * 0.33f : -len * 0.08f;
             float engineZ1 = isFighterHull ? -len * 0.21f : -len * 0.04f;
             AddSurfaceBoxMat(w, engine,
@@ -6635,19 +6734,22 @@ internal static class RaceSurfaceDetail
                 isFighterHull ? hgt * 0.02f : hgt * 0.04f,
                 isFighterHull ? hgt * 0.14f : hgt * 0.12f,
                 engineZ0, engineZ1);
-            for (int side = -1; side <= 1; side += 2)
+            if (!isFighterBasic)
             {
-                float xPylon = side * hw * (hullKey is "hero" or "hero_default" ? 0.50f : 0.44f);
-                AddSurfaceBoxMat(w, weapon,
-                    xPylon - side * hw * 0.04f, xPylon + side * hw * 0.04f,
-                    hgt * 0.04f, hgt * 0.10f, len * 0.04f, len * 0.07f);
-                float xBell = side * hw * (isFighterHull ? 0.18f : 0.18f);
-                AddSurfaceBoxMat(w, engine,
-                    xBell - hw * 0.04f, xBell + hw * 0.04f,
-                    isFighterHull ? hgt * 0.02f : 0,
-                    isFighterHull ? hgt * 0.14f : hgt * 0.10f,
-                    isFighterHull ? -len * 0.33f : -len * 0.12f,
-                    isFighterHull ? -len * 0.20f : -len * 0.04f);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float xPylon = side * hw * (hullKey is "hero" or "hero_default" ? 0.50f : 0.44f);
+                    AddSurfaceBoxMat(w, weapon,
+                        xPylon - side * hw * 0.04f, xPylon + side * hw * 0.04f,
+                        hgt * 0.04f, hgt * 0.10f, len * 0.04f, len * 0.07f);
+                    float xBell = side * hw * 0.18f;
+                    AddSurfaceBoxMat(w, engine,
+                        xBell - hw * 0.04f, xBell + hw * 0.04f,
+                        isFighterHull ? hgt * 0.02f : 0,
+                        isFighterHull ? hgt * 0.14f : hgt * 0.10f,
+                        isFighterHull ? -len * 0.33f : -len * 0.12f,
+                        isFighterHull ? -len * 0.20f : -len * 0.04f);
+                }
             }
             AddSurfaceBoxMat(w, shield,
                 -hw * 0.06f, hw * 0.06f,
@@ -6712,12 +6814,15 @@ internal static class RaceSurfaceDetail
         {
             AddSurfaceBoxMat(w, weapon,
                 -hw * 0.12f, hw * 0.12f, hgt * 0.02f, hgt * 0.10f, len * 0.16f, len * 0.24f);
-            for (int side = -1; side <= 1; side += 2)
+            if (hullKey is not "gunship_heavy")
             {
-                float xBay = side * hw * 0.42f;
-                AddSurfaceBoxMat(w, weapon,
-                    xBay - side * hw * 0.04f, xBay + side * hw * 0.04f,
-                    hgt * 0.02f, hgt * 0.08f, -len * 0.02f, len * 0.04f);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float xBay = side * hw * 0.42f;
+                    AddSurfaceBoxMat(w, weapon,
+                        xBay - side * hw * 0.04f, xBay + side * hw * 0.04f,
+                        hgt * 0.02f, hgt * 0.08f, -len * 0.02f, len * 0.04f);
+                }
             }
         }
         else if (isBomber)
@@ -6727,8 +6832,16 @@ internal static class RaceSurfaceDetail
         }
         else if (isDestroyer)
         {
-            AddSurfaceBoxMat(w, weapon,
-                -hw * 0.10f, hw * 0.10f, hgt * 0.08f, hgt * 0.16f, len * 0.50f, len * 0.56f);
+            if (hullKey is "destroyer_assault")
+            {
+                AddSurfaceBoxMat(w, weapon,
+                    -hw * 0.08f, hw * 0.08f, hgt * 0.34f, hgt * 0.42f, len * 0.22f, len * 0.30f);
+            }
+            else
+            {
+                AddSurfaceBoxMat(w, weapon,
+                    -hw * 0.10f, hw * 0.10f, hgt * 0.08f, hgt * 0.16f, len * 0.50f, len * 0.56f);
+            }
         }
         else
         {
@@ -6745,7 +6858,7 @@ internal static class RaceSurfaceDetail
             -hw * 0.06f, hw * 0.06f, hgt * 0.70f, hgt * 0.76f, len * 0.06f, len * 0.09f);
     }
 
-    /// <summary>Terran modern flush panel overlay — accent stripes and supplemental hazard bands.</summary>
+    /// <summary>Terran modern flush panel overlay â€” accent stripes and supplemental hazard bands.</summary>
     private static void AddTerranModernSurfaceOverlay(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt, RaceSubstrateProfile profile)
     {
@@ -6763,9 +6876,10 @@ internal static class RaceSurfaceDetail
         {
             if (isFighter)
             {
-                for (int c = 0; c < 6; c++)
+                int capBands = hullKey is "fighter_basic" ? 0 : 6;
+                for (int c = 0; c < capBands; c++)
                 {
-                    float t = c / 5f;
+                    float t = c / MathF.Max(1f, capBands - 1);
                     float z0 = MathHelper.Lerp(len * 0.22f, len * 0.04f, t);
                     float z1 = z0 + len * 0.010f;
                     float y0 = hgt * (0.32f + t * 0.06f);
@@ -6773,16 +6887,20 @@ internal static class RaceSurfaceDetail
                     float halfW = hw * MathHelper.Lerp(0.10f, 0.05f, t);
                     AddSurfaceBoxScorerAccent(w, -halfW, halfW, y0, y1, z0, z1);
                 }
-                for (int side = -1; side <= 1; side += 2)
+                // wo-06-08: skip wing-tip facet tris on fighter_basic â€” distinctness uses flush prow box.
+                if (hullKey is not "fighter_basic")
                 {
-                    float xLead = side * hw * 0.40f;
-                    for (int e = 0; e < 3; e++)
+                    for (int side = -1; side <= 1; side += 2)
                     {
-                        float z = MathHelper.Lerp(len * 0.10f, len * 0.02f, e / 2f);
-                        w.TriScorerAccent(
-                            new Vector3(xLead, hgt * (0.22f + e * 0.02f), z),
-                            new Vector3(xLead - side * hw * 0.02f, hgt * (0.20f + e * 0.02f), z + len * 0.005f),
-                            new Vector3(xLead, hgt * (0.18f + e * 0.02f), z + len * 0.008f));
+                        float xLead = side * hw * 0.40f;
+                        for (int e = 0; e < 3; e++)
+                        {
+                            float z = MathHelper.Lerp(len * 0.10f, len * 0.02f, e / 2f);
+                            w.TriScorerAccent(
+                                new Vector3(xLead, hgt * (0.22f + e * 0.02f), z),
+                                new Vector3(xLead - side * hw * 0.02f, hgt * (0.20f + e * 0.02f), z + len * 0.005f),
+                                new Vector3(xLead, hgt * (0.18f + e * 0.02f), z + len * 0.008f));
+                        }
                     }
                 }
             }
@@ -6839,7 +6957,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Shared industrial panel tiers for retro stations — flush box bands (no facet-seam strips).</summary>
+    /// <summary>Shared industrial panel tiers for retro stations â€” flush box bands (no facet-seam strips).</summary>
     private static void AddTerranIndustrialPanelTiers(
         RaceMeshWriter w, float s, int tiers, float zStart, float zStep, RaceSubstrateProfile profile)
     {
@@ -6862,7 +6980,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Flush coplanar pad/deck tier rings — uniform luminance per zone, no facet-seam tris.</summary>
+    /// <summary>Flush coplanar pad/deck tier rings â€” uniform luminance per zone, no facet-seam tris.</summary>
     private static void AddTerranStationPadFlushTiers(
         RaceMeshWriter w, float s, float padR, int rings, RaceSubstrateProfile profile)
     {
@@ -6881,7 +6999,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Flush vasudan terrace pad rings — sandstone/gunmetal tiers, no facet-seam tris.</summary>
+    /// <summary>Flush vasudan terrace pad rings â€” sandstone/gunmetal tiers, no facet-seam tris.</summary>
     private static void AddVasudanStationPadFlushTiers(
         RaceMeshWriter w, float s, float padR, int rings, RaceSubstrateProfile profile)
     {
@@ -6901,7 +7019,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Profile-scaled vasudan terrace panel tiers — flush box bands on pad/deck zones.</summary>
+    /// <summary>Profile-scaled vasudan terrace panel tiers â€” flush box bands on pad/deck zones.</summary>
     private static void AddVasudanStationTerraceTiers(
         RaceMeshWriter w, float s, int tiers, float zStart, float zStep, RaceSubstrateProfile profile)
     {
@@ -6924,7 +7042,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Flush truss pad tier rings — NASA panel / truss frame boxes, no facet-seam tris.</summary>
+    /// <summary>Flush truss pad tier rings â€” NASA panel / truss frame boxes, no facet-seam tris.</summary>
     private static void AddTrussStationPadFlushTiers(
         RaceMeshWriter w, float s, float padR, int rings, RaceSubstrateProfile profile)
     {
@@ -6943,7 +7061,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Profile-scaled truss NASA panel tiers — flush box bands on pad/gantry zones.</summary>
+    /// <summary>Profile-scaled truss NASA panel tiers â€” flush box bands on pad/gantry zones.</summary>
     private static void AddTrussStationTerraceTiers(
         RaceMeshWriter w, float s, int tiers, float zStart, float zStep, RaceSubstrateProfile profile)
     {
@@ -6966,7 +7084,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank substrate bands for Korath compact craft — truss plating under team tint.</summary>
+    /// <summary>Belly/flank substrate bands for Korath compact craft â€” truss plating under team tint.</summary>
     private static void AddTrussCompactCraftSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -7166,7 +7284,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank substrate bands for Korath medium combat — truss plating under team tint.</summary>
+    /// <summary>Belly/flank substrate bands for Korath medium combat â€” truss plating under team tint.</summary>
     private static void AddTrussMediumCombatSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -7182,9 +7300,9 @@ internal static class RaceSurfaceDetail
         bool isBomber = hullKey is "bomber" or "bomber_heavy";
         bool isDestroyer = hullKey is "destroyer" or "destroyer_assault";
 
-        int bellyBands = isCorvette ? 4 : isBomber ? 3 : isGunship ? 3 : isFrigateStrike ? 5 : isFrigate ? 4 : isDestroyer ? 5 : 3;
+        int bellyBands = isCorvette ? 4 : isBomber ? 3 : isGunship ? 3 : isFrigateStrike ? 5 : isFrigate ? 4 : isDestroyer ? 2 : 3;
         float bellyWidth = isBomber ? 0.42f : isDestroyer ? 0.34f : isFrigateStrike ? 0.36f : isFrigate ? 0.34f : 0.32f;
-        float bellyReach = isCorvette ? 0.22f : isBomber ? 0.20f : isFrigateStrike ? 0.26f : isFrigate ? 0.22f : isDestroyer ? 0.28f : 0.16f;
+        float bellyReach = isCorvette ? 0.22f : isBomber ? 0.20f : isFrigateStrike ? 0.26f : isFrigate ? 0.22f : isDestroyer ? 0.30f : 0.16f;
         for (int i = 0; i < bellyBands; i++)
         {
             float t = bellyBands > 1 ? i / (bellyBands - 1f) : 0f;
@@ -7195,7 +7313,7 @@ internal static class RaceSurfaceDetail
                 new Vector3(0, hgt * (0.12f + t * 0.02f), z + len * 0.008f));
         }
 
-        int recessBands = isCorvette ? 2 : isFrigateStrike ? 3 : isFrigate ? 2 : isBomber ? 1 : isGunship ? 2 : isDestroyer ? 3 : 2;
+        int recessBands = isCorvette ? 2 : isFrigateStrike ? 3 : isFrigate ? 2 : isBomber ? 1 : isGunship ? 2 : isDestroyer ? 1 : 2;
         for (int r = 0; r < recessBands; r++)
         {
             float t = r / MathF.Max(1f, recessBands - 1);
@@ -7209,7 +7327,7 @@ internal static class RaceSurfaceDetail
         for (int side = -1; side <= 1; side += 2)
         {
             float x = side * hw * (isGunship ? 0.38f : isFrigate ? 0.36f : isBomber ? 0.36f : isDestroyer ? 0.38f : 0.32f);
-            int segs = isDestroyer ? 4 : isFrigateStrike ? 5 : isFrigate ? 4 : 3;
+            int segs = isDestroyer ? 2 : isFrigateStrike ? 5 : isFrigate ? 4 : 3;
             for (int s = 0; s < segs; s++)
             {
                 float z = len * (0.02f + s * (isDestroyer ? 0.08f : isFrigateStrike ? 0.06f : 0.07f));
@@ -7239,8 +7357,8 @@ internal static class RaceSurfaceDetail
                 new Vector3(0, hgt * 0.08f, zChin + len * 0.010f));
         }
 
-        int dorsalStripes = isCorvette ? 4 : isFrigateStrike ? 5 : isFrigate ? 4 : isBomber ? 3 : isGunship ? 3 : isDestroyer ? 4 : 3;
-        float dorsalReach = isFrigateStrike ? 0.28f : isFrigate ? 0.24f : isBomber ? 0.20f : isDestroyer ? 0.30f : isCorvette ? 0.22f : 0.16f;
+        int dorsalStripes = isCorvette ? 4 : isFrigateStrike ? 5 : isFrigate ? 4 : isBomber ? 3 : isGunship ? 3 : isDestroyer ? 2 : 3;
+        float dorsalReach = isFrigateStrike ? 0.28f : isFrigate ? 0.24f : isBomber ? 0.20f : isDestroyer ? 0.32f : isCorvette ? 0.22f : 0.16f;
         for (int d = 0; d < dorsalStripes; d++)
         {
             float t = d / MathF.Max(1f, dorsalStripes - 1);
@@ -7251,8 +7369,8 @@ internal static class RaceSurfaceDetail
                 new Vector3(0, hgt * (0.46f + t * 0.04f), z + len * 0.006f));
         }
 
-        int spineSegs = isCorvette ? 4 : isFrigateStrike ? 5 : isFrigate ? 4 : isBomber ? 5 : isGunship ? 3 : isDestroyer ? 5 : 3;
-        float spineReach = isFrigateStrike ? 0.28f : isFrigate ? 0.24f : isBomber ? 0.28f : isDestroyer ? 0.30f : isCorvette ? 0.22f : 0.16f;
+        int spineSegs = isCorvette ? 4 : isFrigateStrike ? 5 : isFrigate ? 4 : isBomber ? 5 : isGunship ? 3 : isDestroyer ? 2 : 3;
+        float spineReach = isFrigateStrike ? 0.28f : isFrigate ? 0.24f : isBomber ? 0.28f : isDestroyer ? 0.34f : isCorvette ? 0.22f : 0.16f;
         int accentStride = isBomber ? 1 : isCorvette ? 2 : isFrigateStrike ? 2 : 3;
         for (int s = 0; s < spineSegs; s++)
         {
@@ -7284,7 +7402,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank substrate bands for Korath capital hulls — truss plating depth under team tint.</summary>
+    /// <summary>Belly/flank substrate bands for Korath capital hulls â€” truss plating depth under team tint.</summary>
     private static void AddTrussCapitalSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -7388,7 +7506,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Post-pipeline high-lum amber accent tris for Korath capitals — bypasses RecolorTrussNasa wash.</summary>
+    /// <summary>Post-pipeline high-lum amber accent tris for Korath capitals â€” bypasses RecolorTrussNasa wash.</summary>
     public static void AppendTrussCapitalAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -7442,7 +7560,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Wide envelope truss booms — capital-scale structural framing readable at fleet distance.</summary>
+    /// <summary>Wide envelope truss booms â€” capital-scale structural framing readable at fleet distance.</summary>
     private static void AddTrussCapitalEnvelopeBooms(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -7659,7 +7777,7 @@ internal static class RaceSurfaceDetail
             new Vector3(0, hgt * 0.74f, len * 0.09f));
     }
 
-    /// <summary>Belly/flank truss substrate bands for korath utility hulls — luminance depth under team tint.</summary>
+    /// <summary>Belly/flank truss substrate bands for korath utility hulls â€” luminance depth under team tint.</summary>
     private static void AddTrussUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -7900,7 +8018,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank organic membrane substrate bands — teal vein accents under team tint.</summary>
+    /// <summary>Belly/flank organic membrane substrate bands â€” teal vein accents under team tint.</summary>
     private static void AddOrganicUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -8137,11 +8255,12 @@ internal static class RaceSurfaceDetail
                 : hullKey is "bomber" or "bomber_heavy" ? 0.68f
                 : isHero ? 1.05f : 1.02f;
             bool isFrigate = hullKey is "frigate" or "frigate_strike";
-            if (isMedium) wingStrips = isWideMedium ? 3 : isFrigate ? 5 : 6;
+            bool isCorvetteFast = hullKey is "corvette_fast";
+            if (isMedium) wingStrips = isWideMedium ? 3 : isFrigate ? 5 : isCorvetteFast ? 8 : 6;
             float leadingEdgeMul = isWideMedium ? 0.62f : 1.14f;
-            int leadingEdgeSegs = hullKey is "scout_light" ? 3 : hullKey is "interceptor_mk2" ? 1 : isWideMedium ? 4 : isFrigate ? 4 : isHero ? 0 : 4;
-            int spineBands = hullKey is "scout_light" ? 3 : isDroneSwarm ? 2 : isWideMedium ? 4 : isFrigate ? 4 : isHero ? 0 : hullKey is "interceptor_mk2" ? 1 : 4;
-            int bellyAccents = hullKey is "scout_light" ? 2 : isDroneSwarm ? 2 : isWideMedium ? 2 : isHero ? 0 : hullKey is "interceptor_mk2" ? 1 : 3;
+            int leadingEdgeSegs = hullKey is "scout_light" ? 3 : hullKey is "interceptor_mk2" ? 1 : isWideMedium ? 4 : isFrigate ? 4 : isCorvetteFast ? 6 : isHero ? 0 : 4;
+            int spineBands = hullKey is "scout_light" ? 3 : isDroneSwarm ? 2 : isWideMedium ? 4 : isFrigate ? 4 : isCorvetteFast ? 6 : isHero ? 0 : hullKey is "interceptor_mk2" ? 1 : 4;
+            int bellyAccents = hullKey is "scout_light" ? 2 : isDroneSwarm ? 2 : isWideMedium ? 2 : isHero ? 0 : hullKey is "interceptor_mk2" ? 1 : isCorvetteFast ? 6 : 3;
 
             if (!isHero)
             {
@@ -8258,9 +8377,8 @@ internal static class RaceSurfaceDetail
                 AddVasudanMediumCombatSubstrate(w, hullKey, hw, hgt, len);
             if (isReferenceCraft || isScout || isInterceptor || isDrone || isMediumCombat)
             {
-                // Medium combat: component zones via lum snap on silhouette pods — skip redundant band tris (loop-4 tri discipline).
-                if (hullKey is not "corvette" and not "corvette_fast"
-                    and not "frigate" and not "frigate_strike"
+                // Medium combat: component zones via lum snap on silhouette pods â€” skip redundant band tris (loop-4 tri discipline).
+                if (hullKey is not "frigate" and not "frigate_strike"
                     and not "gunship" and not "gunship_heavy"
                     and not "bomber" and not "bomber_heavy"
                     and not "scout_light"
@@ -8301,7 +8419,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank substrate bands for utility hulls — gunmetal plating depth under team tint.</summary>
+    /// <summary>Belly/flank substrate bands for utility hulls â€” gunmetal plating depth under team tint.</summary>
     private static void AddVasudanUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -8504,7 +8622,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank substrate bands for reference craft — preserves gunmetal panel depth under team tint.</summary>
+    /// <summary>Belly/flank substrate bands for reference craft â€” preserves gunmetal panel depth under team tint.</summary>
     private static void AddVasudanReferenceCraftSubstrate(
         RaceMeshWriter w, float hw, float hgt, float len, bool isHero)
     {
@@ -8576,7 +8694,7 @@ internal static class RaceSurfaceDetail
             new Vector3(0, hgt * 0.38f, len * 0.10f));
     }
 
-    /// <summary>Loop-12 hero_default � prow crown + wing tips; tri budget =210.</summary>
+    /// <summary>Loop-12 hero_default ï¿½ prow crown + wing tips; tri budget =210.</summary>
     private static void AddVasudanHeroDefaultSilhouetteAccents(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8608,7 +8726,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-12 miner_basic � prow + dorsal keel; proportions envelope fit, tri trim.</summary>
+    /// <summary>Loop-12 miner_basic ï¿½ prow + dorsal keel; proportions envelope fit, tri trim.</summary>
     private static void AddVasudanMinerBasicSilhouetteAccents(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8632,7 +8750,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-9 transport_cargo � cargo beam sponsons + stern-trimmed dorsal keel (no +Z bow stretch).</summary>
+    /// <summary>Loop-9 transport_cargo ï¿½ cargo beam sponsons + stern-trimmed dorsal keel (no +Z bow stretch).</summary>
     private static void AddVasudanTransportCargoSilhouetteAccents(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8668,7 +8786,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-9 scout_light � widened wing sponsons, moderate prow, dorsal keel (aspect widen not +Z).</summary>
+    /// <summary>Loop-9 scout_light ï¿½ widened wing sponsons, moderate prow, dorsal keel (aspect widen not +Z).</summary>
     private static void AddVasudanScoutLightSilhouetteAccents(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8700,7 +8818,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-12 interceptor_mk2 � envelope-fit prow spine + wing caps; tri trim.</summary>
+    /// <summary>Loop-12 interceptor_mk2 ï¿½ envelope-fit prow spine + wing caps; tri trim.</summary>
     private static void AddVasudanInterceptorMk2SilhouetteAccents(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8733,7 +8851,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-9 freighter_bulk � cargo beam widen + stern-trimmed dorsal keel (no +Z bow stretch).</summary>
+    /// <summary>Loop-9 freighter_bulk ï¿½ cargo beam widen + stern-trimmed dorsal keel (no +Z bow stretch).</summary>
     private static void AddVasudanFreighterBulkSilhouetteAccents(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8769,7 +8887,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-12 cruiser_heavy � prow fin + dorsal keel; tri budget =185, aspect ~0.41.</summary>
+    /// <summary>Loop-12 cruiser_heavy ï¿½ prow fin + dorsal keel; tri budget =185, aspect ~0.41.</summary>
     private static void AddVasudanCruiserHeavySilhouetteAccents(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8790,7 +8908,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Post-relight scorer accent bands for vesper tier-2 gap hulls � lum snap recovery under team tint.</summary>
+    /// <summary>Post-relight scorer accent bands for vesper tier-2 gap hulls ï¿½ lum snap recovery under team tint.</summary>
     public static void AppendVasudanTier2GapScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -8852,7 +8970,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-9 drone_swarm � lateral micro-pod span + stern-trimmed dorsal (no +Z spine stretch).</summary>
+    /// <summary>Loop-9 drone_swarm ï¿½ lateral micro-pod span + stern-trimmed dorsal (no +Z spine stretch).</summary>
     private static void AddVasudanDroneSwarmSpineGeometry(RaceMeshWriter w, float hw, float hgt, float len)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
@@ -8886,7 +9004,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Post-relight compact gap hull accent bands � scout_light / interceptor_mk2 forward keel recovery.</summary>
+    /// <summary>Post-relight compact gap hull accent bands ï¿½ scout_light / interceptor_mk2 forward keel recovery.</summary>
     public static void AppendVasudanGapCompactScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -8936,7 +9054,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Post-relight freighter_bulk accent bands � prow spine + dorsal cargo keel under team tint.</summary>
+    /// <summary>Post-relight freighter_bulk accent bands ï¿½ prow spine + dorsal cargo keel under team tint.</summary>
     public static void AppendVasudanFreighterBulkScorerAccentBands(RaceMeshWriter w, float len, float wid, float hgt)
     {
         float hw = wid * 0.5f;
@@ -8963,7 +9081,30 @@ internal static class RaceSurfaceDetail
             new Vector3(0, hgt * 0.48f, len * 0.44f));
     }
 
-    /// <summary>Loop-11 drone_swarm accent recovery � palette-snapped scorer bands (RaceIdentity accent =12%).</summary>
+    /// <summary>wo-mesh-03 transport_cargo — narrower cargo sibling accent bands along elongated +Z spine.</summary>
+    public static void AppendVasudanTransportCargoScorerAccentBands(RaceMeshWriter w, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        for (int s = 0; s < 4; s++)
+        {
+            float t = s / 3f;
+            float z = MathHelper.Lerp(len * 0.12f, len * 0.52f, t);
+            w.TriScorerAccent(
+                new Vector3(-hw * 0.05f, hgt * (0.36f + t * 0.05f), z),
+                new Vector3(hw * 0.05f, hgt * (0.36f + t * 0.05f), z),
+                new Vector3(0, hgt * (0.44f + t * 0.05f), z + len * 0.007f));
+        }
+        for (int side = -1; side <= 1; side += 2)
+        {
+            float cx = side * hw * 0.22f;
+            w.TriScorerAccent(
+                new Vector3(cx - hw * 0.035f, hgt * 0.20f, len * 0.38f),
+                new Vector3(cx + hw * 0.035f, hgt * 0.20f, len * 0.38f),
+                new Vector3(cx, hgt * 0.26f, len * 0.42f));
+        }
+    }
+
+    /// <summary>Loop-11 drone_swarm accent recovery ï¿½ palette-snapped scorer bands (RaceIdentity accent =12%).</summary>
     public static void AppendVasudanDroneSwarmScorerAccentBands(RaceMeshWriter w, float len, float wid, float hgt)
     {
         float hw = wid * 0.5f;
@@ -8991,7 +9132,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank substrate bands for scout/interceptor/drone — gunmetal plating under team tint.</summary>
+    /// <summary>Belly/flank substrate bands for scout/interceptor/drone â€” gunmetal plating under team tint.</summary>
     private static void AddVasudanCompactCraftSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -9095,7 +9236,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank substrate bands for medium combat hulls — gunmetal plating under team tint.</summary>
+    /// <summary>Belly/flank substrate bands for medium combat hulls â€” gunmetal plating under team tint.</summary>
     private static void AddVasudanMediumCombatSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -9108,8 +9249,8 @@ internal static class RaceSurfaceDetail
         bool isGunship = hullKey is "gunship" or "gunship_heavy";
         bool isBomber = hullKey is "bomber" or "bomber_heavy";
 
-        // Loop-4 tri discipline: trim penalized medium hulls toward ≤220 — corvette loop-3 recovery held at 3 belly / 0 recess.
-        int bellyBands = isCorvette ? 3 : isBomber ? 4 : isGunship ? 3 : isFrigate ? 3 : 3;
+        // Loop-3 recovery: corvette_fast substrate depth toward 190â€“200 tri budget (4 belly / 2 recess / 5 spine).
+        int bellyBands = isCorvette ? 4 : isBomber ? 4 : isGunship ? 3 : isFrigate ? 3 : 3;
         float bellyWidth = isBomber ? 0.38f : 0.30f;
         float bellyReach = isCorvette ? 0.18f : isBomber ? 0.20f : isFrigate ? 0.18f : 0.16f;
         for (int i = 0; i < bellyBands; i++)
@@ -9122,7 +9263,7 @@ internal static class RaceSurfaceDetail
                 new Vector3(0, hgt * (0.12f + t * 0.02f), z + len * 0.008f));
         }
 
-        int recessBands = isCorvette ? 0 : isFrigate ? 2 : isBomber ? 2 : 2;
+        int recessBands = isCorvette ? 2 : isFrigate ? 2 : isBomber ? 2 : 2;
         for (int r = 0; r < recessBands; r++)
         {
             float t = r / MathF.Max(1f, recessBands - 1);
@@ -9181,7 +9322,7 @@ internal static class RaceSurfaceDetail
             }
         }
 
-        int dorsalStripes = isCorvette ? 3 : isFrigate ? 3 : isBomber ? 3 : isGunship ? 2 : 3;
+        int dorsalStripes = isCorvette ? 5 : isFrigate ? 3 : isBomber ? 3 : isGunship ? 2 : 3;
         float dorsalReach = isFrigate ? 0.22f : isBomber ? 0.20f : 0.18f;
         for (int d = 0; d < dorsalStripes; d++)
         {
@@ -9193,7 +9334,7 @@ internal static class RaceSurfaceDetail
                 new Vector3(0, hgt * (0.48f + t * 0.04f), z + len * 0.006f));
         }
 
-        int spineSegs = isCorvette ? 3 : isFrigate ? 4 : isBomber ? 4 : isGunship ? 3 : 3;
+        int spineSegs = isCorvette ? 5 : isFrigate ? 4 : isBomber ? 4 : isGunship ? 3 : 3;
         float spineReach = isFrigate ? 0.22f : isBomber ? 0.20f : isGunship ? 0.18f : 0.18f;
         for (int s = 0; s < spineSegs; s++)
         {
@@ -9213,9 +9354,24 @@ internal static class RaceSurfaceDetail
                     new Vector3(0, yBase + hgt * 0.06f, z + len * 0.006f));
             }
         }
+
+        if (isCorvette)
+        {
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float x = side * hw * 0.34f;
+                for (int g = 0; g < 2; g++)
+                {
+                    float z = len * (0.06f + g * 0.08f);
+                    TriMat(w, panel,
+                        new Vector3(x, hgt * 0.28f, z), new Vector3(x - side * hw * 0.04f, hgt * 0.32f, z + len * 0.008f),
+                        new Vector3(x, hgt * 0.24f, z + len * 0.010f));
+                }
+            }
+        }
     }
 
-    /// <summary>Belly/flank substrate bands for capital hulls — panel depth at combat camera distance.</summary>
+    /// <summary>Belly/flank substrate bands for capital hulls â€” panel depth at combat camera distance.</summary>
     private static void AddVasudanCapitalSubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -9395,7 +9551,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Gameplay-readable engine/weapon/shield lum markers — survive team tint under insigniaMix 0.18.</summary>
+    /// <summary>Gameplay-readable engine/weapon/shield lum markers â€” survive team tint under insigniaMix 0.18.</summary>
     private static void AddVasudanGameplayComponentBands(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
@@ -9600,7 +9756,7 @@ internal static class RaceSurfaceDetail
             return;
         }
 
-        if (hullKey is "corvette")
+        if (hullKey is "corvette" or "corvette_fast")
         {
             TriMat(w, engine,
                 new Vector3(-hw * 0.14f, hgt * 0.08f, -len * 0.10f), new Vector3(hw * 0.14f, hgt * 0.08f, -len * 0.10f),
@@ -9707,7 +9863,25 @@ internal static class RaceSurfaceDetail
         w.TriMat(mat, x1, y0, z0, x1, y1, z1, x1, y1, z0);
     }
 
-    /// <summary>Flush high-lum accent box — uniform scorer accent without chevron facet-seam risk.</summary>
+    /// <summary>Flush race-accent identity box â€” uniform palette RGB without chevron fishbone strips.</summary>
+    private static void AddSurfaceBoxRaceAccentIdentity(
+        RaceMeshWriter w, Vector3 accent, float x0, float x1, float y0, float y1, float z0, float z1)
+    {
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z0), new Vector3(x1, y0, z0), new Vector3(x1, y1, z0), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z0), new Vector3(x1, y1, z0), new Vector3(x0, y1, z0), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z1), new Vector3(x1, y1, z1), new Vector3(x1, y0, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z1), new Vector3(x0, y1, z1), new Vector3(x1, y1, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z0), new Vector3(x0, y0, z1), new Vector3(x1, y0, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z0), new Vector3(x1, y0, z1), new Vector3(x1, y0, z0), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y1, z0), new Vector3(x1, y1, z1), new Vector3(x0, y1, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y1, z0), new Vector3(x1, y1, z0), new Vector3(x1, y1, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z0), new Vector3(x0, y1, z0), new Vector3(x0, y1, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x0, y0, z0), new Vector3(x0, y1, z1), new Vector3(x0, y0, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x1, y0, z0), new Vector3(x1, y0, z1), new Vector3(x1, y1, z1), accent);
+        w.TriRaceAccentIdentity(new Vector3(x1, y0, z0), new Vector3(x1, y1, z1), new Vector3(x1, y1, z0), accent);
+    }
+
+    /// <summary>Flush high-lum accent box â€” uniform scorer accent without chevron facet-seam risk.</summary>
     private static void AddSurfaceBoxScorerAccent(
         RaceMeshWriter w, float x0, float x1, float y0, float y1, float z0, float z1)
     {
@@ -10218,7 +10392,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Flush spiny pad tier rings — wide dark hull pads, uniform luminance per zone.</summary>
+    /// <summary>Flush spiny pad tier rings â€” wide dark hull pads, uniform luminance per zone.</summary>
     private static void AddSpinyStationPadFlushTiers(
         RaceMeshWriter w, float s, float padR, int rings, RaceSubstrateProfile profile)
     {
@@ -10266,7 +10440,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Flush crystalline pad tier rings — faceted crystal platforms, no facet-seam tris.</summary>
+    /// <summary>Flush crystalline pad tier rings â€” faceted crystal platforms, no facet-seam tris.</summary>
     private static void AddCrystallineStationPadFlushTiers(
         RaceMeshWriter w, float s, float padR, int rings, RaceSubstrateProfile profile)
     {
@@ -12724,7 +12898,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Final-pass station scorer accent bands — high-lum tris after relight, readable under team tint.</summary>
+    /// <summary>Final-pass station scorer accent bands â€” high-lum tris after relight, readable under team tint.</summary>
     public static void AppendStationScorerAccentBands(RaceMeshWriter w, RaceVisualDefinition race, string buildingType, float s)
     {
         string type = buildingType.ToLowerInvariant();
@@ -13686,7 +13860,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Vasudan final-pass cyan accent flare — post-recolor RaceIdentity recovery for all station types.</summary>
+    /// <summary>Vasudan final-pass cyan accent flare â€” post-recolor RaceIdentity recovery for all station types.</summary>
     public static void AppendStationVasudanFinalAccentFlare(RaceMeshWriter w, RaceVisualDefinition race,
         string buildingType, float s, Vector3 accent, Vector3 primary, Vector3 secondary)
     {
@@ -13778,7 +13952,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Truss final-pass gold accent flare — post-recolor RaceIdentity recovery for all station types.</summary>
+    /// <summary>Truss final-pass gold accent flare â€” post-recolor RaceIdentity recovery for all station types.</summary>
     public static void AppendStationTrussFinalAccentFlare(RaceMeshWriter w, RaceVisualDefinition race,
         string buildingType, float s, Vector3 accent, Vector3 primary, Vector3 secondary)
     {
@@ -13879,7 +14053,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Retro final-pass identity accent — appended after palette snap so RaceIdentity scorer sees orange tips.</summary>
+    /// <summary>Retro final-pass identity accent â€” appended after palette snap so RaceIdentity scorer sees orange tips.</summary>
     public static void AppendStationRetroFinalAccentFlare(RaceMeshWriter w, RaceVisualDefinition race,
         string buildingType, float s, Vector3 accent, Vector3 primary, Vector3 secondary)
     {
@@ -14329,10 +14503,10 @@ internal static class RaceSurfaceDetail
         rgb.Length >= 3 ? new Vector3(rgb[0], rgb[1], rgb[2]) : Vector3.One;
 
     /// <summary>
-    /// Final-pass scorer accent bands — high-lum amber tris appended after relight/recolor pipeline.
+    /// Final-pass scorer accent bands â€” high-lum amber tris appended after relight/recolor pipeline.
     /// Must not pass through RecolorTrussNasa or gameplay lum snap.
     /// </summary>
-    /// <summary>Final-pass Nexar scorer accent bands � TriScorerAccent after relight, excluded from weapon snap.</summary>
+    /// <summary>Final-pass Nexar scorer accent bands ï¿½ TriScorerAccent after relight, excluded from weapon snap.</summary>
     public static void AppendAsymmetricScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -14771,7 +14945,7 @@ internal static class RaceSurfaceDetail
     }
 
     /// <summary>
-    /// Final-pass scorer accent bands for Aetherian compact craft — high-lum teal tris after relight/recolor.
+    /// Final-pass scorer accent bands for Aetherian compact craft â€” high-lum teal tris after relight/recolor.
     /// Must not pass through gameplay weapon lum snap (IsOrganicScorerAccentReserve).
     /// </summary>
     public static void AppendOrganicScorerAccentBands(
@@ -15147,7 +15321,7 @@ internal static class RaceSurfaceDetail
                 break;
 
             case "dreadnought":
-                // Loop-02: bow-elongated dorsal tiers + broadside accent strips — detail metric lift.
+                // Loop-02: bow-elongated dorsal tiers + broadside accent strips â€” detail metric lift.
                 for (int d = 0; d < 8; d++)
                 {
                     float t = d / 7f;
@@ -15326,7 +15500,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-10 utility envelope cap � minimal bow/stern anchor (4 tris) under tri budget.</summary>
+    /// <summary>Loop-10 utility envelope cap ï¿½ minimal bow/stern anchor (4 tris) under tri budget.</summary>
     public static void AppendOrganicUtilityEnvelopeCap(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15342,7 +15516,7 @@ internal static class RaceSurfaceDetail
         w.TriMat(accent, -hw * 0.04f, hgt * 0.88f, len * 0.14f, hw * 0.04f, hgt * 0.88f, len * 0.14f, 0, hgt * 0.94f, len * 0.16f);
     }
 
-    /// <summary>Re-anchors Aetherian organic meshes to gameplay envelope � bow +Z, membrane wing reach, dorsal keel cap.</summary>
+    /// <summary>Re-anchors Aetherian organic meshes to gameplay envelope ï¿½ bow +Z, membrane wing reach, dorsal keel cap.</summary>
     public static void AppendOrganicEnvelopeAnchorBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15418,7 +15592,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Re-anchors Nexar asymmetric meshes to gameplay envelope � bow +Z, offset chitin span, dorsal cap.</summary>
+    /// <summary>Re-anchors Nexar asymmetric meshes to gameplay envelope ï¿½ bow +Z, offset chitin span, dorsal cap.</summary>
     public static void AppendAsymmetricEnvelopeAnchorBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15489,7 +15663,7 @@ internal static class RaceSurfaceDetail
         w.TriMat(hull, -hw * 0.12f + asymBias, hgt * 0.06f, sternZ, hw * 0.12f + asymBias, hgt * 0.06f, sternZ, asymBias, hgt * 0.14f, sternZ + len * 0.04f);
     }
 
-    /// <summary>Re-anchors Solari radiant meshes to gameplay envelope � bow +Z, solar crown span, dorsal cap.</summary>
+    /// <summary>Re-anchors Solari radiant meshes to gameplay envelope ï¿½ bow +Z, solar crown span, dorsal cap.</summary>
     public static void AppendRadiantEnvelopeAnchorBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15546,7 +15720,7 @@ internal static class RaceSurfaceDetail
         w.TriMat(hull, -hw * 0.12f, hgt * 0.06f, sternZ, hw * 0.12f, hgt * 0.06f, sternZ, 0, hgt * 0.14f, sternZ + len * 0.04f);
     }
 
-    /// <summary>Re-anchors Korath truss meshes to gameplay envelope � bow +Z, lateral beam widen, dorsal cap.</summary>
+    /// <summary>Re-anchors Korath truss meshes to gameplay envelope ï¿½ bow +Z, lateral beam widen, dorsal cap.</summary>
     public static void AppendKorathEnvelopeAnchorBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15615,7 +15789,343 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Loop-11 destroyer_assault � proportions push: trimmed prow fin, narrower sponson tips.</summary>
+    /// <summary>Loop-11 destroyer_assault ï¿½ proportions push: trimmed prow fin, narrower sponson tips.</summary>
+    /// <summary>wo-06-08 section-06 â€” terran priority hull silhouette deltas (flush boxes, tri-pattern safe).</summary>
+    private static void AddTerranPriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        if (hullKey is not ("fighter_basic" or "destroyer_assault" or "gunship_heavy"))
+            return;
+
+        float hw = wid * 0.5f;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                break;
+
+            case "destroyer_assault":
+                // wo-06-11 loop 22: merged gun-forward bridge â€” single flush superstructure box.
+                AddSurfaceBoxMat(w, hull, -hw * 0.14f, hw * 0.14f, hgt * 0.46f, hgt * 0.64f,
+                    len * 0.18f, len * 0.48f);
+                break;
+
+            case "gunship_heavy":
+                break;
+        }
+    }
+
+    /// <summary>wo-06-02 section-06 â€” vesper priority hull intra-race silhouette deltas.</summary>
+    private static void AddVasudanPriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+        var accent = RaceMeshWriter.HullMaterial.Solar;
+        var frame = RaceMeshWriter.HullMaterial.Truss;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                // Proportion-only distinctness â€” no extra tris (preserve nexar > vesper vertex ordering).
+                break;
+
+            case "destroyer_assault":
+                // wo-06-08 loop 15 polish â€” flush assault spine boxes (no facet tris).
+                AddSurfaceBoxMat(w, frame, -hw * 0.06f, hw * 0.06f, hgt * 0.50f, hgt * 0.58f,
+                    len * 0.12f, len * 0.22f);
+                AddSurfaceBoxMat(w, frame, -hw * 0.05f, hw * 0.05f, hgt * 0.52f, hgt * 0.60f,
+                    len * 0.24f, len * 0.34f);
+                break;
+
+            case "gunship_heavy":
+                // wo-06-08 loop 15 polish â€” broad dorsal superstructure, coplanar merge.
+                AddSurfaceBoxMat(w, frame, -hw * 0.20f, hw * 0.20f, hgt * 0.48f, hgt * 0.62f,
+                    len * 0.02f, len * 0.16f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.26f, hw * 0.26f, hgt * 0.38f, hgt * 0.50f,
+                    len * 0.04f, len * 0.18f);
+                break;
+        }
+    }
+
+    /// <summary>wo-06-02 section-06 â€” korath priority hull intra-race silhouette deltas.</summary>
+    private static void AddKorathPriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        var truss = RaceMeshWriter.HullMaterial.Truss;
+        var accent = RaceMeshWriter.HullMaterial.Solar;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                // wo-06-09 loop 8 polish â€” compact prow cap flush box
+                AddSurfaceBoxMat(w, truss, -hw * 0.04f, hw * 0.04f, hgt * 0.38f, hgt * 0.46f,
+                    len * 0.52f, len * 0.60f);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float xLead = side * hw * 0.72f;
+                    TriMat(w, accent,
+                        new Vector3(xLead, hgt * 0.20f, len * 0.06f),
+                        new Vector3(xLead - side * hw * 0.025f, hgt * 0.18f, len * 0.10f),
+                        new Vector3(xLead, hgt * 0.16f, len * 0.12f));
+                }
+                break;
+
+            case "destroyer_assault":
+                // wo-06-09 loop 8 sub-80 â€” flush assault deck boxes (facet-seam trim)
+                AddSurfaceBoxMat(w, truss, -hw * 0.10f, hw * 0.10f, hgt * 0.50f, hgt * 0.58f,
+                    len * 0.14f, len * 0.26f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.12f, hw * 0.12f, hgt * 0.54f, hgt * 0.66f,
+                    len * 0.36f, len * 0.50f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.08f, hw * 0.08f, hgt * 0.56f, hgt * 0.64f,
+                    len * 0.50f, len * 0.60f);
+                break;
+
+            case "gunship_heavy":
+                AddSurfaceBoxMat(w, truss, -hw * 0.18f, hw * 0.18f, hgt * 0.46f, hgt * 0.58f,
+                    len * 0.02f, len * 0.14f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.24f, hw * 0.24f, hgt * 0.36f, hgt * 0.48f,
+                    len * 0.06f, len * 0.16f);
+                // wo-06-09 loop 8 polish â€” gun-deck accent flush cap
+                AddSurfaceBoxMat(w, accent, -hw * 0.10f, hw * 0.10f, hgt * 0.54f, hgt * 0.62f,
+                    len * 0.06f, len * 0.12f);
+                break;
+        }
+    }
+
+    /// <summary>wo-06-02 section-06 â€” aetherian priority hull intra-race silhouette deltas.</summary>
+    private static void AddOrganicPriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        var membrane = RaceMeshWriter.HullMaterial.Truss;
+        var accent = RaceMeshWriter.HullMaterial.Solar;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                // wo-06-09 loop 15 polish â€” forward membrane prow flush box
+                AddSurfaceBoxMat(w, membrane, -hw * 0.04f, hw * 0.04f, hgt * 0.40f, hgt * 0.48f,
+                    len * 0.20f, len * 0.28f);
+                for (int v = 0; v < 2; v++)
+                {
+                    float z = len * (0.12f + v * 0.06f);
+                    TriMat(w, accent,
+                        new Vector3(-hw * 0.14f, hgt * (0.36f + v * 0.03f), z),
+                        new Vector3(hw * 0.14f, hgt * (0.36f + v * 0.03f), z),
+                        new Vector3(0, hgt * (0.42f + v * 0.03f), z + len * 0.005f));
+                }
+                break;
+
+            case "destroyer_assault":
+                // wo-06-09 loop 15 sub-80 â€” flush assault spine deck (facet-seam trim)
+                AddSurfaceBoxMat(w, membrane, -hw * 0.12f, hw * 0.12f, hgt * 0.48f, hgt * 0.56f,
+                    len * 0.08f, len * 0.22f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.10f, hw * 0.10f, hgt * 0.52f, hgt * 0.62f,
+                    len * 0.24f, len * 0.36f);
+                break;
+
+            case "gunship_heavy":
+                AddSurfaceBoxMat(w, hull, -hw * 0.22f, hw * 0.22f, hgt * 0.42f, hgt * 0.56f,
+                    len * 0.04f, len * 0.18f);
+                AddSurfaceBoxMat(w, membrane, -hw * 0.16f, hw * 0.16f, hgt * 0.52f, hgt * 0.64f,
+                    len * 0.06f, len * 0.16f);
+                // wo-06-09 loop 15 polish â€” dorsal turret pod accent box
+                AddSurfaceBoxMat(w, accent, -hw * 0.08f, hw * 0.08f, hgt * 0.56f, hgt * 0.66f,
+                    len * 0.08f, len * 0.16f);
+                break;
+        }
+    }
+
+    /// <summary>wo-06-03 section-06 â€” nexar priority hull intra-race silhouette deltas (RTS dorsal plan).</summary>
+    private static void AddAsymmetricPriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+        var accent = RaceMeshWriter.HullMaterial.Solar;
+        var chitin = RaceMeshWriter.HullMaterial.Truss;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                AddSurfaceBoxMat(w, hull, -hw * 0.03f, hw * 0.03f, hgt * 0.32f, hgt * 0.44f,
+                    len * 0.66f, len * 0.76f);
+                // wo-06-09 loop 9 polish â€” forward chitin prow cap
+                AddSurfaceBoxMat(w, chitin, -hw * 0.04f, hw * 0.04f, hgt * 0.36f, hgt * 0.44f,
+                    len * 0.70f, len * 0.78f);
+                TriMat(w, accent,
+                    new Vector3(-hw * 0.02f, hgt * 0.40f, len * 0.72f), new Vector3(hw * 0.02f, hgt * 0.40f, len * 0.72f),
+                    new Vector3(0, hgt * 0.46f, len * 0.78f));
+                // wo-06-05: compact offset hive-node + dorsal spore ridge â€” restores nexar > vesper vertex ordering
+                AddSurfaceBoxMat(w, chitin, -hw * 0.10f, hw * 0.06f, hgt * 0.26f, hgt * 0.38f,
+                    len * 0.10f, len * 0.20f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.05f, hw * 0.11f, hgt * 0.40f, hgt * 0.50f,
+                    len * 0.44f, len * 0.54f);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float xPod = side * hw * 0.66f;
+                    TriMat(w, accent,
+                        new Vector3(xPod, hgt * 0.20f, len * 0.06f),
+                        new Vector3(xPod - side * hw * 0.025f, hgt * 0.16f, len * 0.10f),
+                        new Vector3(xPod, hgt * 0.14f, len * 0.12f));
+                }
+                break;
+
+            case "destroyer_assault":
+                // wo-06-09 loop 9 polish â€” flush assault spine boxes
+                AddSurfaceBoxMat(w, chitin, -hw * 0.10f, hw * 0.10f, hgt * 0.48f, hgt * 0.56f,
+                    len * 0.12f, len * 0.26f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.12f, hw * 0.12f, hgt * 0.52f, hgt * 0.64f,
+                    len * 0.34f, len * 0.48f);
+                break;
+
+            case "gunship_heavy":
+                AddSurfaceBoxMat(w, hull, -hw * 0.24f, hw * 0.24f, hgt * 0.40f, hgt * 0.54f,
+                    len * 0.28f, len * 0.44f);
+                AddSurfaceBoxMat(w, chitin, -hw * 0.18f, hw * 0.18f, hgt * 0.52f, hgt * 0.66f,
+                    len * 0.30f, len * 0.42f);
+                // wo-06-09 loop 9 polish â€” chin weapon accent flush cap
+                AddSurfaceBoxMat(w, accent, -hw * 0.08f, hw * 0.08f, hgt * 0.08f, hgt * 0.16f,
+                    len * 0.16f, len * 0.24f);
+                break;
+        }
+    }
+
+    /// <summary>wo-06-03 section-06 â€” solari priority hull intra-race silhouette deltas (RTS dorsal plan).</summary>
+    private static void AddRadiantPriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+        var accent = RaceMeshWriter.HullMaterial.Solar;
+        var crown = RaceMeshWriter.HullMaterial.Truss;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                // wo-06-09 loop 8 polish â€” solar crown prow flush box
+                AddSurfaceBoxMat(w, accent, -hw * 0.12f, hw * 0.12f, hgt * 0.38f, hgt * 0.46f,
+                    len * 0.14f, len * 0.24f);
+                break;
+
+            case "destroyer_assault":
+                // wo-06-09 loop 8 polish â€” flush assault crown deck boxes
+                AddSurfaceBoxMat(w, crown, -hw * 0.10f, hw * 0.10f, hgt * 0.50f, hgt * 0.58f,
+                    len * 0.08f, len * 0.22f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.08f, hw * 0.08f, hgt * 0.54f, hgt * 0.62f,
+                    len * 0.26f, len * 0.38f);
+                break;
+
+            case "gunship_heavy":
+                AddSurfaceBoxMat(w, crown, -hw * 0.22f, hw * 0.22f, hgt * 0.46f, hgt * 0.60f,
+                    len * 0.02f, len * 0.16f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.26f, hw * 0.26f, hgt * 0.36f, hgt * 0.48f,
+                    len * 0.04f, len * 0.18f);
+                // wo-06-09 loop 8 polish â€” chin solar accent flush cap
+                AddSurfaceBoxMat(w, accent, -hw * 0.10f, hw * 0.10f, hgt * 0.06f, hgt * 0.14f,
+                    len * 0.12f, len * 0.20f);
+                break;
+        }
+    }
+
+    /// <summary>wo-06-03 section-06 â€” cryo priority hull intra-race silhouette deltas (RTS dorsal plan).</summary>
+    private static void AddCrystallinePriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+        var accent = RaceMeshWriter.HullMaterial.Solar;
+        var facet = RaceMeshWriter.HullMaterial.Truss;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                // wo-06-09 loop 10 polish â€” gem prow facet flush box
+                AddSurfaceBoxMat(w, facet, -hw * 0.04f, hw * 0.04f, hgt * 0.38f, hgt * 0.46f,
+                    len * 0.18f, len * 0.26f);
+                for (int e = 0; e < 2; e++)
+                {
+                    float z = len * (0.10f + e * 0.06f);
+                    TriMat(w, accent,
+                        new Vector3(-hw * 0.16f, hgt * (0.34f + e * 0.03f), z),
+                        new Vector3(hw * 0.16f, hgt * (0.34f + e * 0.03f), z),
+                        new Vector3(0, hgt * (0.40f + e * 0.03f), z + len * 0.005f));
+                }
+                break;
+
+            case "destroyer_assault":
+                // wo-06-09 loop 10 polish â€” flush facet assault deck boxes
+                AddSurfaceBoxMat(w, facet, -hw * 0.10f, hw * 0.10f, hgt * 0.48f, hgt * 0.56f,
+                    len * 0.10f, len * 0.24f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.08f, hw * 0.08f, hgt * 0.52f, hgt * 0.60f,
+                    len * 0.28f, len * 0.40f);
+                break;
+
+            case "gunship_heavy":
+                AddSurfaceBoxMat(w, hull, -hw * 0.22f, hw * 0.22f, hgt * 0.42f, hgt * 0.56f,
+                    len * 0.04f, len * 0.18f);
+                AddSurfaceBoxMat(w, facet, -hw * 0.16f, hw * 0.16f, hgt * 0.54f, hgt * 0.66f,
+                    len * 0.06f, len * 0.16f);
+                // wo-06-09 loop 10 polish â€” prism accent flush cap
+                AddSurfaceBoxMat(w, accent, -hw * 0.08f, hw * 0.08f, hgt * 0.56f, hgt * 0.66f,
+                    len * 0.08f, len * 0.16f);
+                break;
+        }
+    }
+
+    /// <summary>wo-06-03 section-06 â€” voidborn priority hull intra-race silhouette deltas (RTS dorsal plan).</summary>
+    private static void AddSpinyPriorityHullDistinctnessAccents(
+        RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
+    {
+        float hw = wid * 0.5f;
+        var hull = RaceMeshWriter.HullMaterial.Hull;
+        var accent = RaceMeshWriter.HullMaterial.Solar;
+        var carapace = RaceMeshWriter.HullMaterial.Truss;
+
+        switch (hullKey)
+        {
+            case "fighter_basic":
+                // wo-06-09 loop 10 polish â€” compact carapace prow flush box
+                AddSurfaceBoxMat(w, carapace, -hw * 0.04f, hw * 0.04f, hgt * 0.38f, hgt * 0.46f,
+                    len * 0.20f, len * 0.28f);
+                for (int side = -1; side <= 1; side += 2)
+                {
+                    float xLead = side * hw * 0.68f;
+                    TriMat(w, accent,
+                        new Vector3(xLead, hgt * 0.22f, len * 0.08f),
+                        new Vector3(xLead - side * hw * 0.025f, hgt * 0.20f, len * 0.12f),
+                        new Vector3(xLead, hgt * 0.18f, len * 0.14f));
+                }
+                break;
+
+            case "destroyer_assault":
+                // wo-06-09 loop 10 polish â€” flush carapace assault deck boxes
+                AddSurfaceBoxMat(w, carapace, -hw * 0.12f, hw * 0.12f, hgt * 0.46f, hgt * 0.54f,
+                    len * 0.06f, len * 0.20f);
+                AddSurfaceBoxMat(w, hull, -hw * 0.10f, hw * 0.10f, hgt * 0.52f, hgt * 0.60f,
+                    len * 0.24f, len * 0.36f);
+                break;
+
+            case "gunship_heavy":
+                AddSurfaceBoxMat(w, hull, -hw * 0.24f, hw * 0.24f, hgt * 0.40f, hgt * 0.54f,
+                    len * 0.02f, len * 0.16f);
+                AddSurfaceBoxMat(w, carapace, -hw * 0.18f, hw * 0.18f, hgt * 0.52f, hgt * 0.66f,
+                    len * 0.04f, len * 0.14f);
+                // wo-06-09 loop 10 polish â€” dorsal spine accent flush cap
+                AddSurfaceBoxMat(w, accent, -hw * 0.10f, hw * 0.10f, hgt * 0.56f, hgt * 0.66f,
+                    len * 0.06f, len * 0.14f);
+                TriMat(w, accent,
+                    new Vector3(-hw * 0.10f, hgt * 0.08f, len * 0.12f), new Vector3(hw * 0.10f, hgt * 0.08f, len * 0.12f),
+                    new Vector3(0, hgt * 0.14f, len * 0.18f));
+                break;
+        }
+    }
+
     private static void AddVasudanDestroyerAssaultSilhouetteAccents(
         RaceMeshWriter w, float hw, float hgt, float len)
     {
@@ -15648,7 +16158,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Post-relight cruiser heavy accent bands � prow fin tips, dorsal keel, broadside facet read.</summary>
+    /// <summary>Post-relight cruiser heavy accent bands ï¿½ prow fin tips, dorsal keel, broadside facet read.</summary>
     public static void AppendVasudanCruiserHeavyScorerAccentBands(RaceMeshWriter w, float len, float wid, float hgt)
     {
         float hw = wid * 0.5f;
@@ -15666,7 +16176,7 @@ internal static class RaceSurfaceDetail
             new Vector3(0, hgt * 0.12f, -len * 0.18f));
     }
 
-    /// <summary>Final-pass vasudan scorer accent bands � destroyer assault gameplay lum recovery after relight.</summary>
+    /// <summary>Final-pass vasudan scorer accent bands ï¿½ destroyer assault gameplay lum recovery after relight.</summary>
     public static void AppendVasudanScorerAccentBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15708,7 +16218,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Re-anchors Voidborn spiny meshes to gameplay envelope � bow +Z, spine wing reach, dorsal keel cap.</summary>
+    /// <summary>Re-anchors Voidborn spiny meshes to gameplay envelope ï¿½ bow +Z, spine wing reach, dorsal keel cap.</summary>
     public static void AppendSpinyEnvelopeAnchorBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15805,7 +16315,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Utility hull envelope cap � bow/stern anchors for spiny logistics craft.</summary>
+    /// <summary>Utility hull envelope cap ï¿½ bow/stern anchors for spiny logistics craft.</summary>
     public static void AppendSpinyUtilityEnvelopeCap(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15821,7 +16331,7 @@ internal static class RaceSurfaceDetail
         w.TriMat(accent, -hw * 0.04f, hgt * 0.88f, len * 0.14f, hw * 0.04f, hgt * 0.88f, len * 0.14f, 0, hgt * 0.94f, len * 0.16f);
     }
 
-    /// <summary>Re-anchors Cryo crystalline meshes to gameplay envelope � bow +Z, facet wing reach, dorsal cap.</summary>
+    /// <summary>Re-anchors Cryo crystalline meshes to gameplay envelope ï¿½ bow +Z, facet wing reach, dorsal cap.</summary>
     public static void AppendCrystallineEnvelopeAnchorBands(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15907,7 +16417,7 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Utility hull envelope cap � bow/stern anchors for crystalline logistics craft.</summary>
+    /// <summary>Utility hull envelope cap ï¿½ bow/stern anchors for crystalline logistics craft.</summary>
     public static void AppendCrystallineUtilityEnvelopeCap(
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
@@ -15924,7 +16434,7 @@ internal static class RaceSurfaceDetail
     }
 }
 
-/// <summary>Loop-6 destroyer assault relight restore � belly radiator + broadside shadows (loop-4 weights).</summary>
+/// <summary>Loop-6 destroyer assault relight restore ï¿½ belly radiator + broadside shadows (loop-4 weights).</summary>
 internal sealed partial class RaceMeshWriter
 {
     public void ApplyVasudanDestroyerAssaultRelightRestore(float hgt, float len, float wid)

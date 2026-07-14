@@ -20,6 +20,40 @@ public class RaceSilhouetteTests
         Assert.True(counts.First(c => c.Id == "nexar").Item2 > counts.First(c => c.Id == "vesper").Item2);
     }
 
+    [Fact]
+    public void Each_race_priority_triplet_has_distinct_silhouette()
+    {
+        foreach (var race in RaceVisualSchema.AllRaces)
+        {
+            float[] fighter = RaceShipMeshes.Build(race.Id, "fighter_basic");
+            float[] destroyer = RaceShipMeshes.Build(race.Id, "destroyer_assault");
+            float[] gunship = RaceShipMeshes.Build(race.Id, "gunship_heavy");
+
+            int fighterVerts = ProceduralMeshes.VertexCount(fighter);
+            int destroyerVerts = ProceduralMeshes.VertexCount(destroyer);
+            int gunshipVerts = ProceduralMeshes.VertexCount(gunship);
+
+            Assert.Equal(3, new[] { fighterVerts, destroyerVerts, gunshipVerts }.Distinct().Count());
+
+            var fighterBounds = MeshBounds.From(fighter);
+            var destroyerBounds = MeshBounds.From(destroyer);
+            var gunshipBounds = MeshBounds.From(gunship);
+
+            bool widthOrdering =
+                gunshipBounds.MaxAbsX >= destroyerBounds.MaxAbsX
+                && destroyerBounds.MaxAbsX > fighterBounds.MaxAbsX;
+            bool vertexDistinct = fighterVerts != destroyerVerts
+                && destroyerVerts != gunshipVerts
+                && fighterVerts != gunshipVerts;
+
+            Assert.True(
+                widthOrdering || vertexDistinct,
+                $"{race.Id}: expected plan-width ordering (gunship≥destroyer>fighter) or distinct vertex counts; " +
+                $"verts f={fighterVerts} d={destroyerVerts} g={gunshipVerts}, " +
+                $"width f={fighterBounds.MaxAbsX:F3} d={destroyerBounds.MaxAbsX:F3} g={gunshipBounds.MaxAbsX:F3}");
+        }
+    }
+
     [Theory]
     [InlineData("korath", "truss")]
     [InlineData("vesper", "vasudan")]
@@ -32,5 +66,22 @@ public class RaceSilhouetteTests
         Assert.Equal(expectedStyle, race!.Style);
         float[] mesh = RaceShipMeshes.Build(raceId, "destroyer_assault");
         Assert.True(ProceduralMeshes.VertexCount(mesh) >= 20);
+    }
+
+    private readonly struct MeshBounds
+    {
+        public float MaxAbsX { get; init; }
+
+        public static MeshBounds From(float[] mesh)
+        {
+            float maxAbsX = 0f;
+            for (int i = 0; i < mesh.Length; i += ProceduralMeshes.Stride)
+            {
+                float x = MathF.Abs(mesh[i]);
+                if (x > maxAbsX) maxAbsX = x;
+            }
+
+            return new MeshBounds { MaxAbsX = maxAbsX };
+        }
     }
 }

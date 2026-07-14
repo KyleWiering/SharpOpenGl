@@ -168,44 +168,65 @@ public static class ProceduralMeshes
         ];
     }
 
-    /// <summary>Filled diamond beacon for harvestable resource nodes.</summary>
+    /// <summary>Filled diamond beacon for harvestable resource nodes — tall obelisk for map-zoom clarity (P01-D04).</summary>
     public static float[] BuildResourceNodeMarker(Vector3 color, float size = 2f)
     {
         float r = color.X, g = color.Y, b = color.Z;
         float s = size;
+        float stem = s * 0.22f;
+        float cap = s * 1.35f;
+        float baseR = s * 0.55f;
         float[] vertices =
         {
-            0f, s * 1.2f, 0f, r, g, b,
-            -s, 0f, 0f, r, g, b,
-            0f, 0f, s, r, g, b,
+            0f, cap, 0f, r, g, b,
+            -stem, s * 0.35f, stem, r, g, b,
+            stem, s * 0.35f, stem, r, g, b,
 
-            0f, s * 1.2f, 0f, r, g, b,
-            0f, 0f, s, r, g, b,
-            s, 0f, 0f, r, g, b,
+            0f, cap, 0f, r, g, b,
+            stem, s * 0.35f, stem, r, g, b,
+            stem, s * 0.35f, -stem, r, g, b,
 
-            0f, s * 1.2f, 0f, r, g, b,
-            s, 0f, 0f, r, g, b,
-            0f, 0f, -s, r, g, b,
+            0f, cap, 0f, r, g, b,
+            stem, s * 0.35f, -stem, r, g, b,
+            -stem, s * 0.35f, -stem, r, g, b,
 
-            0f, s * 1.2f, 0f, r, g, b,
-            0f, 0f, -s, r, g, b,
-            -s, 0f, 0f, r, g, b,
+            0f, cap, 0f, r, g, b,
+            -stem, s * 0.35f, -stem, r, g, b,
+            -stem, s * 0.35f, stem, r, g, b,
 
-            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
-            0f, 0f, s, r * 0.75f, g * 0.75f, b * 0.75f,
-            -s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            -baseR, 0f, -baseR, r * 0.82f, g * 0.82f, b * 0.82f,
+            baseR, 0f, -baseR, r * 0.82f, g * 0.82f, b * 0.82f,
+            baseR, 0f, baseR, r * 0.82f, g * 0.82f, b * 0.82f,
 
-            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
-            s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
-            0f, 0f, s, r * 0.75f, g * 0.75f, b * 0.75f,
+            -baseR, 0f, -baseR, r * 0.82f, g * 0.82f, b * 0.82f,
+            baseR, 0f, baseR, r * 0.82f, g * 0.82f, b * 0.82f,
+            -baseR, 0f, baseR, r * 0.82f, g * 0.82f, b * 0.82f,
 
-            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
-            0f, 0f, -s, r * 0.75f, g * 0.75f, b * 0.75f,
-            s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
+            -stem, s * 0.35f, stem, r * 0.9f, g * 0.9f, b * 0.9f,
+            stem, s * 0.35f, stem, r * 0.9f, g * 0.9f, b * 0.9f,
+            stem, s * 0.35f, -stem, r * 0.9f, g * 0.9f, b * 0.9f,
 
-            0f, -s * 0.25f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
-            -s, 0f, 0f, r * 0.75f, g * 0.75f, b * 0.75f,
-            0f, 0f, -s, r * 0.75f, g * 0.75f, b * 0.75f,
+            -stem, s * 0.35f, stem, r * 0.9f, g * 0.9f, b * 0.9f,
+            stem, s * 0.35f, -stem, r * 0.9f, g * 0.9f, b * 0.9f,
+            -stem, s * 0.35f, -stem, r * 0.9f, g * 0.9f, b * 0.9f,
+        };
+        return ClampColors(vertices);
+    }
+
+    /// <summary>Unit ground quad in the XZ plane for terrain tint overlays.</summary>
+    public static float[] BuildGroundQuad(float width, float depth, Vector3 color)
+    {
+        float hw = width * 0.5f;
+        float hd = depth * 0.5f;
+        float r = color.X, g = color.Y, b = color.Z;
+        float[] vertices =
+        {
+            -hw, 0f, -hd, r, g, b,
+             hw, 0f, -hd, r, g, b,
+             hw, 0f,  hd, r, g, b,
+            -hw, 0f, -hd, r, g, b,
+             hw, 0f,  hd, r, g, b,
+            -hw, 0f,  hd, r, g, b,
         };
         return ClampColors(vertices);
     }
@@ -310,6 +331,95 @@ public static class ProceduralMeshes
         return ClampColors(verts.ToArray());
     }
 
+    /// <summary>Crackling ion storm silhouette with purple filaments and cyan discharge arcs.</summary>
+    public static float[] BuildIonStorm(float size = 3f)
+    {
+        float s = size;
+        var verts = new List<float>();
+
+        AddCloudPuff(verts, new Vector3(0f, s * 0.28f, 0f), s * 0.38f,
+            new Vector3(0.42f, 0.1f, 0.78f), new Vector3(0.68f, 0.28f, 0.98f), segments: 8);
+        AddCloudPuff(verts, new Vector3(s * 0.18f, s * 0.34f, -s * 0.12f), s * 0.28f,
+            new Vector3(0.22f, 0.62f, 0.95f), new Vector3(0.38f, 0.82f, 1f), segments: 6);
+
+        void AddBolt(Vector3 from, Vector3 to, Vector3 core, Vector3 edge)
+        {
+            Vector3 mid = (from + to) * 0.5f + new Vector3(0f, s * 0.12f, 0f);
+            Vector3 jag = mid + new Vector3(s * 0.08f, -s * 0.06f, -s * 0.05f);
+            AddTri(verts, from, jag, to, core.X, core.Y, core.Z);
+            AddTri(verts, from, to, mid, edge.X, edge.Y, edge.Z);
+        }
+
+        AddBolt(new Vector3(-s * 0.55f, s * 0.1f, 0f), new Vector3(0f, s * 0.55f, s * 0.1f),
+            new Vector3(0.55f, 0.2f, 0.95f), new Vector3(0.35f, 0.75f, 1f));
+        AddBolt(new Vector3(s * 0.5f, s * 0.08f, -s * 0.08f), new Vector3(-s * 0.08f, s * 0.48f, -s * 0.22f),
+            new Vector3(0.62f, 0.18f, 0.92f), new Vector3(0.28f, 0.68f, 1f));
+        AddBolt(new Vector3(0.12f * s, s * 0.05f, s * 0.52f), new Vector3(-s * 0.42f, s * 0.38f, s * 0.18f),
+            new Vector3(0.48f, 0.15f, 0.88f), new Vector3(0.32f, 0.78f, 0.98f));
+        AddBolt(new Vector3(s * 0.32f, s * 0.22f, s * 0.34f), new Vector3(-s * 0.28f, s * 0.18f, -s * 0.46f),
+            new Vector3(0.7f, 0.25f, 0.98f), new Vector3(0.42f, 0.85f, 1f));
+
+        AddCloudWisp(verts, new Vector3(-s * 0.34f, s * 0.22f, s * 0.08f), s * 0.22f,
+            new Vector3(0.18f, 0.55f, 0.92f), new Vector3(0.32f, 0.78f, 1f));
+        AddCloudWisp(verts, new Vector3(s * 0.26f, s * 0.2f, -s * 0.3f), s * 0.2f,
+            new Vector3(0.58f, 0.22f, 0.88f), new Vector3(0.82f, 0.38f, 0.98f));
+
+        return ClampColors(verts.ToArray());
+    }
+
+    /// <summary>Collapsed wormhole gate — luminous torus with inner accretion glow.</summary>
+    public static float[] BuildWormholeRemnant(float size = 3f, int segments = 24, int tubeSegments = 6)
+    {
+        float s = size;
+        float majorR = s * 0.52f;
+        float minorR = s * 0.11f;
+        var verts = new List<float>();
+
+        for (int i = 0; i < segments; i++)
+        {
+            float u0 = MathF.PI * 2f * i / segments;
+            float u1 = MathF.PI * 2f * (i + 1) / segments;
+            Vector3 ringCenter0 = new(MathF.Cos(u0) * majorR, s * 0.22f, MathF.Sin(u0) * majorR);
+            Vector3 ringCenter1 = new(MathF.Cos(u1) * majorR, s * 0.22f, MathF.Sin(u1) * majorR);
+
+            for (int j = 0; j < tubeSegments; j++)
+            {
+                float v0 = MathF.PI * 2f * j / tubeSegments;
+                float v1 = MathF.PI * 2f * (j + 1) / tubeSegments;
+
+                Vector3 n0 = new(MathF.Cos(u0) * MathF.Cos(v0), MathF.Sin(v0), MathF.Sin(u0) * MathF.Cos(v0));
+                Vector3 n1 = new(MathF.Cos(u1) * MathF.Cos(v0), MathF.Sin(v0), MathF.Sin(u1) * MathF.Cos(v0));
+                Vector3 n2 = new(MathF.Cos(u1) * MathF.Cos(v1), MathF.Sin(v1), MathF.Sin(u1) * MathF.Cos(v1));
+                Vector3 n3 = new(MathF.Cos(u0) * MathF.Cos(v1), MathF.Sin(v1), MathF.Sin(u0) * MathF.Cos(v1));
+
+                Vector3 a = ringCenter0 + n0 * minorR;
+                Vector3 b = ringCenter1 + n1 * minorR;
+                Vector3 c = ringCenter1 + n2 * minorR;
+                Vector3 d = ringCenter0 + n3 * minorR;
+
+                float hue = 0.35f + 0.25f * MathF.Sin(u0 * 3f);
+                float r = 0.2f + hue * 0.5f;
+                float g = 0.75f + 0.15f * MathF.Cos(v0 * 2f);
+                float bl = 0.95f;
+
+                AddTri(verts, a, b, c, r, g, bl);
+                AddTri(verts, a, c, d, r * 0.85f, g * 0.9f, bl * 0.95f);
+            }
+        }
+
+        for (int i = 0; i < segments; i++)
+        {
+            float angle0 = MathF.PI * 2f * i / segments;
+            float angle1 = MathF.PI * 2f * (i + 1) / segments;
+            float innerR = majorR * 0.42f;
+            Vector3 center = new(0f, s * 0.22f, 0f);
+            Vector3 a = center + new Vector3(MathF.Cos(angle0) * innerR, 0f, MathF.Sin(angle0) * innerR);
+            Vector3 b = center + new Vector3(MathF.Cos(angle1) * innerR, 0f, MathF.Sin(angle1) * innerR);
+            AddTri(verts, center, a, b, 0.08f, 0.18f, 0.32f);
+        }
+
+        return ClampColors(verts.ToArray());
+    }
 
     /// <summary>Capital-ship shield emitter — dome, ring capacitors, hex emitter grid.</summary>
     public static float[] BuildShieldGenerator(Vector3 color, float size = 4f)
@@ -688,6 +798,27 @@ public static class ProceduralMeshes
     }
 
     public static int VertexCount(float[] vertices) => vertices.Length / Stride;
+
+    /// <summary>Build vertex data for a world-space line strip on the XZ plane (pos+col, stride 6).</summary>
+    public static float[] BuildLineStripVertices(
+        IReadOnlyList<Vector3> points, Vector3 color, float y = 0.25f)
+    {
+        if (points.Count == 0)
+            return Array.Empty<float>();
+
+        var result = new float[points.Count * Stride];
+        for (int i = 0; i < points.Count; i++)
+        {
+            result[i * Stride + 0] = points[i].X;
+            result[i * Stride + 1] = y;
+            result[i * Stride + 2] = points[i].Z;
+            result[i * Stride + 3] = color.X;
+            result[i * Stride + 4] = color.Y;
+            result[i * Stride + 5] = color.Z;
+        }
+
+        return result;
+    }
 
     internal static float[] ClampColors(float[] vertices)
     {

@@ -12,6 +12,7 @@ using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Multiplayer;
 using SharpOpenGl.Engine.Persistence;
 using SharpOpenGl.Engine.Rendering;
@@ -84,6 +85,13 @@ public partial class EngineWindow : GameWindow
     private const int GridRows = 200;
     private const float GridCellSize = 10f;
     private const float MapWorldSize = GridColumns * GridCellSize; // 2000 units
+
+    /// <summary>True when sandbox was started from setup screen — uses chunked procedural grid.</summary>
+    private bool _sandboxChunkedMode;
+    private int _sandboxChunkLoadRadius = 2;
+    private SandboxChunkGrid? _sandboxChunkGrid;
+    private PathFollowingSystem? _pathFollowingSystem;
+    private FogOfWarSystem? _fogOfWarSystem;
 
     // Ship meshes (initialized when gameplay starts)
     private int _heroVao, _heroVbo, _heroVertCount;
@@ -215,6 +223,7 @@ public partial class EngineWindow : GameWindow
         _eventBus = new EventBus();
 
         InitializeExplosionVfx();
+        InitializeCombatRingOverlays();
         InitializeAudio();
 
         _sceneManager = new SceneManager(_eventBus);
@@ -227,6 +236,14 @@ public partial class EngineWindow : GameWindow
 
                 if (_meshPreviewMode)
             InitializeMeshPreview();
+        else if (SandboxLaunchOptions.Enabled)
+        {
+            _pendingSandboxSetup = new SandboxSetupResult(
+                SandboxLaunchOptions.SeedText,
+                ProceduralSeedHelper.ParseSeed(SandboxLaunchOptions.SeedText));
+            Console.WriteLine($"[Sandbox] Headless launch seed='{SandboxLaunchOptions.SeedText}'");
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+        }
         else if (_screenshotMode || _demoRecordingMode)
         {
             if (_demoRecordingMode)
@@ -250,6 +267,7 @@ public partial class EngineWindow : GameWindow
         bool hasSave = _saveManager!.ListSaveFiles().Length > 0;
         var menu = new MainMenuScreen(hasSave);
         menu.NewGameRequested += ShowMissionSelect;
+        menu.SandboxRequested += ShowSandboxSetup;
         menu.MultiplayerRequested += ShowMultiplayerSetup;
         menu.ContinueRequested += ContinueSavedGame;
         menu.LoadGameRequested += ShowLoadGameScreen;
@@ -283,6 +301,22 @@ public partial class EngineWindow : GameWindow
 
     private IEnumerable<MissionEntry> LoadMissionEntries() => LoadMissionEntriesFromData();
 
+    /// <summary>Show sandbox setup screen with optional world seed.</summary>
+    internal void ShowSandboxSetup()
+    {
+        var sandboxScreen = new SandboxSetupScreen();
+        sandboxScreen.StartRequested += result =>
+        {
+            _pendingSandboxSetup = result;
+            _pendingMissionId = null;
+            _pendingSkirmishSetup = null;
+            Console.WriteLine($"[Sandbox] Starting with seed text '{result.SeedText}' (parsed {result.ParsedSeed})");
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+        };
+        sandboxScreen.BackRequested += () => _uiManager.Pop();
+        _uiManager.Push(sandboxScreen);
+    }
+
     /// <summary>Show multiplayer setup screen with AI player option (issue #6).</summary>
     internal void ShowMultiplayerSetup()
     {
@@ -291,6 +325,7 @@ public partial class EngineWindow : GameWindow
         {
             _pendingSkirmishSetup = result;
             _pendingMissionId = null;
+            _pendingSandboxSetup = null;
             Console.WriteLine(
                 $"[Multiplayer] Starting skirmish on '{result.MapId}' with {result.ActivePlayerCount} factions " +
                 $"({result.HumanCount} human, {result.AiCount} AI)");
@@ -317,6 +352,7 @@ public partial class EngineWindow : GameWindow
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
         hud.BuildPanel.BuildRequested += OnBuildPanelBuildRequested;
+        hud.BuildPanel.QueueCancelRequested += OnBuildPanelQueueCancelRequested;
         WireBuildMapHud(hud);
         hud.ShipControlBar.CommandActivated += HandleShipControlCommand;
         hud.ShipControlBar.StanceToggled += CycleSelectedStance;
@@ -336,12 +372,15 @@ public partial class EngineWindow : GameWindow
     {
         if (_sceneManager.State != GameState.Playing) return;
 
-        var pause = new PauseScreen();
+        EnsurePersistence();
+        bool hasSave = _saveManager!.ListSaveFiles().Length > 0;
+        var pause = new PauseScreen(hasSave);
         pause.ResumeRequested += () =>
         {
             _uiManager.Pop();
         };
         pause.SaveGameRequested += ShowSaveGameScreen;
+        pause.LoadGameRequested += ShowLoadGameScreen;
         pause.SettingsRequested += ShowSettings;
         pause.QuitToMenuRequested += () =>
         {
@@ -457,22 +496,63 @@ public partial class EngineWindow : GameWindow
         SaveData? saveData = _pendingSaveData;
         _pendingSaveData = null;
 
+        MultiplayerSetupResult? skirmishSetup = _pendingSkirmishSetup;
+
+        if (saveData != null && saveData.IsSandboxSession)
+        {
+            _isSandboxSession = true;
+            _sandboxChunkedMode = true;
+            _proceduralMapSeed = saveData.ProceduralMapSeed;
+            _lastSandboxSeedText = saveData.SandboxSeedText;
+        }
+        else
+        {
+            _isSandboxSession = _pendingSandboxSetup != null;
+        }
+
+        SandboxSetupResult? sandboxSetup = saveData?.IsSandboxSession == true
+            ? new SandboxSetupResult(saveData.SandboxSeedText, saveData.ProceduralMapSeed)
+            : _pendingSandboxSetup;
+
         string? missionId = saveData?.MissionId;
         if (string.IsNullOrWhiteSpace(missionId))
-            missionId = _pendingMissionId;
+            missionId = _isSandboxSession ? null : _pendingMissionId;
         _pendingMissionId = null;
         _pendingSkirmishSetup = null;
+        _pendingSandboxSetup = null;
 
-        if (saveData != null && !string.IsNullOrWhiteSpace(saveData.MissionId))
+        if (saveData != null && !string.IsNullOrWhiteSpace(saveData.MissionId) && !saveData.IsSandboxSession)
         {
             EnsureAssets();
             _missionController!.StartMission(saveData.MissionId);
         }
 
-        InitializeWorldCore(missionId, skipWorldSpawn: saveData != null);
+        InitializeWorldCore(
+            missionId,
+            skipWorldSpawn: saveData != null,
+            sandboxSetup: sandboxSetup,
+            skirmishSetup: skirmishSetup);
 
         if (saveData != null)
+        {
+            if (saveData.IsSandboxSession)
+            {
+                var cameraPos = new Vector3(saveData.CameraX, 0f, saveData.CameraY);
+                var entityPositions = saveData.Entities
+                    .Select(e => new Vector3(e.X, 0f, e.Y))
+                    .ToList();
+                EnsureSandboxChunksAround(cameraPos, entityPositions);
+            }
+
             ApplySaveData(saveData);
+
+            if (saveData.IsSandboxSession)
+            {
+                BindSandboxSessionHud(new SandboxSetupResult(
+                    _lastSandboxSeedText,
+                    _proceduralMapSeed));
+            }
+        }
     }
 
     private void SpawnAIPlayer(Random rng)
@@ -481,58 +561,35 @@ public partial class EngineWindow : GameWindow
         SpawnSkirmishAiFaction(2, new Vector3(600f, 0f, 600f));
     }
 
-    private void SpawnResourceNodes(Random rng)
+    private void SpawnResourceNodes(int seed)
     {
         if (_world == null) return;
 
-        // Scatter resource nodes across the map
-        var resourceTypes = new[] { ResourceType.Energy, ResourceType.Minerals, ResourceType.Data, ResourceType.Crew };
-        var nodeColors = new Dictionary<ResourceType, Vector4>
-        {
-            [ResourceType.Energy] = new Vector4(0.9f, 0.8f, 0.2f, 1f),
-            [ResourceType.Minerals] = new Vector4(0.4f, 0.8f, 1.0f, 1f),
-            [ResourceType.Data] = new Vector4(0.6f, 1.0f, 0.6f, 1f),
-            [ResourceType.Crew] = new Vector4(1.0f, 0.6f, 0.4f, 1f),
-        };
+        var existing = new HashSet<Entity>(
+            _world.Query<ResourceNodeComponent>().Select(q => q.Entity));
 
-        for (int i = 0; i < 16; i++)
+        var map = new MapGenerator(seed).Generate(new MapGeneratorConfig
         {
-            float x = (rng.NextSingle() - 0.5f) * MapWorldSize * 0.8f;
-            float z = (rng.NextSingle() - 0.5f) * MapWorldSize * 0.8f;
-            var resType = resourceTypes[i % 4];
+            Width = GridColumns,
+            Height = GridRows,
+            CellSize = GridCellSize,
+            ResourceNodeCount = 16,
+            SpawnPointCount = 2,
+        });
 
-            var node = _world.CreateEntity();
-            _world.AddComponent(node, new TransformComponent
-            {
-                Position = new Vector3(x, 1f, z),
-                Scale = new Vector3(6f, 6f, 6f),
-            });
-            _world.AddComponent(node, new RenderComponent
-            {
-                MeshId = _resourceNodeVao,
-                VertexCount = _resourceNodeVertCount,
-                Color = GameplayEntityDisplay.HarvestableColor,
-                Visible = true,
-                PrimitiveType = (int)PrimitiveType.Triangles,
-            });
-            _world.AddComponent(node, new ResourceNodeComponent
-            {
-                ResourceType = resType,
-                Amount = 5000f,
-                MaxAmount = 5000f,
-                HarvestRate = 10f,
-            });
-                        _world.AddComponent(node, new SelectionComponent { IsSelected = false, SelectionRadius = 14f });
-            RevealAreaAt(new Vector3(x, 0f, z), 6);
-            _resourceNodeEntities.Add(node);
+        MapFeatureSpawner.SpawnAll(_world, map, BuildMapFeatureMeshes(), RevealAreaAt);
+
+        foreach (var (entity, _) in _world.Query<ResourceNodeComponent>())
+        {
+            if (!existing.Contains(entity))
+                _resourceNodeEntities.Add(entity);
         }
     }
 
-    private void SpawnPlayerBase(bool includeDefaultShipyard = true)
+    private void SpawnPlayerBase(bool includeDefaultShipyard = true, Stance stationStance = Stance.Defensive)
     {
         if (_world == null) return;
 
-        _baseEntity = _world.CreateEntity();
         var (ccMesh, ccCount, ccScale) = ResolveBuildingMesh("command_center", 1);
         _baseEntity = _world.CreateEntity();
         _world.AddComponent(_baseEntity, new TransformComponent { Position = new Vector3(-30f, 0f, -30f), Scale = ccScale });
@@ -556,7 +613,7 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(_baseEntity, new EntityNameComponent { DisplayName = "Command Center", DefinitionId = "command_center" });
         RegisterExistingBuildingOccupancy(_baseEntity, new Vector3(-30f, 0f, -30f),
             _world.GetComponent<BuildingComponent>(_baseEntity)!);
-        AttachStationWeapons(_baseEntity,
+        AttachStationWeapons(_baseEntity, stationStance,
             ("beam", 45f, 480f, 1.2f),
             ("missile", 95f, 620f, 0.35f));
 
@@ -586,7 +643,7 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(shipyard, new EntityNameComponent { DisplayName = "Medium Shipyard", DefinitionId = "shipyard_medium" });
         RegisterExistingBuildingOccupancy(shipyard, new Vector3(50f, 0f, -50f),
             _world.GetComponent<BuildingComponent>(shipyard)!);
-        AttachStationWeapons(shipyard,
+        AttachStationWeapons(shipyard, stationStance,
             ("laser", 28f, 360f, 2.5f),
             ("cannon", 65f, 420f, 0.55f));
     }
@@ -639,6 +696,14 @@ public partial class EngineWindow : GameWindow
 
     private void CleanupGameplay()
     {
+        _isSandboxSession = false;
+        _sandboxChunkedMode = false;
+        _sandboxChunkGrid = null;
+        _gridSystem = null;
+        _fogOfWar = null;
+        _pathFollowingSystem = null;
+        _fogOfWarSystem = null;
+        _fogNebulaOverlay?.Clear();
         _world?.Dispose();
         _world = null;
         _movementSystem = null;
@@ -708,7 +773,7 @@ public partial class EngineWindow : GameWindow
         if (_demoRecordingMode && _demoRecorder != null && _frameCount >= 2)
             _demoRecorder.CaptureFrame(Size.X, Size.Y, _frameCount);
 
-        if ((_screenshotMode || _meshPreviewMode) && _frameCount >= 5)
+        if ((SandboxLaunchOptions.Enabled || _screenshotMode || _meshPreviewMode) && _frameCount >= 5)
         {
             CaptureScreenshot(_screenshotPath);
             Console.WriteLine($"Screenshot saved to: {_screenshotPath}");
@@ -731,13 +796,15 @@ public partial class EngineWindow : GameWindow
 
         UpdateGridMeshLod();
 
-        // Render grid (centered on origin for larger map)
-        float halfGrid = MapWorldSize * 0.5f;
-        var gridModel = Matrix4.CreateTranslation(-halfGrid, -0.5f, -halfGrid);
+        // Render grid aligned to active grid origin
+        Vector2 gridOrigin = _gridSystem!.Origin;
+        var gridModel = Matrix4.CreateTranslation(gridOrigin.X, -0.5f, gridOrigin.Y);
         GL.UniformMatrix4(_uniformModel, false, ref gridModel);
         GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
         GL.BindVertexArray(_gridVao);
         GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
+
+        RenderTerrainReadabilityOverlay();
 
         ResolveProjectileMeshes();
         ResolveArticulatedPartMeshes();
@@ -838,6 +905,8 @@ public partial class EngineWindow : GameWindow
 
         RenderAttackHoverRing();
         RenderShieldCombatRings();
+        RenderShieldRegenShimmerRings();
+        RenderCombatRingOverlays();
         RenderMiningVfx();
         RenderEngineTrailParticles();
         RenderExplosionVfx();
@@ -911,6 +980,7 @@ public partial class EngineWindow : GameWindow
                 UpdateDemoRecording(dt);
             else
                 UpdateCameraControls(dt);
+            UpdateSandboxChunks();
             _attackHoverPulse += dt;
             _shieldRingPulse += dt;
 
@@ -921,12 +991,15 @@ public partial class EngineWindow : GameWindow
             _world.Update(dt);
             StationRotationSystem.UpdateStationRotations(_world, dt);
             UpdateExplosionVfx(dt);
+            UpdateCombatRingOverlays(dt);
+            UpdateFogNebulaOverlay(dt);
 
             // Tick economy (issue #4: resources on HUD)
             _resourceManager?.Tick(dt);
             BindResourceHUD();
             BindBuildPanel();
             BindBuildMapPanel();
+            TickPlacementHintFlash(dt);
             UpdatePlacementPreview();
             BindUnitInfoPanelExtended();
             BindObjectivePanel();
@@ -985,7 +1058,13 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
         if (_sceneManager.State == GameState.Playing)
-            _rtsCamera.Zoom(e.OffsetY);
+        {
+            EnsurePersistence();
+            var settings = _settingsManager!.Current.Clamped();
+            _rtsCamera.ZoomSpeedMultiplier = settings.CameraZoomSpeed;
+            _rtsCamera.ZoomTowardScreenPoint(e.OffsetY, UiMousePosition, UiViewportSize);
+            ClampCameraTarget();
+        }
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
@@ -1018,7 +1097,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 {
                     if (commandPos == null) return;
                     if (HandlePlaceBuilding(commandPos.Value))
-                        CancelPlacementMode();
+                        CancelPlacementMode(keepSuccessToast: true);
                 }
                 else if (_harvestCommandMode)
                 {
@@ -1197,6 +1276,16 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         }
     }
 
+    protected override void OnTextInput(TextInputEventArgs e)
+    {
+        base.OnTextInput(e);
+
+        if (string.IsNullOrEmpty(e.AsString))
+            return;
+
+        _uiManager.HandleChar(e.AsString[0]);
+    }
+
     private void HandleMoveCommand(Vector3 worldPos, bool appendWaypoint = false)
     {
         if (_world == null) return;
@@ -1319,9 +1408,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         Entity? depositTarget = FindNearestBase(minerEntity);
         collector.DepositTarget = depositTarget ?? _heroEntity;
 
-        var nodeTransform = _world.GetComponent<TransformComponent>(nodeEntity);
-        if (nodeTransform != null)
-            RouteCommands.AssignDestination(_world, minerEntity, nodeTransform.Position);
+        RouteCommands.ClearRoute(_world, minerEntity);
+        collector.OrbitAngle = HarvestOrbitHelper.AssignOrbitAngle(minerEntity, nodeEntity);
     }
 
     /// <summary>Find the nearest base/building entity for resource deposit.</summary>
@@ -1491,6 +1579,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             else
                 _world.AddComponent(entity, new StanceComponent { CurrentStance = stance });
         }
+
+        BindShipControlBar();
     }
 
     /// <summary>Activate hero ability at given slot index.</summary>
@@ -1596,6 +1686,34 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     }
 
     /// <summary>
+    /// Called when the player cancels a queued production item from the BuildPanel.
+    /// </summary>
+    private void OnBuildPanelQueueCancelRequested(int queueIndex)
+    {
+        if (_world == null || _resourceManager == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null || building.Producible.Count == 0) continue;
+
+            if (BuildingProductionQueue.TryCancelAtIndex(
+                    building,
+                    queueIndex,
+                    defId => _definitions.GetValueOrDefault(defId),
+                    _resourceManager,
+                    _supplySystem,
+                    building.PlayerId))
+            {
+                Console.WriteLine($"[Build] Cancelled queue item #{queueIndex} at {building.BuildingType}");
+            }
+
+            return;
+        }
+    }
+
+    /// <summary>
     /// Queue the first producible item from any selected building.
     /// Deducts resources immediately via ResourceManager.
     /// </summary>
@@ -1691,6 +1809,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             _gridSystem == null || _buildMapCatalog == null)
             return false;
 
+        worldPos = BuildingFootprint.SnapToCellCenter(_gridSystem, worldPos);
+
         if (!_definitions.TryGetValue(buildingId, out var def))
         {
             def = _assetManager?.Load<EntityDefinition>($"Bases/{buildingId}");
@@ -1709,7 +1829,9 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             _buildMapCatalog, _resourceManager, _supplySystem);
         if (!validation.IsValid)
         {
+            string message = validation.Reason.ToPlayerMessage();
             Console.WriteLine($"[Place] Invalid location for {def.DisplayName}: {validation.Reason}");
+            FlashPlacementFailure(message);
             return false;
         }
 
@@ -1718,6 +1840,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             if (!IsBuilderInPlacementRange(builderEntity, worldPos, out string rangeReason))
             {
                 Console.WriteLine($"[Place] Invalid location for {def.DisplayName}: {rangeReason}");
+                FlashPlacementFailure(rangeReason);
                 return false;
             }
         }
@@ -1729,6 +1852,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         if (!_resourceManager.TrySpendCost(1, energy, minerals, data, crew))
         {
             Console.WriteLine($"[Place] Cannot afford {def.DisplayName}");
+            FlashPlacementFailure(PlacementFailureReason.CannotAfford.ToPlayerMessage());
             return false;
         }
 
@@ -1820,6 +1944,12 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         if (_placementBuilderEntity is Entity placedBuilder)
             RouteCommands.ClearRoute(_world, placedBuilder);
 
+        if (_uiManager.Current is GameplayHUD placementHud)
+            placementHud.DismissBuildFlowHint();
+
+        string displayName = string.IsNullOrWhiteSpace(def.DisplayName) ? buildingId : def.DisplayName;
+        FlashPlacementSuccess(PlacementFailureReasonExtensions.BuildPlacedMessage(displayName));
+
         string placeStatus = def.BuildTime > 0f ? "Started construction of" : "Built";
         Console.WriteLine($"[Place] {placeStatus} {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
         return true;
@@ -1879,6 +2009,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             hud.BuildPanel.SupplyText = $"{used} / {cap}";
         }
 
+        var queuedDefIds = new HashSet<string>(selectedBuilding.BuildQueue, StringComparer.OrdinalIgnoreCase);
+
         // Available items
         var items = new List<BuildableItem>();
         foreach (string defId in selectedBuilding.Producible)
@@ -1902,6 +2034,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 CrewCost = def.Cost?.Crew ?? 0,
                 BuildTime = def.BuildTime,
                 CanAfford = canAfford,
+                IsQueued = queuedDefIds.Contains(def.Id),
+                Role = ShipRoleResolver.Resolve(def),
             });
         }
         hud.BuildPanel.AvailableItems = items;
@@ -1911,15 +2045,38 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         int qIdx = 0;
         foreach (string qItem in selectedBuilding.BuildQueue)
         {
+            bool isCurrent = qIdx == 0;
             float progress = 0f;
-            if (qIdx == 0 && selectedBuilding.BuildProgress > 0)
+            QueuedState state = QueuedState.Queued;
+
+            float totalTime = 0f;
+            float remainingSeconds = 0f;
+            if (isCurrent)
             {
+                state = QueuedState.Building;
                 var qDef = _definitions.GetValueOrDefault(qItem);
-                float totalTime = qDef?.BuildTime ?? 1f;
-                progress = selectedBuilding.BuildProgress / totalTime;
+                totalTime = qDef?.BuildTime ?? 1f;
+                progress = totalTime > 0f
+                    ? Math.Clamp(selectedBuilding.BuildProgress / totalTime, 0f, 1f)
+                    : 0f;
+                if (totalTime > 0f && selectedBuilding.ProductionRate > 0f)
+                {
+                    float remainingProgress = MathF.Max(0f, totalTime - selectedBuilding.BuildProgress);
+                    remainingSeconds = remainingProgress / selectedBuilding.ProductionRate;
+                }
             }
+
             string name = _definitions.TryGetValue(qItem, out var d) ? d.DisplayName : qItem;
-            queueItems.Add(new QueuedItem { Name = name, Progress = progress });
+            queueItems.Add(new QueuedItem
+            {
+                Name = name,
+                Progress = progress,
+                IsCurrent = isCurrent,
+                QueueIndex = qIdx + 1,
+                State = state,
+                TotalBuildTime = totalTime,
+                RemainingSeconds = remainingSeconds,
+            });
             qIdx++;
         }
         hud.BuildPanel.Queue = queueItems;

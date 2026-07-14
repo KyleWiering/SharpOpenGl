@@ -2,6 +2,7 @@
   "id": "support_repair",
   "displayName": "Restoration Tender",
   "category": "support",
+  "shipRole": "engineering",
   "mesh": "meshes/support_repair.obj",
   "fallbackMesh": "default",
   "components": {
@@ -13,22 +14,11 @@
     "structureBuilder": {
       "placementRange": 80,
       "buildableIds": [
-        "command_center",
-        "shipyard_small",
-        "shipyard_medium",
-        "shipyard_large",
         "power_reactor",
         "resource_refinery",
         "supply_depot",
-        "fabrication_hub",
         "sensor_array",
-        "defense_turret",
-        "shield_emitter",
-        "missile_battery",
-        "repair_bay",
-        "comms_relay",
-        "orbital_uplink",
-        "fortress_core"
+        "defense_turret"
       ]
     },
     "shipRepair": {

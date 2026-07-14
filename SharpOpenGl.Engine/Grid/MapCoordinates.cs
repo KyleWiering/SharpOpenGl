@@ -14,6 +14,22 @@ public static class MapCoordinates
     /// <summary>Default world-space size of one grid cell.</summary>
     public const float DefaultCellSize = 10f;
 
+    /// <summary>Resolve grid extent from map metadata (max of width/height).</summary>
+    public static int ResolveGridExtent(MapDefinition map)
+    {
+        if (map.GridSize is { Length: >= 2 })
+            return Math.Max(map.GridSize[0], map.GridSize[1]);
+
+        if (map.GridSize is { Length: 1 })
+            return map.GridSize[0];
+
+        return DefaultGridExtent;
+    }
+
+    /// <summary>Resolve cell size from map metadata, falling back to default.</summary>
+    public static float ResolveCellSize(MapDefinition map) =>
+        map.CellSize > 0 ? map.CellSize : DefaultCellSize;
+
     /// <summary>
     /// Convert a grid cell index to the world-space centre of that cell on the XZ plane.
     /// </summary>

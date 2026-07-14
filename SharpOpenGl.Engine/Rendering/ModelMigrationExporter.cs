@@ -20,6 +20,19 @@ public static class ModelMigrationExporter
         return mesh.Length > 0;
     }
 
+    public static bool ExportStation(string gameDataRoot, string raceId, string buildingId)
+    {
+        RaceVisualSchema.ResetForTests();
+        RaceVisualSchema.Load();
+
+        string rel = $"Stations/{raceId}/{buildingId}.obj";
+        string fullPath = Path.Combine(gameDataRoot, "Meshes", rel.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(fullPath)!);
+        float[] mesh = RaceStationMeshes.Build(buildingId, raceId);
+        ProceduralMeshExporter.WriteObj(mesh, fullPath, buildingId);
+        return mesh.Length > 0;
+    }
+
     public static ExportResult ExportAll(string gameDataRoot)
     {
         RaceVisualSchema.ResetForTests();

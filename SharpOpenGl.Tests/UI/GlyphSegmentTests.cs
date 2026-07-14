@@ -14,6 +14,7 @@ public class GlyphSegmentTests
     [InlineData('6', '8')]
     [InlineData('S', '5')]
     [InlineData('I', '1')]
+    [InlineData('I', 'L')]
     public void Priority_pairs_have_distinct_segment_signatures(char left, char right)
     {
         Assert.NotEqual(UIFontGlyphSegments.GetSignature(left), UIFontGlyphSegments.GetSignature(right));

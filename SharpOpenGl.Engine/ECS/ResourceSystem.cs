@@ -66,7 +66,7 @@ public sealed class ResourceSystem : GameSystem
                     break;
 
                 case CollectorState.Depositing:
-                    HandleDepositing(world, collector);
+                    HandleDepositing(world, entity, collector);
                     break;
             }
         }
@@ -99,6 +99,7 @@ public sealed class ResourceSystem : GameSystem
         collector.State = CollectorState.Collecting;
         collector.CarryType = node.ResourceType;
         collector.TractorPulseTimer = 0f;
+        EnsureHarvestBeamVisual(world, entity, collector);
         node.AssignedCollectors++;
     }
 
@@ -108,6 +109,7 @@ public sealed class ResourceSystem : GameSystem
         if (!world.IsAlive(collector.AssignedNode))
         {
             collector.State = CollectorState.Returning;
+            ClearHarvestBeamVisual(world, entity);
             return;
         }
 
@@ -116,6 +118,7 @@ public sealed class ResourceSystem : GameSystem
         {
             if (node != null) node.AssignedCollectors = Math.Max(0, node.AssignedCollectors - 1);
             collector.State = CollectorState.Returning;
+            ClearHarvestBeamVisual(world, entity);
             return;
         }
 
@@ -123,8 +126,12 @@ public sealed class ResourceSystem : GameSystem
         {
             node.AssignedCollectors = Math.Max(0, node.AssignedCollectors - 1);
             collector.State = CollectorState.MovingToNode;
+            ClearHarvestBeamVisual(world, entity);
             return;
         }
+
+        EnsureHarvestBeamVisual(world, entity, collector);
+        TickHarvestBeamPulse(world, entity, deltaTime);
 
         // Drone mode: cargo increments when drones return (handled by MiningVisualSystem).
         if (collector.HarvestMode == HarvestMode.Drones)
@@ -134,6 +141,7 @@ public sealed class ResourceSystem : GameSystem
                 if (!node.IsDepleted)
                     node.AssignedCollectors = Math.Max(0, node.AssignedCollectors - 1);
                 collector.State = CollectorState.Returning;
+                ClearHarvestBeamVisual(world, entity);
             }
             return;
         }
@@ -168,6 +176,7 @@ public sealed class ResourceSystem : GameSystem
             if (!node.IsDepleted)
                 node.AssignedCollectors = Math.Max(0, node.AssignedCollectors - 1);
             collector.State = CollectorState.Returning;
+            ClearHarvestBeamVisual(world, entity);
         }
     }
 
@@ -176,7 +185,7 @@ public sealed class ResourceSystem : GameSystem
     {
         if (collector.CarryAmount <= 0f)
         {
-            TryReturnToNode(world, collector);
+            TryReturnToNode(world, entity, collector);
             return;
         }
 
@@ -195,7 +204,7 @@ public sealed class ResourceSystem : GameSystem
         collector.State = CollectorState.Depositing;
     }
 
-    private void HandleDepositing(World world, ResourceCollectorComponent collector)
+    private void HandleDepositing(World world, Entity entity, ResourceCollectorComponent collector)
     {
         if (collector.CarryAmount > 0f && collector.CarryType.HasValue)
         {
@@ -203,12 +212,13 @@ public sealed class ResourceSystem : GameSystem
             collector.CarryAmount = 0f;
         }
 
-        TryReturnToNode(world, collector);
+        TryReturnToNode(world, entity, collector);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static void TryReturnToNode(World world, ResourceCollectorComponent collector)
+    private static void TryReturnToNode(
+        World world, Entity collectorEntity, ResourceCollectorComponent collector)
     {
         if (world.IsAlive(collector.AssignedNode))
         {
@@ -217,13 +227,49 @@ public sealed class ResourceSystem : GameSystem
             {
                 collector.State = CollectorState.MovingToNode;
                 collector.TractorPulseTimer = 0f;
+                ClearHarvestBeamVisual(world, collectorEntity);
                 return;
             }
         }
 
         collector.State = CollectorState.Idle;
         collector.AssignedNode = Entity.Null;
+        ClearHarvestBeamVisual(world, collectorEntity);
     }
+
+    private static void EnsureHarvestBeamVisual(
+        World world, Entity collectorEntity, ResourceCollectorComponent collector)
+    {
+        if (!world.IsAlive(collector.AssignedNode))
+        {
+            ClearHarvestBeamVisual(world, collectorEntity);
+            return;
+        }
+
+        if (!world.HasComponent<HarvestBeamVisualComponent>(collectorEntity))
+        {
+            world.AddComponent(collectorEntity, new HarvestBeamVisualComponent
+            {
+                NodeEntity = collector.AssignedNode,
+                Mode = collector.HarvestMode,
+            });
+            return;
+        }
+
+        var beam = world.GetComponent<HarvestBeamVisualComponent>(collectorEntity)!;
+        beam.NodeEntity = collector.AssignedNode;
+        beam.Mode = collector.HarvestMode;
+    }
+
+    private static void TickHarvestBeamPulse(World world, Entity collectorEntity, float deltaTime)
+    {
+        var beam = world.GetComponent<HarvestBeamVisualComponent>(collectorEntity);
+        if (beam != null)
+            beam.PulsePhase += deltaTime * 4f;
+    }
+
+    private static void ClearHarvestBeamVisual(World world, Entity collectorEntity) =>
+        world.RemoveComponent<HarvestBeamVisualComponent>(collectorEntity);
 
     private static void EnsureCollectorPathTarget(World world, Entity entity, Entity target)
     {
@@ -232,6 +278,16 @@ public sealed class ResourceSystem : GameSystem
         var movement = world.GetComponent<MovementComponent>(entity);
         var targetTransform = world.GetComponent<TransformComponent>(target);
         if (movement == null || targetTransform == null) return;
+
+        if (world.HasComponent<ResourceNodeComponent>(target))
+        {
+            var collector = world.GetComponent<ResourceCollectorComponent>(entity);
+            if (collector != null)
+            {
+                HarvestOrbitHelper.ApplyApproachPath(world, entity, collector, target);
+                return;
+            }
+        }
 
         movement.PathTarget = targetTransform.Position;
     }

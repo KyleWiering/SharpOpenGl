@@ -14,6 +14,8 @@ public class UIFontMetricsTests
     }
 
     [Theory]
+    [InlineData(8f, 1.5f)]
+    [InlineData(9f, 1.5f)]
     [InlineData(12f, 1.5f)]
     [InlineData(16f, 1.5f)]
     public void GetLineThickness_clamps_to_minimum(float fontSize, float minimum)

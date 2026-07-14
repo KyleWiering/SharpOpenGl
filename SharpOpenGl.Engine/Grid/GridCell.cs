@@ -66,12 +66,14 @@ public sealed class GridCell
     /// </summary>
     public float MovementCost => Terrain switch
     {
-        TerrainType.Space       => 1.0f,
-        TerrainType.Nebula      => 2.0f,
-        TerrainType.Debris      => 1.5f,
-        TerrainType.AsteroidField => 3.0f,
-        TerrainType.Impassable  => float.MaxValue,
-        _                       => 1.0f,
+        TerrainType.Space           => 1.0f,
+        TerrainType.Nebula          => 2.0f,
+        TerrainType.Debris          => 1.5f,
+        TerrainType.AsteroidField   => 3.0f,
+        TerrainType.IonStorm        => 2.5f,
+        TerrainType.WormholeRemnant => 2.0f,
+        TerrainType.Impassable      => float.MaxValue,
+        _                           => 1.0f,
     };
 
     /// <summary>Returns <c>true</c> if units may enter this cell.</summary>

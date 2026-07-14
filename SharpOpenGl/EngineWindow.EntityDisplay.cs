@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
+using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
@@ -134,8 +135,10 @@ public partial class EngineWindow
             var info = UnitInfo.FromHealth(name, health, kind, raceId);
             var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
             string harvestLabel = collector != null
-                ? HarvestModeDefaults.ToLabel(collector.HarvestMode)
+                ? $"{HarvestModeDefaults.ToLabel(collector.HarvestMode)} — {FormatCollectorState(collector.State)}"
                 : string.Empty;
+            ShipRole? role = TryResolveShipRole(entity);
+            var hpPulse = _world.GetComponent<HpBarPulseComponent>(entity);
             return new UnitInfo
             {
                 Name = info.Name,
@@ -147,7 +150,9 @@ public partial class EngineWindow
                 MaxShields = info.MaxShields,
                 Armor = info.Armor,
                 DisplayKind = info.DisplayKind,
+                Role = role,
                 ShieldBarColor = info.ShieldBarColor,
+                HpBarPulse = hpPulse?.Intensity ?? 0f,
                 Subtitle = subtitle,
                 HarvestMode = harvestLabel,
                 CargoAmount = collector?.CarryAmount ?? 0f,
@@ -187,4 +192,24 @@ public partial class EngineWindow
 
         hud.UnitInfoPanel.SelectedUnits = unitInfos;
     }
+
+    private ShipRole? TryResolveShipRole(Entity entity)
+    {
+        if (_world == null) return null;
+
+        var named = _world.GetComponent<EntityNameComponent>(entity);
+        if (named == null || string.IsNullOrWhiteSpace(named.DefinitionId)) return null;
+        if (!_definitions.TryGetValue(named.DefinitionId, out var def)) return null;
+
+        return ShipRoleResolver.Resolve(def);
+    }
+
+    private static string FormatCollectorState(CollectorState state) => state switch
+    {
+        CollectorState.MovingToNode => "en route",
+        CollectorState.Collecting => "harvesting",
+        CollectorState.Returning => "returning",
+        CollectorState.Depositing => "depositing",
+        _ => "idle",
+    };
 }

@@ -54,6 +54,67 @@ public class ScrollPanelTests
     }
 
     [Fact]
+    public void ScrollPanel_briefing_pattern_recalculates_after_children_added()
+    {
+        var panel = new ScrollPanel
+        {
+            Size = new Vector2(1728f, 428f),
+            ContentPadding = 4f,
+        };
+
+        float y = 0f;
+        for (int i = 0; i < 5; i++)
+        {
+            float height = 200f;
+            panel.AddChild(new Label
+            {
+                Position = new Vector2(0f, y),
+                Size = new Vector2(1728f, height),
+                Text = $"Briefing paragraph {i}",
+                FontSize = 20f,
+                WrapWidth = 1700f,
+            });
+            y += height;
+        }
+
+        panel.RecalculateContentHeight(panel.Size);
+
+        Assert.True(panel.ContentHeight > panel.Size.Y);
+        Assert.True(panel.MaxScrollOffset(panel.Size) > 0f);
+    }
+
+    [Fact]
+    public void ScrollPanel_mission_preview_resets_offset_on_content_shrink()
+    {
+        var panel = new ScrollPanel
+        {
+            Size = new Vector2(300f, 200f),
+        };
+        panel.AddChild(new Button
+        {
+            Position = new Vector2(0f, 0f),
+            Size = new Vector2(280f, 48f),
+        });
+        panel.AddChild(new Button
+        {
+            Position = new Vector2(0f, 400f),
+            Size = new Vector2(280f, 48f),
+        });
+
+        panel.RecalculateContentHeight(panel.Size);
+        panel.ScrollBy(1000f, panel.Size);
+        Assert.True(panel.ScrollOffsetY > 0f);
+
+        while (panel.Children.Count > 0)
+            panel.RemoveChild(panel.Children[0]);
+
+        panel.RecalculateContentHeight(panel.Size);
+
+        Assert.Equal(0f, panel.ScrollOffsetY);
+        Assert.Equal(0f, panel.MaxScrollOffset(panel.Size));
+    }
+
+    [Fact]
     public void Label_MaxLines_limits_rendered_line_count()
     {
         var inner = new RecordingRenderer();

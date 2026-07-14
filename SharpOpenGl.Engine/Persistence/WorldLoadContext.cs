@@ -16,6 +16,11 @@ public sealed class WorldLoadContext
     public MissionState? MissionState { get; init; }
     public required GridSystem GridSystem { get; init; }
     public required FogOfWar FogOfWar { get; init; }
+
+    /// <summary>
+    /// 0-based fog player index for minimap/HUD display after load.
+    /// Fog restore applies every saved player layer; this does not limit restoration.
+    /// </summary>
     public required int FogPlayerId { get; init; }
     public required UnitFactory UnitFactory { get; init; }
     public required Func<string, EntityDefinition?> ResolveDefinition { get; init; }

@@ -73,6 +73,13 @@ public class ModelQualityScorerTests
         if (!File.Exists(scorePath))
             return;
 
+        bool allScoresPresent = FleetGalleryLayout.AllShipIds
+                .Concat(FleetGalleryLayout.AllBaseIds)
+                .All(modelId => File.Exists(Path.Combine(
+                    repo, "model-improvement", "vesper", modelId, "scores", "loop-01.json")));
+        if (!allScoresPresent)
+            return;
+
         var fromFiles = ModelQualityScorer.AggregateRaceFromScoreDirectory("vesper", repo);
         var fighter = fromFiles.Assets.First(a => a.ModelId == "fighter_basic");
         var loopReport = ModelQualityScorer.ModelQualityReport.FromJson(File.ReadAllText(scorePath));

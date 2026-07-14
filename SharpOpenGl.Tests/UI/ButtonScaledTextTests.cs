@@ -69,7 +69,7 @@ public class ButtonScaledTextTests
             showFormation: false);
 
         var (barPos, barSize) = bar.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
-        var patrolButton = (Button)bar.Children[2];
+        var patrolButton = Assert.IsType<IconButton>(bar.Children[2]);
         var (btnPos, btnSize) = patrolButton.Resolve(barPos, barSize);
         var center = btnPos + btnSize * 0.5f;
 

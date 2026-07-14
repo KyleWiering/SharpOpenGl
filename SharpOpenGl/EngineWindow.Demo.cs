@@ -97,6 +97,8 @@ public partial class EngineWindow
                 : (world, entities, target, append) =>
                     _squadSystem.AssignMoveRoutes(world, entities.ToList(), target, append),
             PlaceBuilding = (buildingId, worldPos) => TryPlaceBuildingAt(buildingId, worldPos),
+            Grid = _gridSystem,
+            Fog = _fogOfWar,
         };
 
         _playthroughAgent = new MissionPlaythroughAgent(

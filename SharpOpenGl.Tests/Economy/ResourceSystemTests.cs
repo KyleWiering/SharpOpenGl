@@ -1,10 +1,13 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
+using SharpOpenGl.Tests.Config;
 using Xunit;
 
 namespace SharpOpenGl.Tests.Economy;
 
+[Collection("MovementBalance")]
 public class ResourceSystemTests
 {
     // ── Helpers ──────────────────────────────────────────────────────────────
@@ -65,6 +68,50 @@ public class ResourceSystemTests
         Entity e = world.CreateEntity();
         if (pos.HasValue)
             world.AddComponent(e, new TransformComponent { Position = pos.Value });
+        return e;
+    }
+
+    private static (World, ResourceManager, ResourceSystem) MakeOrbitSetup(int playerId = 1)
+    {
+        MovementBalance.ResetForTests();
+        MovementBalance.Apply(new MovementConfig
+        {
+            GlobalSpeedMultiplier = 1f,
+            GlobalAccelerationMultiplier = 1f,
+        });
+
+        var rm = new ResourceManager();
+        rm.AddPlayer(playerId);
+        var system = new ResourceSystem(rm);
+        var world = new World();
+        world.AddSystem(new HarvestOrbitSystem());
+        world.AddSystem(new MovementSystem());
+        world.AddSystem(system);
+        return (world, rm, system);
+    }
+
+    private static Entity MakeOrbitingCollector(
+        World world,
+        int playerId,
+        Entity node,
+        Entity depot,
+        Vector3 pos,
+        HarvestMode harvestMode,
+        float capacity = 50f,
+        float harvestRate = 20f,
+        CollectorState state = CollectorState.MovingToNode)
+    {
+        Entity e = MakeCollector(world, playerId, node, depot, capacity: capacity,
+            state: state, pos: pos, harvestRate: harvestRate,
+            harvestMode: harvestMode);
+        world.AddComponent(e, new MovementComponent
+        {
+            Speed = 45f,
+            Acceleration = 90f,
+            TurnRate = 180f,
+        });
+        var collector = world.GetComponent<ResourceCollectorComponent>(e)!;
+        collector.OrbitAngle = HarvestOrbitHelper.AssignOrbitAngle(e, node);
         return e;
     }
 
@@ -267,6 +314,68 @@ public class ResourceSystemTests
         world.Update(0f); // Depositing → player pool.
         Assert.True(rm.GetPlayer(1)!.GetAmount(ResourceType.Minerals) > 0f);
         Assert.Equal(0f, cComp.CarryAmount);
+    }
+
+    [Fact]
+    public void Collecting_extracts_resources_while_orbiting()
+    {
+        var (world, rm, _) = MakeOrbitSetup();
+        Entity node = MakeNode(world, ResourceType.Minerals, 200f, harvestRate: 40f,
+            pos: Vector3.Zero);
+        Entity depot = MakeDepot(world, new Vector3(150f, 0f, 0f));
+        Entity collector = MakeOrbitingCollector(world, 1, node, depot,
+            new Vector3(29f, 0f, 0f), HarvestMode.Eva, capacity: 30f, harvestRate: 5f,
+            state: CollectorState.Collecting);
+        var cComp = world.GetComponent<ResourceCollectorComponent>(collector)!;
+        var nodeComp = world.GetComponent<ResourceNodeComponent>(node)!;
+        nodeComp.AssignedCollectors = 1;
+        float orbitRadius = HarvestOrbitHelper.OrbitRadiusFor(cComp, world, node);
+
+        for (int i = 0; i < 120; i++)
+            world.Update(1f / 60f);
+
+        var tf = world.GetComponent<TransformComponent>(collector)!;
+        float distance = PathRouteHelper.HorizontalDistance(tf.Position, Vector3.Zero);
+
+        Assert.Equal(CollectorState.Collecting, cComp.State);
+        Assert.True(cComp.CarryAmount > 0f);
+        Assert.True(nodeComp.Amount < 200f);
+        Assert.InRange(distance, orbitRadius * 0.9f, cComp.HarvestRange);
+
+        cComp.State = CollectorState.Returning;
+        cComp.CarryAmount = 25f;
+        cComp.CarryType = ResourceType.Minerals;
+        var depotTf = world.GetComponent<TransformComponent>(depot)!;
+        tf.Position = depotTf.Position;
+
+        world.Update(0f);
+        Assert.Equal(CollectorState.Depositing, cComp.State);
+
+        world.Update(0f);
+        Assert.Equal(25f, rm.GetPlayer(1)!.GetAmount(ResourceType.Minerals));
+    }
+
+    [Fact]
+    public void Tractor_miner_orbits_at_extended_range()
+    {
+        var (world, _, _) = MakeOrbitSetup();
+        Entity node = MakeNode(world, ResourceType.Minerals, 500f, pos: Vector3.Zero);
+        Entity depot = MakeDepot(world, new Vector3(200f, 0f, 0f));
+        Entity collector = MakeOrbitingCollector(world, 1, node, depot,
+            new Vector3(48f, 0f, 0f), HarvestMode.TractorBeam, harvestRate: 5f);
+
+        for (int i = 0; i < 120; i++)
+            world.Update(1f / 60f);
+
+        var cComp = world.GetComponent<ResourceCollectorComponent>(collector)!;
+        var tf = world.GetComponent<TransformComponent>(collector)!;
+        float orbitRadius = HarvestOrbitHelper.OrbitRadiusFor(cComp, world, node);
+        float distance = PathRouteHelper.HorizontalDistance(tf.Position, Vector3.Zero);
+
+        Assert.Equal(55f, cComp.HarvestRange);
+        Assert.Equal(CollectorState.Collecting, cComp.State);
+        Assert.InRange(distance, orbitRadius * 0.9f, cComp.HarvestRange);
+        Assert.InRange(orbitRadius, 46f, 47f);
     }
 
     [Fact]

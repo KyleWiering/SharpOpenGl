@@ -1,8 +1,13 @@
+using System.Text.Json;
+using Microsoft.JSInterop;
 using OpenTK.Mathematics;
 using SharpOpenGl.Browser.Assets;
 using SharpOpenGl.Browser.Rendering;
 using SharpOpenGl.Engine.Assets;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Input;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Missions;
@@ -37,8 +42,13 @@ public sealed class BrowserGameHost : IDisposable
     private readonly MissionLoader _missionLoader;
     private readonly MissionController _missionController;
     private readonly CampaignProgressManager _campaignProgress = new();
+    private readonly SettingsManager _settingsManager = new();
+    private readonly SaveManager _saveManager = SaveManager.CreateInMemory();
 
     private readonly CombatFogGate _combatFogGate = new();
+    private readonly TouchInput _touchInput = new();
+    private readonly Dictionary<int, TouchPoint> _touchState = new();
+    private readonly List<TouchPoint> _touchFrame = new();
 
     private World? _world;
     private ResourceManager? _resourceManager;
@@ -110,11 +120,16 @@ public sealed class BrowserGameHost : IDisposable
         _uiManager.Resize(new Vector2(width, height));
         _uiRenderer.Resize(width, height);
         _glRenderer.Resize(width, height);
+
+        if (_uiManager.Current is GameplayHUD hud)
+            hud.ConfigureTouchLayout(AdaptiveLayout.Detect(new Vector2(width, height)));
     }
 
     public void OnFrame(float deltaTime)
     {
         if (!_initialized) return;
+
+        UpdateTouchInput(deltaTime);
 
         _sceneManager.Update(deltaTime);
 
@@ -131,7 +146,10 @@ public sealed class BrowserGameHost : IDisposable
         }
 
         if (_uiManager.Current is GameplayHUD activeHud)
+        {
             BindResourceHud(activeHud);
+            MissionHudBinder.BindObjectivePanel(activeHud, _missionController.CurrentMission);
+        }
 
         _uiRenderer.Begin();
         _uiManager.Draw(_uiRenderer);
@@ -158,13 +176,100 @@ public sealed class BrowserGameHost : IDisposable
         if (_sceneManager.State != GameState.Playing || IsMissionResultOverlayActive()) return;
 
         float pan = 1f;
+        float dt = 1f / 60f;
         var cam = _gameplayRenderer.Camera;
         switch (key.ToUpperInvariant())
         {
-            case "W": case "ARROWUP": cam.Pan(0, -pan, 1f / 60f); break;
-            case "S": case "ARROWDOWN": cam.Pan(0, pan, 1f / 60f); break;
-            case "A": case "ARROWLEFT": cam.Pan(-pan, 0, 1f / 60f); break;
-            case "D": case "ARROWRIGHT": cam.Pan(pan, 0, 1f / 60f); break;
+            case "W": case "ARROWUP": cam.Pan(0, -pan, dt); break;
+            case "S": case "ARROWDOWN": cam.Pan(0, pan, dt); break;
+            case "A": case "ARROWLEFT": cam.Pan(-pan, 0, dt); break;
+            case "D": case "ARROWRIGHT": cam.Pan(pan, 0, dt); break;
+            case "Q": cam.Pan(-pan, 0, dt); break;
+            case "E": cam.Pan(pan, 0, dt); break;
+            case "Z": cam.AdjustHeight(1f, dt); break;
+            case "X": cam.AdjustHeight(-1f, dt); break;
+        }
+    }
+
+    [JSInvokable]
+    public void OnResize(int width, int height) => Resize(width, height);
+
+    [JSInvokable]
+    public void OnTouchPoints(string json)
+    {
+        _touchFrame.Clear();
+        if (string.IsNullOrWhiteSpace(json)) return;
+
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            foreach (var element in doc.RootElement.EnumerateArray())
+            {
+                int id = element.GetProperty("id").GetInt32();
+                float x = element.GetProperty("x").GetSingle();
+                float y = element.GetProperty("y").GetSingle();
+                bool isActive = element.GetProperty("isActive").GetBoolean();
+
+                if (!_touchState.TryGetValue(id, out TouchPoint? point))
+                {
+                    point = new TouchPoint
+                    {
+                        Id = id,
+                        StartPosition = new Vector2(x, y),
+                    };
+                    _touchState[id] = point;
+                }
+
+                point.WasActive = point.IsActive;
+                point.Position = new Vector2(x, y);
+                point.IsActive = isActive;
+                point.ContactDuration += isActive ? 0f : 0f;
+                _touchFrame.Add(point);
+
+                if (!isActive)
+                    _touchState.Remove(id);
+            }
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"[Touch] Parse error: {ex.Message}");
+        }
+    }
+
+    private void UpdateTouchInput(float dt)
+    {
+        if (_touchFrame.Count == 0) return;
+
+        _touchInput.SetTouchPoints(_touchFrame);
+        _touchInput.Update(dt);
+
+        var viewport = new Vector2(_viewportWidth, _viewportHeight);
+
+        if (_touchInput.IsActionPressed(InputAction.Select))
+            _uiManager.HandlePointerTapped(_touchInput.PointerPosition, 0, viewport);
+
+        if (_sceneManager.State != GameState.Playing || IsMissionResultOverlayActive())
+            return;
+
+        var cam = _gameplayRenderer.Camera;
+        var panH = _touchInput.GetAxis("MoveHorizontal");
+        var panV = _touchInput.GetAxis("MoveVertical");
+        cam.Pan(panH.X, panV.Y, dt);
+
+        float pinch = _touchInput.GetAxis("PinchZoom").X;
+        if (MathF.Abs(pinch) > 0.001f)
+            cam.Zoom(pinch * 12f);
+
+        if (_uiManager.Current is GameplayHUD hud)
+        {
+            hud.UpdateTouchJoystick(_touchFrame);
+            Vector2 joy = hud.ReadCameraJoystickAxis();
+            if (joy.LengthSquared > 0.01f)
+            {
+                float panBoost = 2.1f * _settingsManager.Current.Clamped().CameraPanSpeed;
+                cam.PanSpeedMultiplier = panBoost;
+                cam.Pan(joy.X, joy.Y, dt);
+            }
         }
     }
 
@@ -176,7 +281,7 @@ public sealed class BrowserGameHost : IDisposable
         menu.MultiplayerRequested += () => StartGameplay(null);
         menu.ContinueRequested += () => StartGameplay(null);
         menu.ShipDesignerRequested += () => { };
-        menu.SettingsRequested += () => { };
+        menu.SettingsRequested += ShowSettings;
         menu.QuitRequested += () => { };
         _uiManager.Push(menu);
     }
@@ -188,6 +293,13 @@ public sealed class BrowserGameHost : IDisposable
         missionSelect.MissionStartRequested += ShowMissionBriefing;
         missionSelect.BackRequested += () => _uiManager.Pop();
         _uiManager.Push(missionSelect);
+    }
+
+    internal void ShowSettings()
+    {
+        var settings = new SettingsScreen(_settingsManager);
+        settings.BackRequested += () => _uiManager.Pop();
+        _uiManager.Push(settings);
     }
 
     internal void ShowMissionBriefing(string missionId)
@@ -224,16 +336,22 @@ public sealed class BrowserGameHost : IDisposable
         _uiManager.Clear();
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
+        hud.ConfigureTouchLayout(AdaptiveLayout.Detect(new Vector2(_viewportWidth, _viewportHeight)));
         _uiManager.Push(hud);
 
         InitializeWorld(_pendingMissionId);
         BindResourceHud(hud);
+        MissionHudBinder.BindObjectivePanel(hud, _missionController.CurrentMission);
     }
 
     private void ShowPauseMenu()
     {
-        var pause = new PauseScreen();
+        bool hasSave = _saveManager.ListSaveFiles().Length > 0;
+        var pause = new PauseScreen(hasSave);
         pause.ResumeRequested += () => _uiManager.Pop();
+        pause.SaveGameRequested += ShowSaveGameScreen;
+        pause.LoadGameRequested += ShowLoadGameScreen;
+        pause.SettingsRequested += ShowSettings;
         pause.QuitToMenuRequested += () =>
         {
             _world?.Dispose();
@@ -242,6 +360,108 @@ public sealed class BrowserGameHost : IDisposable
             _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
         };
         _uiManager.Push(pause);
+    }
+
+    private void ShowSaveGameScreen()
+    {
+        var saveScreen = new SaveGameScreen(_saveManager);
+        saveScreen.SlotSelected += slot =>
+            saveScreen.RequestSave(slot, () => BuildBrowserSaveSnapshot(slot));
+        saveScreen.SaveCompleted += _ => Console.WriteLine("[Save] Browser session saved.");
+        saveScreen.Cancelled += () => _uiManager.Pop();
+        _uiManager.Push(saveScreen);
+    }
+
+    private void ShowLoadGameScreen()
+    {
+        var loadScreen = new LoadGameScreen(_saveManager);
+        loadScreen.LoadRequested += slot =>
+        {
+            var data = _saveManager.Load(slot);
+            if (data == null)
+            {
+                Console.WriteLine($"[Save] Failed to load '{slot}'.");
+                return;
+            }
+
+            ApplyBrowserSaveData(data);
+            _uiManager.Pop();
+        };
+        loadScreen.BackRequested += () => _uiManager.Pop();
+        _uiManager.Push(loadScreen);
+    }
+
+    private SaveData BuildBrowserSaveSnapshot(string slotName)
+    {
+        var cam = _gameplayRenderer.Camera;
+        var data = new SaveData
+        {
+            SlotName = slotName,
+            MissionId = _missionController.CurrentMission?.Definition.Id ?? string.Empty,
+            IsSandboxSession = string.IsNullOrEmpty(_pendingMissionId),
+            ElapsedMissionTime = _missionController.CurrentMission?.ElapsedTime ?? 0f,
+            CameraX = cam.Target.X,
+            CameraY = cam.Target.Z,
+            CameraZoom = cam.Height / 80f,
+        };
+
+        if (_resourceManager != null)
+        {
+            var res = _resourceManager.GetPlayer(1);
+            if (res != null)
+            {
+                data.PlayerResources.Add(new PlayerResourceRecord
+                {
+                    PlayerId = 1,
+                    Energy = res.GetAmount(ResourceType.Energy),
+                    Minerals = res.GetAmount(ResourceType.Minerals),
+                    Data = res.GetAmount(ResourceType.Data),
+                    Crew = res.GetAmount(ResourceType.Crew),
+                });
+            }
+        }
+
+        if (_world != null)
+        {
+            foreach (var (entity, transform) in _world.Query<TransformComponent>())
+            {
+                var health = _world.GetComponent<HealthComponent>(entity);
+                data.Entities.Add(new EntitySaveRecord
+                {
+                    EntityId = (int)entity.Index,
+                    X = transform.Position.X,
+                    Y = transform.Position.Z,
+                    Health = health?.CurrentHP ?? 0f,
+                    Shields = health?.CurrentShields ?? 0f,
+                    PlayerId = 1,
+                });
+            }
+        }
+
+        return data;
+    }
+
+    private void ApplyBrowserSaveData(SaveData data)
+    {
+        if (_world == null) return;
+
+        var cam = _gameplayRenderer.Camera;
+        cam.Target = new Vector3(data.CameraX, 0f, data.CameraY);
+        if (data.CameraZoom > 0f)
+            cam.Height = MathHelper.Clamp(data.CameraZoom * 80f, cam.MinHeight, cam.MaxHeight);
+
+        if (_resourceManager != null && data.PlayerResources.Count > 0)
+        {
+            var record = data.PlayerResources[0];
+            var res = _resourceManager.GetPlayer(record.PlayerId);
+            res?.SetStartingAmount(ResourceType.Energy, record.Energy);
+            res?.SetStartingAmount(ResourceType.Minerals, record.Minerals);
+            res?.SetStartingAmount(ResourceType.Data, record.Data);
+            res?.SetStartingAmount(ResourceType.Crew, record.Crew);
+        }
+
+        if (_uiManager.Current is GameplayHUD hud)
+            BindResourceHud(hud);
     }
 
     private void BindResourceHud(GameplayHUD hud)
@@ -356,6 +576,7 @@ public sealed class BrowserGameHost : IDisposable
         _world.AddSystem(new StanceSystem(_combatFogGate));
         _world.AddSystem(new CombatSystem(_eventBus, _combatFogGate));
         _world.AddSystem(new ProjectileSystem(_eventBus));
+        _world.AddSystem(new CombatFeedbackSystem(_eventBus));
         _world.AddSystem(_movementSystem);
         _world.AddSystem(new UtilityPartMeshResolveSystem());
         _world.AddSystem(new UtilityArticulationAimSystem());
@@ -377,7 +598,12 @@ public sealed class BrowserGameHost : IDisposable
         if (!string.IsNullOrEmpty(missionId) && _missionController.CurrentMission != null)
             SpawnMissionFleet(missionId);
         else
+        {
+            // Browser sandbox save/load: desktop-first iteration 4 — seed persisted via SaveData v2 when wired.
+            // TODO: sandbox menu — wire SandboxSetupScreen when browser TextField stack is ready.
+            // Desktop WorldSaveService.Capture / WorldLoadService.Restore are not reachable here yet; fixed-seed spawn below.
             SpawnSandboxFleet();
+        }
 
         _missionController.BeginGameplay();
 
@@ -390,9 +616,15 @@ public sealed class BrowserGameHost : IDisposable
         }
     }
 
+    // Browser sandbox save/load: desktop-first iteration 4 — seed persisted via SaveData v2 when wired.
     private void SpawnSandboxFleet()
     {
         if (_world == null) return;
+
+        int sandboxSeed = ProceduralSeedHelper.ParseSeed("browser");
+        var sandboxConfig = SandboxConfig.Load(GameDataRoot);
+        sandboxConfig.ApplyStartingResources(_resourceManager!, playerId: 1);
+        Console.WriteLine($"[Sandbox] Browser stub seed={sandboxSeed} text='browser'");
 
         var hero = _world.CreateEntity();
         _world.AddComponent(hero, new TransformComponent { Position = Vector3.Zero, Scale = Vector3.One });

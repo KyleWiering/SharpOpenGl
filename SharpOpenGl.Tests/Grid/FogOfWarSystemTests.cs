@@ -79,6 +79,17 @@ public class FogOfWarSystemTests
     }
 
     [Fact]
+    public void FogOfWar_PlayerCount_exposes_configured_value()
+    {
+        var grid = new GridSystem(16, 16);
+        var fog = new FogOfWar(grid, playerCount: 3);
+        Assert.Equal(3, fog.PlayerCount);
+
+        var fogDefault = new FogOfWar(grid, playerCount: 2);
+        Assert.Equal(2, fogDefault.PlayerCount);
+    }
+
+    [Fact]
     public void SightRadiusComponent_defaults_to_5()
     {
         var comp = new SightRadiusComponent();

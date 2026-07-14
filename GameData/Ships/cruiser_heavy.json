@@ -2,6 +2,7 @@
   "id": "cruiser_heavy",
   "displayName": "Ironclad Cruiser",
   "category": "cruiser",
+  "shipRole": "military",
   "mesh": "meshes/cruiser_heavy.obj",
   "fallbackMesh": "default",
   "components": {
@@ -11,6 +12,11 @@
       { "slot": 0, "type": "cannon", "damage": 50, "range": 300, "fireRate": 0.8 },
       { "slot": 1, "type": "missile", "damage": 80, "range": 400, "fireRate": 0.3 }
     ],
+    "weaponSkill": {
+      "accuracyBonus": 0.05,
+      "reloadModifier": 1.05,
+      "rangeTier": "long"
+    },
     "sightRadius": 5
   },
   "defaultStance": "aggressive",

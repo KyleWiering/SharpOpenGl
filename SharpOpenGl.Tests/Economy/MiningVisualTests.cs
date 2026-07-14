@@ -151,6 +151,26 @@ public class MiningVisualTests
         Assert.Equal(node, beam.NodeEntity);
     }
 
+    [Theory]
+    [InlineData(HarvestMode.Drones)]
+    [InlineData(HarvestMode.Eva)]
+    [InlineData(HarvestMode.TractorBeam)]
+    public void Collecting_tags_harvest_beam_visual_on_collector(HarvestMode mode)
+    {
+        var (world, _, _) = MakeSetup();
+        float maxRange = HarvestModeDefaults.DefaultRange(mode);
+        float nodeZ = MathF.Max(8f, maxRange - 4f);
+        Entity node = MakeNode(world, new Vector3(0f, 0f, nodeZ));
+        Entity collector = MakeCollector(world, mode, node, new Vector3(0f, 0f, 0f));
+
+        world.Update(0f);
+
+        Assert.True(world.HasComponent<HarvestBeamVisualComponent>(collector));
+        var beam = world.GetComponent<HarvestBeamVisualComponent>(collector)!;
+        Assert.Equal(node, beam.NodeEntity);
+        Assert.Equal(mode, beam.Mode);
+    }
+
     [Fact]
     public void Tractor_beam_extracts_in_pulses_not_continuously()
     {

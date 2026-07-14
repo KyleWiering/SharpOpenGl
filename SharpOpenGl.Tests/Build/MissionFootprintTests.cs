@@ -167,6 +167,34 @@ public class MissionFootprintTests
     }
 
     [Fact]
+    public void Duel_frontier_player1_greedy_placement_produces_stable_reference_layout()
+    {
+        var map = LoadSkirmishMap("duel_frontier");
+        var defs = LoadAllBaseDefinitions();
+        var catalog = CreateCatalog(defs);
+        var resources = CreateFundedResources();
+
+        var spawn = map.SpawnPoints.First(sp => sp.Player == 1);
+        var placements = SimulateGreedyFullTreePlacement(
+            "duel_frontier", spawn, defs, catalog, resources, out string? failureReason);
+
+        Assert.Null(failureReason);
+        Assert.Equal(16, placements.Count);
+        Assert.Equal("command_center", placements[0].BuildingId);
+        Assert.Equal("power_reactor", placements[1].BuildingId);
+        Assert.Equal("fortress_core", placements[15].BuildingId);
+
+        if (SkirmishMapLogic.TryParseBaseArea(spawn.BaseArea, out int minX, out int minY, out int maxX, out int maxY))
+        {
+            foreach (var (_, gridX, gridY) in placements)
+            {
+                Assert.InRange(gridX, minX, maxX);
+                Assert.InRange(gridY, minY, maxY);
+            }
+        }
+    }
+
+    [Fact]
     public void Four_corners_player1_baseArea_reference_layout_matches_greedy_simulation()
     {
         var map = LoadSkirmishMap("four_corners");
@@ -188,6 +216,41 @@ public class MissionFootprintTests
             Assert.Equal(expected.BuildingId, actual.BuildingId);
             Assert.Equal(expected.GridX, actual.GridX);
             Assert.Equal(expected.GridY, actual.GridY);
+        }
+    }
+
+    [Fact]
+    public void Four_corners_tier1_reference_sites_within_builder_placement_range()
+    {
+        const float placementRange = StructureBuilderComponent.DefaultPlacementRange;
+        var map = LoadSkirmishMap("four_corners");
+        var spawn = map.SpawnPoints.First(sp => sp.Player == 1);
+
+        Assert.True(SkirmishMapLogic.TryParseBaseArea(
+            spawn.BaseArea, out int minX, out int minY, out int maxX, out int maxY));
+
+        var tier1Sites = FourCornersPlayer1ReferenceLayout
+            .Where(p => SkirmishMapLogic.BuilderTier1BuildingIds.Contains(
+                p.BuildingId, StringComparer.OrdinalIgnoreCase))
+            .ToArray();
+
+        Assert.Equal(SkirmishMapLogic.BuilderTier1BuildingIds.Length, tier1Sites.Length);
+
+        foreach (var (buildingId, siteX, siteY) in tier1Sites)
+        {
+            Vector3 siteWorld = MapCoordinates.GridToWorld(siteX, siteY);
+            bool reachable = false;
+
+            for (int anchorY = minY; anchorY <= maxY && !reachable; anchorY++)
+            for (int anchorX = minX; anchorX <= maxX && !reachable; anchorX++)
+            {
+                Vector3 anchorWorld = MapCoordinates.GridToWorld(anchorX, anchorY);
+                if (Vector3.Distance(anchorWorld, siteWorld) <= placementRange)
+                    reachable = true;
+            }
+
+            Assert.True(reachable,
+                $"{buildingId} at [{siteX},{siteY}] has no baseArea anchor within {placementRange}m builder range.");
         }
     }
 

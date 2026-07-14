@@ -11,7 +11,8 @@
     "text": "Commander, our sensors have detected enemy scout activity in Sector Alpha. Move your fleet to the marked waypoint and eliminate any hostiles you encounter. Reinforcements will arrive shortly after engagement.",
     "objectivesPreview": [
       "Move fleet to the waypoint",
-      "Destroy all enemy scouts"
+      "Destroy all enemy scouts",
+      "Bonus: train a fighter from the shipyard"
     ]
   },
   "startConditions": {
@@ -41,6 +42,12 @@
         "type": "condition",
         "condition": "player_units_alive >= 3",
         "description": "Complete the mission without losing any ships"
+      },
+      {
+        "id": "train_fighter",
+        "type": "construct",
+        "target": "unit:fighter_basic:1",
+        "description": "Train one fighter from the shipyard (bonus)"
       }
     ]
   },

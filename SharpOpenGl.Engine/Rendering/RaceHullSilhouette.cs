@@ -331,6 +331,20 @@ internal static class RaceHullSilhouette
             AddBox(w, x0 + inset * 0.6f, x1 - inset * 0.6f, podH * 0.02f, podH * 0.58f, z1 - l * 0.004f, z1 + l * 0.010f);
     }
 
+    /// <summary>Centerline-only stern engine mass — no lateral bells (fishbone/tri-pattern safe).</summary>
+    private static void AddTerranCenterlineEngineCluster(RaceMeshWriter w, float bw, float bh, float l,
+        float sternZFrac = -0.28f, bool afterburner = false)
+    {
+        float sternZ = l * sternZFrac;
+        float depth = l * 0.09f;
+        AddBox(w, -bw * 0.26f, bw * 0.26f, 0, bh * 0.22f, sternZ - l * 0.05f, sternZ + depth * 0.48f);
+        AddBox(w, -bw * 0.14f, bw * 0.14f, bh * 0.02f, bh * (afterburner ? 0.16f : 0.14f),
+            sternZ + depth * 0.38f, sternZ + depth + l * 0.012f);
+        if (afterburner)
+            AddBox(w, -bw * 0.10f, bw * 0.10f, bh * 0.02f, bh * 0.12f,
+                sternZ + depth + l * 0.004f, sternZ + depth + l * 0.018f);
+    }
+
     /// <summary>Flush aft-center twin engine banks — dominant stern read (replaces lateral nacelle pair).</summary>
     private static void AddTerranIntegratedEngineCluster(RaceMeshWriter w, float bw, float bh, float l,
         float sternZFrac = -0.28f, float bellSpread = 0.10f, bool afterburner = false)
@@ -521,21 +535,17 @@ internal static class RaceHullSilhouette
     private static void BuildRetroFighterSolid(RaceMeshWriter w, float len, float wid, float hgt)
     {
         var (l, bw, bh) = TerranDims(len, wid, hgt, 0.96f, 0.92f);
-        bh *= 1.28f;
+        bh *= 1.18f;
         const float zStart = -0.24f;
         const float zEnd = 0.54f;
-        const float bowPush = 1.24f;
+        const float bowPush = 1.28f;
         const float splitT = 0.56f;
         AddTerranTwoBoxFuselage(w, l, bw, bh, zStart, zEnd, bowPush: bowPush);
-        AddTerranBowWedge(w, bw, bh, l, 0.70f, 0.11f, extendedProw: true, dorsalCap: false);
-        AddTerranDorsalDeckMass(w, bw, bh, l, 0.06f, 0.66f, 0.28f, 1.26f, yBaseFrac: 0.28f);
-        AddTerranIntegratedEngineCluster(w, bw, bh, l, sternZFrac: -0.30f, bellSpread: 0.09f);
+        AddTerranBowWedge(w, bw, bh, l, 0.74f, 0.09f, extendedProw: true, dorsalCap: false);
+        AddTerranCenterlineEngineCluster(w, bw, bh, l, sternZFrac: -0.30f);
         float shoulderZ = TerranCapitalShoulderZ(l, zStart, zEnd, bowPush, splitT);
-        float wingRootFrac = shoulderZ / l - 0.02f;
-        AddTerranSweptWing(w, bw, bh, l, -1f, 0.72f, 0.90f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.28f,
-            rootInFrac: 0.86f, flushRootY: true);
-        AddTerranSweptWing(w, bw, bh, l, 1f, 0.72f, 0.90f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.28f,
-            rootInFrac: 0.86f, flushRootY: true);
+        // wo-mesh-01-01: flush dorsal shoulder panel — wider coplanar deck read, fewer fuselage slivers.
+        AddBox(w, -bw * 0.12f, bw * 0.12f, bh * 0.18f, bh * 0.24f, shoulderZ - l * 0.01f, shoulderZ + l * 0.03f);
     }
 
     private static void BuildRetroHeroSolid(RaceMeshWriter w, float len, float wid, float hgt)
@@ -622,43 +632,33 @@ internal static class RaceHullSilhouette
 
     private static void BuildRetroGunshipSolid(RaceMeshWriter w, float len, float wid, float hgt)
     {
-        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.90f, 0.84f);
-        AddTerranStreamlinedFuselage(w, l, bw, bh, -0.38f, 0.68f, beamScale: 1.06f, bowPush: 1.18f);
-        AddTerranBowWedge(w, bw, bh, l, 0.82f, 0.12f, extendedProw: true);
-        AddTerranDorsalDeckMass(w, bw, bh, l, -0.02f, 0.60f, 0.22f, 1.16f);
-        AddBox(w, -bw * 0.28f, bw * 0.28f, bh * 0.22f, bh * 0.46f, l * 0.32f, l * 0.52f);
-        AddBox(w, -bw * 0.18f, bw * 0.18f, bh * 0.46f, bh * 0.58f, l * 0.38f, l * 0.48f);
-        AddBox(w, -bw * 0.32f, bw * 0.32f, bh * 0.08f, bh * 0.22f, -l * 0.28f, -l * 0.14f);
-        AddTerranIntegratedEngineCluster(w, bw, bh, l, sternZFrac: -0.30f, bellSpread: 0.11f);
-        float shoulderZ = l * 0.28f;
-        for (int side = -1; side <= 1; side += 2)
-        {
-            float s = MathF.Sign(side);
-            float xIn = s * bw * 0.26f;
-            float xOut = s * bw * 0.38f;
-            AddBox(w, MathF.Min(xIn, xOut), MathF.Max(xIn, xOut), bh * 0.14f, bh * 0.28f, shoulderZ - l * 0.04f, shoulderZ + l * 0.04f);
-        }
-        AddTerranWeaponPylon(w, bw, bh, l, -1f, shoulderZ, 0.38f);
-        AddTerranWeaponPylon(w, bw, bh, l, 1f, shoulderZ, 0.38f);
-        AddTerranCockpitFacet(w, bw, bh, l);
+        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.88f, 0.82f);
+        const float zStart = -0.36f;
+        const float zEnd = 0.66f;
+        const float bowPush = 1.22f;
+        const float splitT = 0.56f;
+        AddTerranTwoBoxFuselage(w, l, bw, bh, zStart, zEnd, beamScale: 1.00f, bowPush: bowPush);
+        AddTerranBowWedge(w, bw, bh, l, 0.82f, 0.10f, extendedProw: true, dorsalCap: false);
+        AddBox(w, -bw * 0.20f, bw * 0.20f, bh * 0.24f, bh * 0.52f, l * 0.28f, l * 0.46f);
+        AddTerranCenterlineEngineCluster(w, bw, bh, l, sternZFrac: -0.30f);
     }
 
     private static void BuildRetroBomberSolid(RaceMeshWriter w, float len, float wid, float hgt)
     {
-        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.90f, 0.82f);
-        const float bowPush = 1.16f;
-        AddTerranStreamlinedFuselage(w, l, bw, bh, -0.34f, 0.60f, beamScale: 0.98f, heightScale: 0.92f, bowPush: bowPush);
-        AddTerranBowWedge(w, bw, bh, l, 0.78f, 0.10f, extendedProw: true);
-        float shoulderZ = TerranCapitalShoulderZ(l, -0.34f, 0.60f, bowPush, 0.56f);
-        AddTerranDorsalDeckMass(w, bw, bh, l, 0.02f, 0.54f, 0.22f, 1.14f, yBaseFrac: 0.28f);
-        AddTerranDorsalSpine(w, bw, bh, l, 0.06f, 0.28f, segs: 2, height: 0.85f);
+        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.94f, 0.78f);
+        const float bowPush = 1.22f;
+        AddTerranStreamlinedFuselage(w, l, bw, bh, -0.34f, 0.64f, beamScale: 0.96f, heightScale: 0.94f, bowPush: bowPush);
+        AddTerranBowWedge(w, bw, bh, l, 0.82f, 0.10f, extendedProw: true);
+        float shoulderZ = TerranCapitalShoulderZ(l, -0.34f, 0.64f, bowPush, 0.56f);
+        AddTerranDorsalDeckMass(w, bw, bh, l, 0.02f, 0.58f, 0.26f, 1.18f, prowCap: true, yBaseFrac: 0.32f);
+        AddTerranDorsalSpine(w, bw, bh, l, 0.06f, 0.32f, segs: 2, height: 0.92f);
         AddBox(w, -bw * 0.22f, bw * 0.22f, bh * 0.38f, bh * 0.52f, l * 0.06f, l * 0.20f);
         AddBox(w, -bw * 0.12f, bw * 0.12f, bh * 0.48f, bh * 0.58f, l * 0.10f, l * 0.18f);
         AddBox(w, -bw * 0.08f, bw * 0.08f, bh * 0.22f, bh * 0.34f, l * 0.52f, l * 0.62f);
         AddTerranIntegratedEngineCluster(w, bw, bh, l, sternZFrac: -0.28f, bellSpread: 0.10f);
         float wingRootFrac = shoulderZ / l;
-        AddTerranSweptWing(w, bw, bh, l, -1f, 0.88f, 0.68f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.14f);
-        AddTerranSweptWing(w, bw, bh, l, 1f, 0.88f, 0.68f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.14f);
+        AddTerranSweptWing(w, bw, bh, l, -1f, 0.84f, 0.62f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.14f);
+        AddTerranSweptWing(w, bw, bh, l, 1f, 0.84f, 0.62f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.14f);
         for (int side = -1; side <= 1; side += 2)
         {
             float s = MathF.Sign(side);
@@ -670,43 +670,41 @@ internal static class RaceHullSilhouette
 
     private static void BuildRetroDestroyerSolid(RaceMeshWriter w, float len, float wid, float hgt)
     {
-        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.90f, 0.82f);
-        bh *= 1.02f;
-        AddTerranCapitalTwoBoxFuselage(w, l, bw, bh, -0.38f, 0.72f, beamScale: 0.98f, bowPush: 1.14f);
-        AddTerranBowWedge(w, bw, bh, l, 0.84f, 0.14f, extendedProw: true);
-        AddTerranDorsalDeckMass(w, bw, bh, l, 0.14f, 0.46f, 0.24f, 1.14f);
-        AddTerranWeaponBarbette(w, bw, bh, l, -1f, l * 0.32f);
-        AddTerranWeaponBarbette(w, bw, bh, l, 1f, l * 0.32f);
-        AddTerranWeaponBarbette(w, bw, bh, l, -1f, l * 0.22f);
-        AddTerranWeaponBarbette(w, bw, bh, l, 1f, l * 0.22f);
-        AddTerranIntegratedEngineCluster(w, bw, bh, l, sternZFrac: -0.34f, bellSpread: 0.11f, afterburner: true);
+        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.94f, 0.88f);
+        const float zStart = -0.26f;
+        const float zEnd = 0.58f;
+        const float bowPush = 1.10f;
+        AddTerranTwoBoxFuselage(w, l, bw, bh, zStart, zEnd, beamScale: 1.12f, heightScale: 0.86f, bowPush: bowPush);
+        AddTerranBowWedge(w, bw, bh, l, 0.78f, 0.10f, extendedProw: true, dorsalCap: false);
+        AddBox(w, -bw * 0.18f, bw * 0.18f, bh * 0.30f, bh * 0.48f, l * 0.16f, l * 0.40f);
+        AddBox(w, -bw * 0.08f, bw * 0.08f, bh * 0.36f, bh * 0.44f, l * 0.22f, l * 0.30f);
+        AddTerranCenterlineEngineCluster(w, bw, bh, l, sternZFrac: -0.30f, afterburner: true);
     }
 
     private static void BuildRetroCruiserSolid(RaceMeshWriter w, float len, float wid, float hgt)
     {
-        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.86f, 1.06f);
-        bh *= 1.04f;
-        const float zStart = -0.40f;
-        const float zEnd = 0.62f;
-        const float bowPush = 1.10f;
-        const float splitT = 0.58f;
-        const float beamScale = 1.06f;
+        var (l, bw, bh) = TerranDims(len, wid, hgt, 0.90f, 1.14f);
+        bh *= 1.08f;
+        const float zStart = -0.44f;
+        const float zEnd = 0.68f;
+        const float bowPush = 1.14f;
+        const float splitT = 0.56f;
+        const float beamScale = 1.10f;
         float beamEdge = bw * 0.70f * beamScale;
         AddTerranCapitalTwoBoxFuselage(w, l, bw, bh, zStart, zEnd, beamScale: beamScale, bowPush: bowPush, splitT: splitT);
-        AddTerranBowWedge(w, bw, bh, l, 0.68f, 0.12f);
-        AddBox(w, -beamEdge, -beamEdge * 0.84f, 0, bh * 0.18f, -l * 0.32f, -l * 0.18f);
-        AddBox(w, beamEdge * 0.84f, beamEdge, 0, bh * 0.18f, -l * 0.32f, -l * 0.18f);
-        AddTerranDorsalDeckMass(w, bw, bh, l, -0.02f, 0.22f, 0.24f, 1.12f, yBaseFrac: 0.54f);
-        AddTerranDorsalSpine(w, bw, bh, l, 0.04f, 0.26f, segs: 2, height: 0.68f);
-        AddTerranIntegratedEngineCluster(w, bw, bh, l, sternZFrac: -0.32f, bellSpread: 0.12f);
+        AddTerranBowWedge(w, bw, bh, l, 0.74f, 0.14f, extendedProw: true);
+        AddTerranDorsalDeckMass(w, bw, bh, l, -0.04f, 0.30f, 0.28f, 1.18f, yBaseFrac: 0.52f);
+        AddTerranDorsalSpine(w, bw, bh, l, 0.02f, 0.32f, segs: 3, height: 0.74f);
+        AddTerranIntegratedEngineCluster(w, bw, bh, l, sternZFrac: -0.34f, bellSpread: 0.13f, afterburner: true);
         float shoulderZ = TerranCapitalShoulderZ(l, zStart, zEnd, bowPush, splitT);
         float wingRootFrac = shoulderZ / l - 0.02f;
-        AddTerranSweptWing(w, bw, bh, l, -1f, 0.76f, 0.72f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.14f,
-            rootInFrac: 0.742f, flushRootY: true);
-        AddTerranSweptWing(w, bw, bh, l, 1f, 0.76f, 0.72f, zRootFrac: wingRootFrac, zSpanFrac: 0.08f, rootLift: 0.14f,
-            rootInFrac: 0.742f, flushRootY: true);
-        AddTerranWeaponBarbette(w, bw, bh, l, -1f, shoulderZ, beamEdge, 0.16f);
-        AddTerranWeaponBarbette(w, bw, bh, l, 1f, shoulderZ, beamEdge, 0.16f);
+        AddTerranSweptWing(w, bw, bh, l, -1f, 0.82f, 0.76f, zRootFrac: wingRootFrac, zSpanFrac: 0.10f, rootLift: 0.16f,
+            rootInFrac: 0.728f, flushRootY: true);
+        AddTerranSweptWing(w, bw, bh, l, 1f, 0.82f, 0.76f, zRootFrac: wingRootFrac, zSpanFrac: 0.10f, rootLift: 0.16f,
+            rootInFrac: 0.728f, flushRootY: true);
+        AddTerranWeaponBarbette(w, bw, bh, l, -1f, shoulderZ, beamEdge, 0.18f);
+        AddTerranWeaponBarbette(w, bw, bh, l, 1f, shoulderZ, beamEdge, 0.18f);
+        AddBox(w, -bw * 0.10f, bw * 0.10f, bh * 0.48f, bh * 0.62f, l * 0.08f, l * 0.18f);
     }
 
     private static void BuildRetroCarrierSolid(RaceMeshWriter w, float len, float wid, float hgt)
@@ -750,31 +748,34 @@ internal static class RaceHullSilhouette
     {
         float widthScale = hullKey switch
         {
-            "freighter_bulk" => 0.88f,
+            "freighter_bulk" => 0.82f,
             "miner_eva" => 0.76f,
             "support_repair" => 0.80f,
-            "transport_cargo" => 0.84f,
+            "transport_cargo" => 0.78f,
             _ => 0.78f
         };
         float lengthScale = hullKey switch
         {
-            "freighter_bulk" => 0.86f,
-            "transport_cargo" => 0.86f,
+            "freighter_bulk" => 0.94f,
+            "transport_cargo" => 0.92f,
             _ => 0.88f
         };
         var (l, bw, bh) = TerranDims(len, wid, hgt, lengthScale, widthScale);
 
         bool isCargoHull = hullKey is "freighter_bulk" or "transport_cargo";
-        float cargoBeam = hullKey is "freighter_bulk" ? 1.14f : hullKey is "transport_cargo" ? 1.02f : 1.02f;
-        float cargoHeight = hullKey is "freighter_bulk" ? 1.10f : hullKey is "transport_cargo" ? 0.92f : 0.96f;
-        float cargoBowPush = isCargoHull ? 1.16f : 1.08f;
-        float cargoBowFrac = hullKey is "freighter_bulk" ? 0.78f : hullKey is "transport_cargo" ? 0.76f : 0.70f;
+        float cargoBeam = hullKey is "freighter_bulk" ? 1.06f : hullKey is "transport_cargo" ? 1.02f : 1.02f;
+        float cargoHeight = hullKey is "freighter_bulk" ? 1.12f : hullKey is "transport_cargo" ? 0.92f : 0.96f;
+        float cargoBowPush = hullKey is "freighter_bulk" ? 1.22f : hullKey is "transport_cargo" ? 1.22f : isCargoHull ? 1.16f : 1.08f;
+        float cargoBowFrac = hullKey is "freighter_bulk" ? 0.82f : hullKey is "transport_cargo" ? 0.80f : 0.70f;
+        float cargoZEnd = hullKey is "freighter_bulk" ? 0.72f : hullKey is "miner_basic" ? 0.58f : hullKey is "transport_cargo" ? 0.72f : isCargoHull ? 0.66f : 0.62f;
         AddTerranThreeBoxWedge(w, l, bw, bh,
-            -0.40f, hullKey is "miner_basic" ? 0.58f : isCargoHull ? 0.66f : 0.62f,
+            -0.40f, cargoZEnd,
             beamScale: cargoBeam, heightScale: cargoHeight, bowPush: cargoBowPush);
-        AddTerranBowWedge(w, bw, bh, l, cargoBowFrac, 0.10f);
+        AddTerranBowWedge(w, bw, bh, l, cargoBowFrac, 0.10f,
+            extendedProw: hullKey is "freighter_bulk", dorsalCap: hullKey is "freighter_bulk");
         if (isCargoHull)
-            AddTerranDorsalDeckMass(w, bw, bh, l, -0.06f, 0.58f, hullKey is "freighter_bulk" ? 0.18f : 0.16f, 1.14f);
+            AddTerranDorsalDeckMass(w, bw, bh, l, -0.04f, 0.64f, hullKey is "freighter_bulk" ? 0.20f : 0.20f,
+                hullKey is "freighter_bulk" ? 1.20f : 1.18f, prowCap: hullKey is "transport_cargo");
         AddBox(w, -bw * 0.18f, bw * 0.18f, bh * 0.26f, bh * 0.34f, -l * 0.08f, l * 0.18f);
         AddTerranIntegratedEngineCluster(w, bw, bh, l, sternZFrac: -0.32f,
             bellSpread: hullKey is "freighter_bulk" ? 0.10f : 0.08f);
@@ -810,16 +811,15 @@ internal static class RaceHullSilhouette
                 AddBox(w, -bw * 0.06f, bw * 0.06f, bh * 0.36f, bh * 0.50f, l * 0.20f, l * 0.30f);
                 break;
             case "transport_cargo":
-                AddBox(w, -bw * 0.34f, bw * 0.34f, bh * 0.16f, bh * 0.38f, -l * 0.14f, l * 0.10f);
-                AddBox(w, -bw * 0.28f, bw * 0.28f, bh * 0.38f, bh * 0.52f, -l * 0.06f, l * 0.06f);
-                AddBox(w, -bw * 0.20f, bw * 0.20f, bh * 0.52f, bh * 0.60f, -l * 0.02f, l * 0.04f);
-                AddBox(w, -bw * 0.12f, bw * 0.12f, bh * 0.38f, bh * 0.46f, l * 0.02f, l * 0.10f);
+                AddBox(w, -bw * 0.30f, bw * 0.30f, bh * 0.20f, bh * 0.44f, -l * 0.12f, l * 0.08f);
+                AddBox(w, -bw * 0.22f, bw * 0.22f, bh * 0.44f, bh * 0.56f, -l * 0.04f, l * 0.04f);
+                AddBox(w, -bw * 0.14f, bw * 0.14f, bh * 0.40f, bh * 0.48f, l * 0.02f, l * 0.08f);
                 for (int side = -1; side <= 1; side += 2)
                 {
                     float s = MathF.Sign(side);
-                    float xRoot = s * bw * 0.22f;
-                    float xTip = s * bw * 0.32f;
-                    AddBox(w, MathF.Min(xRoot, xTip), MathF.Max(xRoot, xTip), bh * 0.12f, bh * 0.20f, l * 0.02f, l * 0.12f);
+                    float xRoot = s * bw * 0.20f;
+                    float xTip = s * bw * 0.28f;
+                    AddBox(w, MathF.Min(xRoot, xTip), MathF.Max(xRoot, xTip), bh * 0.12f, bh * 0.18f, l * 0.04f, l * 0.10f);
                 }
                 break;
             case "freighter_bulk":
@@ -1441,6 +1441,18 @@ internal static class RaceHullSilhouette
         AddVasudanMediumNose(w, hull, canopy, hw, hgt, len, 0.56f);
         AddVasudanWingLiteParam(w, hull, canopy, hw, hgt, len, -1f, 1.14f, 0.14f);
         AddVasudanWingLiteParam(w, hull, canopy, hw, hgt, len, 1f, 1.14f, 0.14f);
+        AddVasudanMediumDorsalKeel(w, frame, canopy, hw, hgt, len, 2, 0.18f);
+        for (int side = -1; side <= 1; side += 2)
+        {
+            float xLead = side * hw * 1.02f;
+            float zBow = len * 0.08f;
+            w.TriMat(canopy, xLead, hgt * 0.22f, zBow,
+                xLead - side * hw * 0.04f, hgt * 0.18f, zBow + len * 0.01f,
+                xLead, hgt * 0.14f, zBow + len * 0.012f);
+            w.TriMat(canopy, xLead, hgt * 0.20f, zBow - len * 0.02f,
+                xLead - side * hw * 0.03f, hgt * 0.16f, zBow,
+                xLead, hgt * 0.12f, zBow + len * 0.005f);
+        }
         AddVasudanFighterTail(w, hull, frame, canopy, hw, hgt, len);
         AddVasudanEngineNacelle(w, hull, engine, canopy, -hw * 0.22f, -hw * 0.06f, hgt, len, gameplayWide: true);
         AddVasudanEngineNacelle(w, hull, engine, canopy, hw * 0.06f, hw * 0.22f, hgt, len, gameplayWide: true);
@@ -2341,10 +2353,11 @@ internal static class RaceHullSilhouette
         var weapon = RaceMeshWriter.HullMaterial.Weapon;
         float hw = wid * 0.50f;
         float hh = hgt * 0.44f;
-        float bowZ = len * 0.58f;
+        // wo-06-09 loop 8: aspect 1.09→~1.35 — re-anchor prow to +Z bound
+        float bowZ = len * 0.64f;
         int cylSegs = 6;
 
-        AddNasaTrussSpine(w, hw * 0.30f, hh * 0.34f, -len * 0.52f, bowZ * 0.96f, 6);
+        AddNasaTrussSpine(w, hw * 0.30f, hh * 0.34f, -len * 0.52f, bowZ, 5);
         for (int m = 0; m < 3; m++)
         {
             float t = m / 2f;
@@ -2358,8 +2371,8 @@ internal static class RaceHullSilhouette
 
         AddBoxMat(w, hull, -hw * 0.52f, -hw * 0.34f, hh * 0.14f, hh * 0.42f, len * 0.42f, len * 0.56f);
         AddBoxMat(w, hull, hw * 0.34f, hw * 0.52f, hh * 0.14f, hh * 0.42f, len * 0.42f, len * 0.56f);
-        AddBoxMat(w, weapon, -hw * 0.10f, hw * 0.10f, hh * 0.08f, hh * 0.22f, len * 0.54f, len * 0.64f);
-        w.TriMat(hull, -hw * 0.08f, hh * 0.16f, len * 0.52f, hw * 0.08f, hh * 0.16f, len * 0.52f, 0, hh * 0.34f, bowZ);
+        AddBoxMat(w, weapon, -hw * 0.10f, hw * 0.10f, hh * 0.08f, hh * 0.22f, len * 0.56f, len * 0.68f);
+        AddBoxMat(w, hull, -hw * 0.08f, hw * 0.08f, hh * 0.16f, hh * 0.34f, len * 0.52f, bowZ);
 
         for (int r = 0; r < 2; r++)
         {
@@ -2570,24 +2583,28 @@ internal static class RaceHullSilhouette
         float sternZ = -len * 0.16f;
         float hw = wid * 0.34f;
         float hh = hgt * 0.40f;
-        int cylSegs = 5;
+        int cylSegs = 8;
 
-        AddNasaTrussSpine(w, hw * 0.28f, hh * 0.34f, sternZ, bowZ * 0.92f, 5);
-        for (int m = 0; m < 2; m++)
+        AddNasaTrussSpine(w, hw * 0.28f, hh * 0.34f, sternZ, bowZ * 0.92f, 6);
+        for (int m = 0; m < 3; m++)
         {
-            float cz = MathHelper.Lerp(len * 0.02f, len * 0.18f, m);
-            AddNasaCylinder(w, 0, hh * 0.12f, cz, hw * 0.58f, hh * 0.88f, cylSegs);
-            if (m == 0)
-                AddDockingRing(w, 0, hh * 0.88f, cz + hh * 0.28f, hw * 0.44f, hw * 0.60f, cylSegs);
+            float cz = MathHelper.Lerp(sternZ * 0.40f, len * 0.18f, m / 2f);
+            float modR = hw * (0.52f + m * 0.04f);
+            float modH = hh * (0.82f + (m == 1 ? 0.08f : 0f));
+            AddNasaCylinder(w, 0, hh * 0.12f, cz, modR, modH, cylSegs);
+            if (m < 2)
+                AddDockingRing(w, 0, hh * 0.10f + modH, cz + modH * 0.24f, modR * 0.76f, modR * 1.02f, cylSegs / 2);
         }
 
         float panelH = hh * 0.52f;
         float panelZ = len * 0.04f;
-        AddNasaSolarArray(w, -wid * 0.50f, -hw * 0.04f, panelH, hgt * 0.94f, panelZ - len * 0.05f, panelZ + len * 0.05f, 2, 3);
-        AddNasaSolarArray(w, hw * 0.04f, wid * 0.50f, panelH, hgt * 0.94f, panelZ - len * 0.05f, panelZ + len * 0.05f, 2, 3);
+        AddNasaSolarArray(w, -wid * 0.50f, -hw * 0.04f, panelH, hgt * 0.94f, panelZ - len * 0.05f, panelZ + len * 0.05f, 3, 4);
+        AddNasaSolarArray(w, hw * 0.04f, wid * 0.50f, panelH, hgt * 0.94f, panelZ - len * 0.05f, panelZ + len * 0.05f, 3, 4);
         AddMatBridge(w, -hw, -wid * 0.30f, panelH + hh * 0.02f, panelH + hh * 0.07f, panelZ);
         AddMatBridge(w, hw, wid * 0.30f, panelH + hh * 0.02f, panelH + hh * 0.07f, panelZ);
-        AddKorathDorsalKeelBand(w, hw, hh, len * 0.04f, bowZ * 0.82f, 2);
+        AddRadiatorPanel(w, -hw * 0.88f, -hw * 0.62f, hh * 0.44f, hh * 0.88f, sternZ * 0.50f, sternZ * 0.20f);
+        AddRadiatorPanel(w, hw * 0.62f, hw * 0.88f, hh * 0.44f, hh * 0.88f, sternZ * 0.50f, sternZ * 0.20f);
+        AddKorathDorsalKeelBand(w, hw, hh, len * 0.04f, bowZ * 0.82f, 4);
         AddKorathBowTip(w, hw, hh, len * 0.96f);
     }
 
@@ -2769,11 +2786,11 @@ internal static class RaceHullSilhouette
         float l = len * 1.22f;
         float hw = wid * 0.50f;
         float hh = hgt * 0.32f;
-        int cylSegs = 6;
+        int cylSegs = 7;
         float bowZ = l * 0.57f;
         float sternZ = -l * 0.19f;
 
-        AddNasaTrussSpine(w, hw * 0.28f, hh * 0.30f, sternZ, bowZ * 0.94f, 6);
+        AddNasaTrussSpine(w, hw * 0.28f, hh * 0.30f, sternZ, bowZ * 0.94f, 7);
         float prowZ = bowZ * 0.82f;
         for (int side = -1; side <= 1; side += 2)
         {
@@ -2785,15 +2802,22 @@ internal static class RaceHullSilhouette
         AddBoxMat(w, truss, -hw * 0.16f, hw * 0.16f, hh * 0.38f, hh * 0.52f, l * 0.30f, l * 0.38f);
         AddBoxMat(w, hull, -hw * 0.12f, hw * 0.12f, hh * 0.08f, hh * 0.18f, l * 0.36f, l * 0.42f);
 
-        for (int m = 0; m < 3; m++)
+        for (int m = 0; m < 4; m++)
         {
-            float t = m / 2f;
+            float t = m / 3f;
             float cz = MathHelper.Lerp(-l * 0.12f, l * 0.24f, t);
             float modR = hw * (0.44f + 0.08f * MathF.Sin(m * 1.2f));
             float modH = hh * (0.66f + (m % 2) * 0.08f);
             AddNasaCylinder(w, 0, hh * 0.08f, cz, modR, modH, cylSegs);
-            if (m < 2)
+            if (m < 3)
                 AddDockingRing(w, 0, hh * 0.08f + modH, cz + modH * 0.24f, modR * 0.76f, modR * 1.04f, cylSegs / 2);
+        }
+        AddNasaCylinder(w, 0, hh * 0.08f, sternZ * 0.55f, hw * 0.36f, hh * 0.52f, 6);
+        for (int side = -1; side <= 1; side += 2)
+        {
+            float xOut = side * hw * 0.64f;
+            w.TriMat(truss, xOut, hh * 0.20f, bowZ * 0.72f, xOut - side * hw * 0.04f, hh * 0.26f, bowZ * 0.76f, xOut, hh * 0.16f, bowZ * 0.78f);
+            w.TriMat(truss, xOut - side * hw * 0.02f, hh * 0.30f, bowZ * 0.80f, xOut, hh * 0.24f, bowZ * 0.76f, xOut, hh * 0.16f, bowZ * 0.78f);
         }
 
         AddBoxMat(w, hull, -hw * 0.52f, -hw * 0.34f, hh * 0.10f, hh * 0.32f, l * 0.26f, l * 0.34f);
@@ -2801,20 +2825,23 @@ internal static class RaceHullSilhouette
         AddBoxMat(w, weapon, -hw * 0.10f, hw * 0.10f, hh * 0.05f, hh * 0.16f, l * 0.32f, l * 0.40f);
         AddBoxMat(w, truss, -hw * 0.08f, hw * 0.08f, hh * 0.44f, hh * 0.52f, sternZ * 0.40f, l * 0.22f);
 
-        for (int r = 0; r < 2; r++)
+        for (int r = 0; r < 3; r++)
         {
-            float z = MathHelper.Lerp(sternZ * 0.40f, l * 0.04f, r);
+            float z = MathHelper.Lerp(sternZ * 0.40f, l * 0.06f, r / 2f);
             float side = r % 2 == 0 ? -1f : 1f;
             AddRadiatorPanel(w, side * wid * 0.42f, side * wid * 0.48f, hh * 0.38f, hh * 0.76f, z - l * 0.04f, z + l * 0.04f);
         }
 
         float panelZ = l * 0.04f;
         float panelH = hh * 0.40f;
-        AddNasaSolarArray(w, -wid * 0.50f, -hw * 0.06f, panelH, hgt * 0.86f, panelZ - l * 0.06f, panelZ + l * 0.06f, 2, 4);
-        AddNasaSolarArray(w, hw * 0.06f, wid * 0.50f, panelH, hgt * 0.86f, panelZ - l * 0.06f, panelZ + l * 0.06f, 2, 4);
+        AddNasaSolarArray(w, -wid * 0.50f, -hw * 0.06f, panelH, hgt * 0.86f, panelZ - l * 0.06f, panelZ + l * 0.06f, 3, 4);
+        AddNasaSolarArray(w, hw * 0.06f, wid * 0.50f, panelH, hgt * 0.86f, panelZ - l * 0.06f, panelZ + l * 0.06f, 3, 4);
         AddMatBridge(w, -hw, -wid * 0.30f, panelH + hh * 0.02f, panelH + hh * 0.06f, panelZ);
         AddMatBridge(w, hw, wid * 0.30f, panelH + hh * 0.02f, panelH + hh * 0.06f, panelZ);
-        AddKorathDorsalKeelBand(w, hw, hh, l * 0.06f, bowZ * 0.86f, 3);
+        AddKorathDorsalKeelBand(w, hw, hh, l * 0.06f, bowZ * 0.86f, 5);
+        w.TriMat(truss, -hw * 0.10f, hh * 0.34f, l * 0.28f, hw * 0.10f, hh * 0.34f, l * 0.28f, 0, hh * 0.42f, l * 0.32f);
+        w.TriMat(hull, -hw * 0.08f, hh * 0.12f, sternZ * 0.30f, hw * 0.08f, hh * 0.12f, sternZ * 0.30f, 0, hh * 0.20f, sternZ * 0.36f);
+        w.TriMat(truss, -hw * 0.06f, hh * 0.46f, l * 0.14f, hw * 0.06f, hh * 0.46f, l * 0.14f, 0, hh * 0.50f, l * 0.18f);
         AddKorathBowTip(w, hw, hh, bowZ);
 
         AddNasaCupola(w, 0, hh * 0.72f, l * 0.18f, hw * 0.18f, hh * 0.10f, 4);
@@ -3261,50 +3288,42 @@ internal static class RaceHullSilhouette
         var vein = RaceMeshWriter.HullMaterial.Solar;
         var weapon = RaceMeshWriter.HullMaterial.Weapon;
         var engine = RaceMeshWriter.HullMaterial.Engine;
-        float l = len * 1.153f;
-        float bw = wid * 0.92f;
-        float bh = hgt * 1.28f;
+        // wo-06-09 loop 15: aspect recovery — trim +Z over-elongation, widen assault beam
+        float l = len * 1.04f;
+        float bw = wid * 1.02f;
+        float bh = hgt * 1.26f;
 
-        AddLoftedHull(w, l, bw, bh, 11,
+        AddLoftedHull(w, l, bw, bh, 8,
             t =>
             {
                 float belly = 0.48f + 0.52f * MathF.Sin(t * MathF.PI);
                 float ridge = MathF.Max(0f, 1f - MathF.Abs(t - 0.46f) * 3.6f) * 0.12f;
                 float nose = t > 0.80f ? (1f - t) / 0.20f : 1f;
-                float prow = t > 0.72f ? 1f + (t - 0.72f) * 0.18f : 1f;
-                return bw * belly * nose * prow * (0.40f + ridge);
+                return bw * belly * nose * (0.40f + ridge);
             },
             t => bh * (0.44f + 0.56f * MathF.Sin(t * MathF.PI)),
-            -0.48f, 0.88f);
+            -0.48f, 0.84f);
 
-        AddLoftedHull(w, l * 0.58f, bw * 0.20f, bh * 0.82f, 4,
+        AddLoftedHull(w, l * 0.54f, bw * 0.18f, bh * 0.78f, 3,
             t => bw * 0.06f * (1f - t * 0.28f),
-            t => bh * (0.60f + t * 0.40f),
-            0.18f, 0.76f);
+            t => bh * (0.60f + t * 0.38f),
+            0.20f, 0.72f);
 
-        for (int p = 0; p < 3; p++)
+        for (int p = 0; p < 2; p++)
         {
-            float side = (p % 2 == 0 ? -1f : 1f) * bw * (0.24f + (p / 2) * 0.05f);
-            float z = MathHelper.Lerp(-l * 0.08f, l * 0.30f, p / 2f);
-            AddIntegratedBulb(w, side, bh * 0.40f, z, bw * 0.11f, bh * 0.17f, 5);
+            float side = (p == 0 ? -1f : 1f) * bw * 0.26f;
+            float z = MathHelper.Lerp(-l * 0.04f, l * 0.22f, p);
+            AddIntegratedBulb(w, side, bh * 0.40f, z, bw * 0.10f, bh * 0.16f, 4);
         }
 
-        AddBoxMat(w, weapon, -bw * 0.10f, bw * 0.10f, bh * 0.08f, bh * 0.20f, l * 0.50f, l * 0.62f);
-        AddBoxMat(w, fold, -bw * 0.10f, bw * 0.10f, bh * 0.64f, bh * 0.78f, l * 0.10f, l * 0.20f);
-        w.TriMat(hull, -bw * 0.08f, bh * 0.32f, l * 0.72f, bw * 0.08f, bh * 0.32f, l * 0.72f, 0, bh * 0.50f, l * 0.78f);
+        AddBoxMat(w, weapon, -bw * 0.10f, bw * 0.10f, bh * 0.08f, bh * 0.20f, l * 0.48f, l * 0.58f);
+        AddBoxMat(w, fold, -bw * 0.10f, bw * 0.10f, bh * 0.64f, bh * 0.78f, l * 0.10f, l * 0.18f);
+        AddBoxMat(w, hull, -bw * 0.08f, bw * 0.08f, bh * 0.44f, bh * 0.54f, l * 0.66f, l * 0.76f);
 
-        for (int r = 0; r < 2; r++)
-        {
-            float z = MathHelper.Lerp(-l * 0.22f, -l * 0.10f, r);
-            AddHullRing(w, bw * (0.18f + r * 0.03f), bh * 0.50f, z, 7);
-        }
+        AddHullRing(w, bw * 0.18f, bh * 0.50f, -l * 0.16f, 5);
 
-        AddBoxMat(w, engine, -bw * 0.16f, bw * 0.16f, 0, bh * 0.16f, -l * 0.52f, -l * 0.40f);
-        for (int v = 0; v < 5; v++)
-        {
-            float z = l * (-0.02f + v * 0.08f);
-            w.TriMat(vein, -bw * 0.06f, bh * 0.56f, z, bw * 0.06f, bh * 0.56f, z, 0, bh * 0.64f, z + l * 0.006f);
-        }
+        AddBoxMat(w, engine, -bw * 0.16f, bw * 0.16f, 0, bh * 0.16f, -l * 0.50f, -l * 0.40f);
+        AddBoxMat(w, vein, -bw * 0.06f, bw * 0.06f, bh * 0.56f, bh * 0.64f, l * 0.04f, l * 0.12f);
     }
 
     /// <summary>Heavy cruiser — balanced bio-mass, dorsal bloom ridge, lateral sac bulges.</summary>
@@ -4758,16 +4777,12 @@ internal static class RaceHullSilhouette
 
     private static void AddNexarCargoSpineSac(RaceMeshWriter w, float hw, float hh, float len)
     {
-        for (int s = 0; s < 2; s++)
-        {
-            float t = s;
-            float z = MathHelper.Lerp(-len * 0.02f, len * 0.36f, t);
-            AddIntegratedBulb(w, 0, hh * 0.48f + t * hh * 0.08f, z, hw * MathHelper.Lerp(0.13f, 0.06f, t), hh * 0.12f, 5);
-        }
-        AddLoftedHull(w, len * 0.24f, hw * 0.10f, hh * 0.52f, 2,
-            _ => hw * 0.04f,
-            t => hh * (0.46f + t * 0.12f),
-            0.02f, 0.40f);
+        // wo-mesh-r2-03 — flush cargo spine boxes (eliminate tri chevron sac / lofted facet seams).
+        float yBase = hh * 0.44f;
+        float yTop = hh * 0.56f;
+        AddBox(w, -hw * 0.06f, hw * 0.06f, yBase, yTop, -len * 0.02f, len * 0.18f);
+        AddBox(w, -hw * 0.04f, hw * 0.04f, yTop, yTop + hh * 0.06f, len * 0.14f, len * 0.30f);
+        AddBox(w, -hw * 0.08f, hw * 0.08f, yBase - hh * 0.04f, yBase, len * 0.22f, len * 0.36f);
     }
 
     private static void AddNexarBulkChitinHull(RaceMeshWriter w, float hw, float hh, float len)

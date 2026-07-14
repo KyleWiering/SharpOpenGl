@@ -14,7 +14,8 @@
       "projectileVisual": "bomb",
       "projectileSpeed": 180,
       "projectileLifetime": 3.5,
-      "salvoCount": 3
+      "salvoCount": 3,
+      "castTint": [0.95, 0.42, 0.22]
     },
     {
       "raceId": "vesper",
@@ -25,7 +26,8 @@
       "damage": 350,
       "aoeRadius": 0,
       "effectType": "beam",
-      "projectileVisual": "beam"
+      "projectileVisual": "beam",
+      "castTint": [0.62, 0.82, 0.95]
     },
     {
       "raceId": "korath",
@@ -39,7 +41,8 @@
       "projectileVisual": "rocket",
       "projectileSpeed": 280,
       "projectileLifetime": 5,
-      "salvoCount": 6
+      "salvoCount": 6,
+      "castTint": [0.88, 0.28, 0.18]
     },
     {
       "raceId": "aetherian",
@@ -52,7 +55,8 @@
       "effectType": "aoe",
       "projectileVisual": "wave",
       "projectileSpeed": 160,
-      "projectileLifetime": 4
+      "projectileLifetime": 4,
+      "castTint": [0.45, 0.92, 0.38]
     },
     {
       "raceId": "nexar",
@@ -66,7 +70,8 @@
       "projectileVisual": "rocket",
       "projectileSpeed": 340,
       "projectileLifetime": 4.5,
-      "salvoCount": 8
+      "salvoCount": 8,
+      "castTint": [0.98, 0.78, 0.15]
     },
     {
       "raceId": "solari",
@@ -79,7 +84,8 @@
       "effectType": "aoe",
       "projectileVisual": "energy_pulse",
       "projectileSpeed": 0,
-      "projectileLifetime": 0.5
+      "projectileLifetime": 0.5,
+      "castTint": [1.0, 0.88, 0.35]
     },
     {
       "raceId": "voidborn",
@@ -91,7 +97,8 @@
       "aoeRadius": 45,
       "effectType": "disable",
       "projectileVisual": "wave",
-      "disableDuration": 4
+      "disableDuration": 4,
+      "castTint": [0.55, 0.25, 0.88]
     },
     {
       "raceId": "cryo",
@@ -103,7 +110,8 @@
       "aoeRadius": 50,
       "effectType": "disable",
       "projectileVisual": "beam",
-      "disableDuration": 3.5
+      "disableDuration": 3.5,
+      "castTint": [0.55, 0.85, 1.0]
     }
   ]
 }

@@ -138,9 +138,10 @@ Gameplay + PauseScreen overlay
 - **World** — entity slots, sparse-set component pools, system registry
 - **~33 components** — Transform, Movement, Render, Health, Race, Weapon, Building, Projectile, Squad, etc.
 - **~20 systems** — Movement, Combat, ShieldRegen, Build, Resource, AI, FogOfWar, Supply, Squad, etc.
-- **Camera** — shared `RtsCameraController` in Engine (desktop + browser)
+- **Camera** — shared `RtsCameraController` in Engine (desktop + browser); edge-scroll band, zoom-to-cursor, height clamps
+- **Sandbox chunks** — `SandboxChunkGrid.EnsureChunksAround` lazy-loads 64×64 sectors on camera move (`chunkLoadRadius` in `GameData/Config/sandbox.json`); idempotent when stationary
 - **Squads** — `SquadSystem` + `SquadMemberComponent`; formations (line/wedge/box/column); G key / ShipControlBar
-- **Move routes** — `RouteCommands` → `WaypointQueueComponent` → `AutoMoveSystem` → `DestinationComponent` → `PathFollowingSystem` → `MovementSystem`; shift+right-click appends waypoints
+- **Move routes** — `RouteCommands` → `WaypointQueueComponent` → `AutoMoveSystem` → `DestinationComponent` → `PathFollowingSystem` → `MovementSystem`; shift+right-click appends waypoints; green line preview via `RoutePreviewHelper` (desktop + browser)
 - **Map:** 200×200 grid @ 10f cell = 2000-unit world (`GridColumns/Rows` in `EngineWindow`)
 
 ### UI system (`SharpOpenGl.Engine.UI`)
@@ -168,12 +169,12 @@ Loaded via `JsonLoader` (case-insensitive, comments allowed).
 
 | Path | Schema / DTO |
 |------|--------------|
-| `GameData/Ships/*.json` | `EntityDefinition` |
+| `GameData/Ships/*.json` | `EntityDefinition` (optional `shipRole`: `military` \| `engineering` \| `political`; omitted → infer from `category`: miner/freighter/transport/support → engineering, hero → political, else military) |
 | `GameData/Bases/*.json` | `EntityDefinition` (building) |
 | `GameData/Units/*.json` | `EntityDefinition` |
 | `GameData/Missions/*.json` | `MissionDefinition` |
 | `GameData/Maps/*.json` | `MapDefinition` |
-| `GameData/Config/*.json` | balance, controls, resources, race_visuals, race_shields, race_ultimates, mesh_manifest |
+| `GameData/Config/*.json` | balance, controls (`shipControlBar` shortcuts), resources, race_visuals, race_shields, race_ultimates, mesh_manifest |
 
 Ship types (19): `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_light`, `carrier_command`, `cruiser_heavy`, `hero_default`, `miner_basic`, `miner_eva`, `miner_tractor`, `transport_cargo`, `interceptor_mk2`, `corvette_fast`, `frigate_strike`, `gunship_heavy`, `dreadnought`, `drone_swarm`, `freighter_bulk`, `support_repair`.
 

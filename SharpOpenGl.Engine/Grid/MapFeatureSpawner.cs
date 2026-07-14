@@ -18,6 +18,10 @@ public static class MapFeatureSpawner
         public int NebulaVertCount { get; init; }
         public int SceneryMeshId { get; init; }
         public int SceneryVertCount { get; init; }
+        public int IonStormMeshId { get; init; }
+        public int IonStormVertCount { get; init; }
+        public int WormholeRemnantMeshId { get; init; }
+        public int WormholeRemnantVertCount { get; init; }
         public int ResourceNodeMeshId { get; init; }
         public int ResourceNodeVertCount { get; init; }
         public int PrimitiveTriangles { get; init; } = 4;
@@ -27,7 +31,44 @@ public static class MapFeatureSpawner
 
     public static readonly Vector4 AsteroidFieldTint = new(0f, 0f, 0f, 0f);
     public static readonly Vector4 NebulaTint = new(0f, 0f, 0f, 0f);
+    public static readonly Vector4 DebrisTint = new(0.68f, 0.62f, 0.55f, 1f);
+    public static readonly Vector4 IonStormTint = new(0.55f, 0.28f, 0.95f, 1f);
+    public static readonly Vector4 WormholeRemnantTint = new(0.22f, 0.82f, 1f, 1f);
     public static readonly Vector4 DefaultSceneryTint = new(0.55f, 0.58f, 0.62f, 1f);
+
+    /// <summary>
+    /// Spawn economy entities for a procedural sandbox chunk using global cell placement.
+    /// Reuses <see cref="SpawnResourceNode"/> / <see cref="SpawnFeature"/> — no duplicate spawn logic.
+    /// </summary>
+    public static void SpawnChunkEconomy(
+        World world,
+        MapDefinition chunkMap,
+        int chunkX,
+        int chunkY,
+        float cellSize,
+        Vector2 gridWorldOrigin,
+        MeshHandles meshes,
+        Action<Vector3, int>? revealArea = null)
+    {
+        int baseGx = chunkX * SandboxChunkCoords.ChunkCells;
+        int baseGy = chunkY * SandboxChunkCoords.ChunkCells;
+
+        foreach (var node in chunkMap.ResourceNodes)
+        {
+            if (node.Position.Length < 2) continue;
+            Vector3 pos = SandboxChunkCoords.GlobalCellToWorld(
+                baseGx + node.Position[0], baseGy + node.Position[1], cellSize, gridWorldOrigin);
+            SpawnResourceNode(world, node, meshes, pos, revealArea);
+        }
+
+        foreach (var feature in chunkMap.MapFeatures)
+        {
+            if (feature.Position.Length < 2) continue;
+            Vector3 pos = SandboxChunkCoords.GlobalCellToWorld(
+                baseGx + feature.Position[0], baseGy + feature.Position[1], cellSize, gridWorldOrigin);
+            SpawnFeature(world, feature, meshes, pos, revealArea);
+        }
+    }
 
     public static void SpawnAll(
         World world,
@@ -35,25 +76,40 @@ public static class MapFeatureSpawner
         MeshHandles meshes,
         Action<Vector3, int>? revealArea = null)
     {
+        int gridExtent = MapCoordinates.ResolveGridExtent(map);
+        float cellSize = MapCoordinates.ResolveCellSize(map);
+
         if (map.ResourceNodes.Length > 0)
         {
             foreach (var node in map.ResourceNodes)
-                SpawnResourceNode(world, node, meshes, revealArea);
+                SpawnResourceNode(world, node, meshes, gridExtent, cellSize, revealArea);
         }
 
         foreach (var feature in map.MapFeatures)
-            SpawnFeature(world, feature, meshes, revealArea);
+            SpawnFeature(world, feature, meshes, gridExtent, cellSize, revealArea);
     }
 
     public static void SpawnResourceNode(
         World world,
         MapResourceNode node,
         MeshHandles meshes,
+        int gridExtent,
+        float cellSize,
         Action<Vector3, int>? revealArea = null)
     {
         if (node.Position.Length < 2) return;
 
-        Vector3 pos = MapCoordinates.GridToWorld(node.Position[0], node.Position[1]);
+        Vector3 pos = MapCoordinates.GridToWorld(node.Position[0], node.Position[1], gridExtent, cellSize);
+        SpawnResourceNode(world, node, meshes, pos, revealArea);
+    }
+
+    public static void SpawnResourceNode(
+        World world,
+        MapResourceNode node,
+        MeshHandles meshes,
+        Vector3 pos,
+        Action<Vector3, int>? revealArea = null)
+    {
         var resType = ParseResourceType(node.Type);
 
         var entity = world.CreateEntity();
@@ -90,11 +146,23 @@ public static class MapFeatureSpawner
         World world,
         MapFeatureDefinition feature,
         MeshHandles meshes,
+        int gridExtent,
+        float cellSize,
         Action<Vector3, int>? revealArea = null)
     {
         if (feature.Position.Length < 2) return;
 
-        Vector3 pos = MapCoordinates.GridToWorld(feature.Position[0], feature.Position[1]);
+        Vector3 pos = MapCoordinates.GridToWorld(feature.Position[0], feature.Position[1], gridExtent, cellSize);
+        SpawnFeature(world, feature, meshes, pos, revealArea);
+    }
+
+    public static void SpawnFeature(
+        World world,
+        MapFeatureDefinition feature,
+        MeshHandles meshes,
+        Vector3 pos,
+        Action<Vector3, int>? revealArea = null)
+    {
         string kind = feature.Kind.ToLowerInvariant();
 
         if (kind == "harvestable_planet")
@@ -194,8 +262,8 @@ public static class MapFeatureSpawner
         MeshHandles meshes,
         Action<Vector3, int>? revealArea)
     {
-        float scale = MathF.Max(3f, feature.Scale);
         string featureType = feature.FeatureType ?? "scenery";
+        float scale = MathF.Max(DefaultSceneryScale(featureType), feature.Scale);
         string name = string.IsNullOrWhiteSpace(feature.Name) ? FormatSceneryName(featureType) : feature.Name;
 
         var entity = world.CreateEntity();
@@ -217,9 +285,13 @@ public static class MapFeatureSpawner
         {
             Kind = MapFeatureKind.Scenery,
             FeatureType = featureType,
-            Subtitle = feature.Subtitle ?? "Scenery — inspect only",
+            Subtitle = feature.Subtitle ?? DefaultScenerySubtitle(featureType),
         });
-        world.AddComponent(entity, new SelectionComponent { IsSelected = false, SelectionRadius = scale * 0.85f });
+        world.AddComponent(entity, new SelectionComponent
+        {
+            IsSelected = false,
+            SelectionRadius = DefaultScenerySelectionRadius(featureType, scale),
+        });
         world.AddComponent(entity, new EntityNameComponent { DisplayName = name, DefinitionId = featureType });
         revealArea?.Invoke(pos, Math.Max(5, (int)(scale * 0.4f)));
     }
@@ -237,7 +309,40 @@ public static class MapFeatureSpawner
         "asteroid_field" => "Asteroid Field",
         "nebula" => "Nebula",
         "debris" => "Debris Field",
+        "ion_storm" => "Ion Storm",
+        "wormhole_remnant" => "Wormhole Remnant",
         _ => featureType.Replace('_', ' '),
+    };
+
+    public static float DefaultSceneryScale(string featureType) => featureType.ToLowerInvariant() switch
+    {
+        "asteroid_field" => 8f,
+        "nebula" => 12f,
+        "debris" => 7f,
+        "ion_storm" => 10f,
+        "wormhole_remnant" => 9f,
+        _ => 6f,
+    };
+
+    public static float DefaultScenerySelectionRadius(string featureType, float scale) =>
+        featureType.ToLowerInvariant() switch
+        {
+            "asteroid_field" => scale * 0.95f,
+            "nebula" => scale * 1.05f,
+            "debris" => scale * 0.8f,
+            "ion_storm" => scale * 1.1f,
+            "wormhole_remnant" => scale * 1.0f,
+            _ => scale * 0.85f,
+        };
+
+    public static string DefaultScenerySubtitle(string featureType) => featureType.ToLowerInvariant() switch
+    {
+        "asteroid_field" => "Dense rock belt — blocks line of sight",
+        "nebula" => "Sensor interference — reduced vision",
+        "debris" => "Salvage drift — light cover",
+        "ion_storm" => "Electromagnetic storm — hazardous transit",
+        "wormhole_remnant" => "Collapsed gate remnant — inspect only",
+        _ => "Scenery — inspect only",
     };
 
     public static SceneryAppearance ResolveSceneryAppearance(string featureType, MeshHandles meshes)
@@ -253,6 +358,18 @@ public static class MapFeatureSpawner
                 meshes.NebulaMeshId,
                 meshes.NebulaVertCount,
                 NebulaTint),
+            "debris" => new(
+                meshes.SceneryMeshId,
+                meshes.SceneryVertCount,
+                DebrisTint),
+            "ion_storm" => new(
+                meshes.IonStormMeshId,
+                meshes.IonStormVertCount,
+                IonStormTint),
+            "wormhole_remnant" => new(
+                meshes.WormholeRemnantMeshId,
+                meshes.WormholeRemnantVertCount,
+                WormholeRemnantTint),
             _ => new(
                 meshes.SceneryMeshId,
                 meshes.SceneryVertCount,

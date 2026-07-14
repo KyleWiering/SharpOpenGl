@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Rendering;
 
 namespace SharpOpenGl.Browser.Rendering;
@@ -12,6 +13,7 @@ public sealed class BrowserGameplayRenderer
 {
     private readonly WebGlRenderer _renderer;
     private readonly BrowserMeshLibrary _meshes;
+    private readonly BrowserTerrainReadabilityOverlay _terrainOverlay = new();
     private float _auraPulse;
     private readonly RtsCameraController _camera = new()
     {
@@ -32,7 +34,14 @@ public sealed class BrowserGameplayRenderer
 
     public RtsCameraController Camera => _camera;
 
-    public void Render(World world, int viewportWidth, int viewportHeight, ExplosionVfxController? explosionVfx = null, float deltaTime = 0.016f)
+    public void Render(
+        World world,
+        int viewportWidth,
+        int viewportHeight,
+        ExplosionVfxController? explosionVfx = null,
+        float deltaTime = 0.016f,
+        GridSystem? grid = null,
+        FogOfWar? fog = null)
     {
         _auraPulse += deltaTime;
         float aspect = viewportWidth / (float)Math.Max(1, viewportHeight);
@@ -47,6 +56,8 @@ public sealed class BrowserGameplayRenderer
         var (gridMesh, gridCount) = _meshes.GetGridForHeight(
             _camera.Height, _camera.MinHeight, _camera.MaxHeight);
         _renderer.DrawMesh(gridMesh, gridCount, gridModel, Vector4.Zero, GlPrimitive.Lines);
+
+        SyncAndRenderTerrainOverlay(grid, fog, viewportWidth, viewportHeight);
 
         RenderTeamAuras(world);
 
@@ -105,7 +116,7 @@ public sealed class BrowserGameplayRenderer
             {
                 raceTex = -1;
                 compTex = ComponentTextureIndex.Weapon;
-                color = Vector4.Zero;
+                color = ResolveProjectileTint(world, entity, projectile, visual);
             }
             else if (render.ComponentTextureIndex >= 0)
             {
@@ -135,6 +146,8 @@ public sealed class BrowserGameplayRenderer
                 new Vector4(0, 1, 0, 1), GlPrimitive.Lines);
         }
 
+        RenderRoutePreviews(world);
+
         if (explosionVfx != null)
         {
             var (pointCount, vertices) = explosionVfx.BuildVertexData();
@@ -145,6 +158,35 @@ public sealed class BrowserGameplayRenderer
         }
 
         _renderer.EndFrame();
+    }
+
+    private void RenderRoutePreviews(World world)
+    {
+        foreach (var (entity, sel) in world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var queue = world.GetComponent<WaypointQueueComponent>(entity);
+            if (queue == null) continue;
+
+            var transform = world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            var segments = RoutePreviewHelper.BuildSegments(transform.Position, queue);
+            if (segments == null) continue;
+
+            float[] vertices = ProceduralMeshes.BuildLineStripVertices(
+                segments, RoutePreviewHelper.DefaultLineColor, y: RoutePreviewHelper.DefaultLineY);
+            int vertCount = ProceduralMeshes.VertexCount(vertices);
+            if (vertCount < 2) continue;
+
+            _renderer.DrawLineStrip(
+                _meshes.RoutePreviewBuffer,
+                vertices,
+                vertCount,
+                Matrix4.Identity,
+                RoutePreviewHelper.DefaultLineColorRgba);
+        }
     }
 
     private void RenderTeamAuras(World world)
@@ -182,6 +224,37 @@ public sealed class BrowserGameplayRenderer
             _renderer.DrawMesh(_meshes.SelectionRing, _meshes.SelectionRingCount, ringModel,
                 PlayerColorPalette.GetAuraRingColor(playerId, pulse), GlPrimitive.Lines);
         }
+    }
+
+    private void SyncAndRenderTerrainOverlay(GridSystem? grid, FogOfWar? fog, int viewportWidth, int viewportHeight)
+    {
+        if (grid == null) return;
+
+        float aspect = viewportWidth / (float)Math.Max(1, viewportHeight);
+        Vector4 bounds = _camera.GetVisibleBoundsXZ(aspect, margin: 20f);
+        _terrainOverlay.Sync(grid, fog, playerId: 1, bounds);
+        if (!_terrainOverlay.IsDrawEnabled || _meshes.GroundQuadCount <= 0) return;
+
+        foreach (TerrainReadabilityOverlay.TerrainTintCell cell in _terrainOverlay.Cells)
+        {
+            Matrix4 model = Matrix4.CreateScale(cell.CellSize, 1f, cell.CellSize) *
+                              Matrix4.CreateTranslation(cell.Center.X, 0.14f, cell.Center.Z);
+            _renderer.DrawMesh(_meshes.GroundQuad, _meshes.GroundQuadCount, model, cell.Color, GlPrimitive.Triangles);
+        }
+    }
+
+    private static Vector4 ResolveProjectileTint(
+        World world, Entity entity, ProjectileComponent? proj, ProjectileVisualComponent? visual)
+    {
+        if (proj == null || visual == null)
+            return Vector4.Zero;
+
+        if (proj.Type is not (ProjectileType.Homing or ProjectileType.AoE) || proj.MaxLifetime <= 0f)
+            return Vector4.Zero;
+
+        float lifetimeRatio = Math.Clamp(proj.Lifetime / proj.MaxLifetime, 0f, 1f);
+        Vector4 baseTint = WeaponProfiles.TrailColor(visual.Visual, proj.Type);
+        return WeaponProfiles.HomingTrailSteerTint(baseTint, lifetimeRatio, visual.Visual);
     }
 
     private static Matrix4 BuildProjectileModel(TransformComponent transform, ProjectileComponent? proj,

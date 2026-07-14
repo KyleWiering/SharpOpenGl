@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.Events;
 
 namespace SharpOpenGl.Engine.ECS;
@@ -66,6 +67,7 @@ public sealed class ProjectileSystem : GameSystem
         if (CheckHit(world, proj, transform.Position, single: true, projEntity)) return true;
 
         transform.Position += proj.Direction * proj.Speed * dt;
+        UpdateProjectileTrail(world, projEntity, proj, transform.Position, proj.Direction);
 
         // Check hit at new position.
         return CheckHit(world, proj, transform.Position, single: true, projEntity);
@@ -96,6 +98,7 @@ public sealed class ProjectileSystem : GameSystem
 
         proj.Direction     = Vector3.Normalize(toTarget);
         transform.Position += proj.Direction * proj.Speed * dt;
+        UpdateProjectileTrail(world, projEntity, proj, transform.Position, proj.Direction);
         return false;
     }
 
@@ -124,6 +127,7 @@ public sealed class ProjectileSystem : GameSystem
 
         proj.Direction     = Vector3.Normalize(toTarget);
         transform.Position += proj.Direction * proj.Speed * dt;
+        UpdateProjectileTrail(world, projEntity, proj, transform.Position, proj.Direction);
         return false;
     }
 
@@ -141,9 +145,8 @@ public sealed class ProjectileSystem : GameSystem
             var candidatePos = world.GetComponent<TransformComponent>(candidate)?.Position ?? center;
             if ((candidatePos - center).LengthSquared > radiusSq) continue;
 
-            float final = DamageCalculator.Apply(proj.Damage, health);
+            CombatDamagePublisher.ApplyAndPublish(world, _bus, proj.Owner, candidate, proj.Damage);
             _bus.Publish(new ProjectileHitEvent(projEntity.Index, candidate.Index, proj.Damage));
-            _bus.Publish(new DamageDealtEvent(proj.Owner.Index, candidate.Index, proj.Damage, final));
         }
 
         _bus.Publish(new ExplosionVfxEvent(center, ExplosionVfxKind.Impact, MathF.Max(1f, proj.BlastRadius * 0.15f)));
@@ -182,13 +185,35 @@ public sealed class ProjectileSystem : GameSystem
         var health = world.GetComponent<HealthComponent>(target);
         if (health == null) return;
 
-        float final = DamageCalculator.Apply(proj.Damage, health);
+        CombatDamagePublisher.ApplyAndPublish(world, _bus, proj.Owner, target, proj.Damage);
         _bus.Publish(new ProjectileHitEvent(projEntity.Index, target.Index, proj.Damage));
-        _bus.Publish(new DamageDealtEvent(proj.Owner.Index, target.Index, proj.Damage, final));
 
         var hitPos = world.GetComponent<TransformComponent>(target)?.Position
                      ?? world.GetComponent<TransformComponent>(projEntity)?.Position
                      ?? Vector3.Zero;
         _bus.Publish(new ExplosionVfxEvent(hitPos, ExplosionVfxKind.Impact));
+    }
+
+    private static void UpdateProjectileTrail(
+        World world, Entity projEntity, ProjectileComponent proj, Vector3 position, Vector3 direction)
+    {
+        var emitter = world.GetComponent<ParticleEmitterComponent>(projEntity);
+        if (emitter == null) return;
+
+        emitter.Emitter.Origin = position;
+        emitter.Emitter.BaseVelocity = Vector3.Normalize(direction) * -6f;
+        emitter.Emitter.IsEmitting = true;
+
+        if (proj.Type is not (ProjectileType.Homing or ProjectileType.AoE) || proj.MaxLifetime <= 0f)
+            return;
+
+        var visual = world.GetComponent<ProjectileVisualComponent>(projEntity);
+        if (visual == null) return;
+
+        float lifetimeRatio = Math.Clamp(proj.Lifetime / proj.MaxLifetime, 0f, 1f);
+        Vector4 baseTint = WeaponProfiles.TrailColor(visual.Visual, proj.Type);
+        Vector4 steerTint = WeaponProfiles.HomingTrailSteerTint(baseTint, lifetimeRatio, visual.Visual);
+        emitter.Emitter.StartColor = steerTint;
+        emitter.Emitter.EndColor = steerTint with { W = 0f };
     }
 }

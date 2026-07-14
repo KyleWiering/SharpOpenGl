@@ -3,6 +3,7 @@
   "id": "hero_default",
   "displayName": "Vanguard",
   "category": "hero",
+  "shipRole": "political",
   "mesh": "meshes/hero_vanguard.obj",
   "fallbackMesh": "default",
   "components": {

@@ -99,6 +99,21 @@ public class ModelMigrationExporterTests
         }
     }
 
+    [Fact]
+    public void Export_terran_cruiser_heavy_obj_matches_procedural_mesh()
+    {
+        Assert.True(ModelMigrationExporter.ExportShip(GameDataRoot, "terran", "cruiser_heavy"));
+    }
+
+    [Fact]
+    public void Export_mesh_loop_targets_refresh_disk_objs()
+    {
+        Assert.True(ModelMigrationExporter.ExportShip(GameDataRoot, "terran", "transport_cargo"));
+        Assert.True(ModelMigrationExporter.ExportShip(GameDataRoot, "terran", "cruiser_heavy"));
+        Assert.True(ModelMigrationExporter.ExportStation(GameDataRoot, "nexar", "fortress_core"));
+        Assert.True(ModelMigrationExporter.ExportStation(GameDataRoot, "solari", "repair_bay"));
+    }
+
     [Theory]
     [MemberData(nameof(TerranShipHullIds))]
     public void Terran_ship_obj_vertex_counts_match_procedural(string hullId)

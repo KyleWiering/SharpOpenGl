@@ -17,7 +17,8 @@ public partial class EngineWindow
     private FogOfWar? _fogOfWar;
     private readonly CombatFogGate _combatFogGate = new();
     private AutoMoveSystem? _autoMoveSystem;
-    private int _fogQuadVao, _fogQuadVbo, _fogQuadVertCount;
+    private int _groundQuadVao, _groundQuadVbo, _groundQuadVertCount;
+    private FogNebulaOverlay? _fogNebulaOverlay;
     private readonly List<Vector3> _objectiveWaypoints = new();
 
     private void InitializeMapSystems()
@@ -25,32 +26,55 @@ public partial class EngineWindow
         if (_world == null || _movementSystem == null) return;
 
         float halfMap = MapWorldSize * 0.5f;
-        _gridSystem = new GridSystem(GridColumns, GridRows, GridCellSize, new Vector2(-halfMap, -halfMap));
+        var gridOrigin = new Vector2(-halfMap, -halfMap);
+
+        if (_sandboxChunkedMode)
+        {
+            _sandboxChunkGrid = new SandboxChunkGrid(GridCellSize, gridOrigin);
+            _sandboxChunkGrid.EnsureChunksAround(
+                Vector3.Zero, radiusChunks: _sandboxChunkLoadRadius, _proceduralMapSeed, GridCellSize);
+            _gridSystem = _sandboxChunkGrid.Grid;
+        }
+        else
+        {
+            _sandboxChunkGrid = null;
+            _gridSystem = new GridSystem(GridColumns, GridRows, GridCellSize, gridOrigin);
+        }
+
         _fogOfWar = new FogOfWar(_gridSystem, playerCount: 2);
 
-        _combatFogGate.Grid = _gridSystem;
-        _combatFogGate.Fog = _fogOfWar;
-        _combatFogGate.FogPlayerId = 0;
+        BindCombatFogGate(_gridSystem, _fogOfWar);
 
         _autoMoveSystem = new AutoMoveSystem(_eventBus);
         _squadSystem = new SquadSystem();
-        var pathFollowing = new PathFollowingSystem(_gridSystem);
-        var fogSystem = new FogOfWarSystem(_gridSystem, _fogOfWar, playerId: 0);
+        _pathFollowingSystem = new PathFollowingSystem(_gridSystem);
+        _fogOfWarSystem = new FogOfWarSystem(_gridSystem, _fogOfWar, playerId: 0);
 
         _world.AddSystem(_squadSystem);
         _world.AddSystem(_autoMoveSystem);
-        _world.AddSystem(pathFollowing);
+        _world.AddSystem(_pathFollowingSystem);
         _world.AddSystem(new AttackChaseSystem());
+        _world.AddSystem(new HarvestOrbitSystem());
         _world.AddSystem(_movementSystem);
-        _world.AddSystem(fogSystem);
+        _world.AddSystem(_fogOfWarSystem);
 
-        if (_fogQuadVertCount == 0)
+        if (_groundQuadVertCount == 0)
         {
-            (_fogQuadVao, _fogQuadVbo, _fogQuadVertCount) =
+            (_groundQuadVao, _groundQuadVbo, _groundQuadVertCount) =
                 MeshBuilder.BuildGroundQuad(1f, 1f, new Vector3(1f, 1f, 1f));
         }
 
+        _fogNebulaOverlay ??= new FogNebulaOverlay();
+
         RefreshObjectiveWaypoints();
+    }
+
+    /// <summary>Wires grid/fog into combat LOS gate; optional per-player fog index override for multiplayer.</summary>
+    private void BindCombatFogGate(GridSystem grid, FogOfWar fog, Func<int, int>? gamePlayerToFogIndex = null)
+    {
+        _combatFogGate.Grid = grid;
+        _combatFogGate.Fog = fog;
+        _combatFogGate.GamePlayerToFogIndex = gamePlayerToFogIndex;
     }
 
     private void RevealAreaAt(Vector3 worldPosition, int radius)
@@ -58,6 +82,160 @@ public partial class EngineWindow
         if (_fogOfWar == null || _gridSystem == null) return;
         if (_gridSystem.WorldToGrid(worldPosition, out int gx, out int gy))
             _fogOfWar.Reveal(0, gx, gy, radius);
+    }
+
+    private void SpawnPendingSandboxChunkEconomy()
+    {
+        if (_sandboxChunkGrid == null) return;
+        var pending = _sandboxChunkGrid.GetPendingEconomyChunks().ToList();
+        if (pending.Count > 0)
+            SpawnSandboxChunkEconomy(pending);
+    }
+
+    private void SpawnSandboxChunkEconomy(IReadOnlyList<SandboxChunkGrid.LoadedChunkInfo> chunks)
+    {
+        if (_world == null || _sandboxChunkGrid == null) return;
+
+        float halfMap = MapWorldSize * 0.5f;
+        var gridOrigin = new Vector2(-halfMap, -halfMap);
+        var meshes = BuildMapFeatureMeshes();
+
+        foreach (var chunk in chunks)
+        {
+            // Do not reveal fog when spawning procedural nodes — minimap/world stay dark until units explore.
+            MapFeatureSpawner.SpawnChunkEconomy(
+                _world,
+                chunk.Map,
+                chunk.ChunkX,
+                chunk.ChunkY,
+                GridCellSize,
+                gridOrigin,
+                meshes,
+                revealArea: null);
+            _sandboxChunkGrid.MarkEconomySpawned(chunk.ChunkX, chunk.ChunkY);
+        }
+    }
+
+    private void EnsureSandboxChunksAround(Vector3 center, IReadOnlyList<Vector3>? extraPositions = null)
+    {
+        if (!_sandboxChunkedMode || _sandboxChunkGrid == null || _world == null)
+            return;
+
+        int previousWidth = _gridSystem?.Width ?? 0;
+        int previousHeight = _gridSystem?.Height ?? 0;
+        var allNewChunks = new List<SandboxChunkGrid.LoadedChunkInfo>();
+
+        void LoadAround(Vector3 pos)
+        {
+            var chunks = _sandboxChunkGrid!.EnsureChunksAround(
+                pos, radiusChunks: _sandboxChunkLoadRadius, _proceduralMapSeed, GridCellSize);
+            allNewChunks.AddRange(chunks);
+        }
+
+        LoadAround(center);
+        if (extraPositions != null)
+        {
+            foreach (Vector3 pos in extraPositions)
+                LoadAround(pos);
+        }
+
+        if (allNewChunks.Count > 0)
+        {
+            SpawnSandboxChunkEconomy(allNewChunks);
+            RefreshSandboxGridBindings(previousWidth, previousHeight);
+        }
+    }
+
+    private void UpdateSandboxChunks()
+    {
+        if (!_sandboxChunkedMode || _sandboxChunkGrid == null || _world == null)
+            return;
+
+        int previousWidth = _gridSystem?.Width ?? 0;
+        int previousHeight = _gridSystem?.Height ?? 0;
+
+        var newChunks = _sandboxChunkGrid.EnsureChunksAround(
+            _rtsCamera.Target, radiusChunks: _sandboxChunkLoadRadius, _proceduralMapSeed, GridCellSize);
+
+        if (newChunks.Count > 0)
+        {
+            SpawnSandboxChunkEconomy(newChunks);
+            RefreshSandboxGridBindings(previousWidth, previousHeight);
+        }
+    }
+
+    private void RefreshSandboxGridBindings(int previousWidth, int previousHeight)
+    {
+        if (_sandboxChunkGrid == null || _world == null || _movementSystem == null)
+            return;
+
+        GridSystem? oldGrid = _gridSystem;
+        FogOfWar? oldFog = _fogOfWar;
+
+        _gridSystem = _sandboxChunkGrid.Grid;
+        _fogOfWar = new FogOfWar(_gridSystem, playerCount: 2);
+
+        if (oldGrid != null && oldFog != null)
+            MigrateFogState(oldGrid, oldFog, _gridSystem, _fogOfWar);
+
+        BindCombatFogGate(_gridSystem, _fogOfWar);
+
+        if (_pathFollowingSystem != null)
+            _world.RemoveSystem(_pathFollowingSystem);
+        _pathFollowingSystem = new PathFollowingSystem(_gridSystem);
+        _world.AddSystem(_pathFollowingSystem);
+
+        if (_fogOfWarSystem != null)
+            _world.RemoveSystem(_fogOfWarSystem);
+        _fogOfWarSystem = new FogOfWarSystem(_gridSystem, _fogOfWar, playerId: 0);
+        _world.AddSystem(_fogOfWarSystem);
+
+        if (previousWidth != _gridSystem.Width || previousHeight != _gridSystem.Height)
+            _gridLineStep = -1;
+    }
+
+    private static void MigrateFogState(
+        GridSystem oldGrid,
+        FogOfWar oldFog,
+        GridSystem newGrid,
+        FogOfWar newFog)
+    {
+        const int playerId = 0;
+        foreach (GridCell oldCell in oldGrid.AllCells())
+        {
+            FogState state = oldFog.GetState(playerId, oldCell.X, oldCell.Y);
+            if (state == FogState.Unexplored)
+                continue;
+
+            Vector3 world = oldGrid.GridToWorld(oldCell.X, oldCell.Y);
+            if (!newGrid.WorldToGrid(world, out int nx, out int ny))
+                continue;
+
+            newFog.Reveal(playerId, nx, ny, radius: 0);
+            GridCell? newCell = newGrid.GetCell(nx, ny);
+            if (state == FogState.Explored && newCell != null)
+                newCell.SetFog(playerId, FogState.Explored);
+        }
+    }
+
+    private void ClampCameraTarget()
+    {
+        if (_sandboxChunkedMode && _sandboxChunkGrid != null)
+        {
+            var (minX, maxX, minZ, maxZ) = _sandboxChunkGrid.LoadedWorldBounds;
+            float margin = GridCellSize * 2f;
+            _rtsCamera.Target = new Vector3(
+                Math.Clamp(_rtsCamera.Target.X, minX + margin, maxX - margin),
+                0f,
+                Math.Clamp(_rtsCamera.Target.Z, minZ + margin, maxZ - margin));
+            return;
+        }
+
+        float half = MapWorldSize * 0.5f - GridCellSize;
+        _rtsCamera.Target = new Vector3(
+            Math.Clamp(_rtsCamera.Target.X, -half, half),
+            0f,
+            Math.Clamp(_rtsCamera.Target.Z, -half, half));
     }
 
     private void RefreshObjectiveWaypoints()
@@ -77,6 +255,9 @@ public partial class EngineWindow
 
     private Vector2 WorldToNormalized(Vector3 worldPos)
     {
+        if (_sandboxChunkedMode && _sandboxChunkGrid != null)
+            return _sandboxChunkGrid.WorldToNormalized(worldPos);
+
         float half = MapWorldSize * 0.5f;
         return new Vector2(
             (worldPos.X + half) / MapWorldSize,
@@ -114,6 +295,16 @@ public partial class EngineWindow
 
     private void PanCameraToMinimap(Vector2 normalizedPosition)
     {
+        if (_sandboxChunkedMode && _sandboxChunkGrid != null)
+        {
+            var (minX, maxX, minZ, maxZ) = _sandboxChunkGrid.LoadedWorldBounds;
+            _rtsCamera.Target = new Vector3(
+                minX + normalizedPosition.X * (maxX - minX),
+                0f,
+                minZ + normalizedPosition.Y * (maxZ - minZ));
+            return;
+        }
+
         float half = MapWorldSize * 0.5f;
         _rtsCamera.Target = new Vector3(
             normalizedPosition.X * MapWorldSize - half,
@@ -134,31 +325,69 @@ public partial class EngineWindow
         return true;
     }
 
+    private int ResolveMinimapPlayerId(Entity entity)
+    {
+        if (_world == null) return 1;
+
+        if (_world.HasComponent<AIControlledComponent>(entity))
+            return _world.GetComponent<AIControlledComponent>(entity)!.PlayerId;
+
+        if (_world.HasComponent<CombatTargetComponent>(entity))
+        {
+            int faction = _world.GetComponent<CombatTargetComponent>(entity)!.Faction;
+            if (faction > 0) return faction;
+        }
+
+        if (_world.HasComponent<ResourceCollectorComponent>(entity))
+            return Math.Max(1, _world.GetComponent<ResourceCollectorComponent>(entity)!.PlayerId);
+
+        if (_world.HasComponent<BuildingComponent>(entity))
+            return Math.Max(1, _world.GetComponent<BuildingComponent>(entity)!.PlayerId);
+
+        return 1;
+    }
+
     private void BindMinimap()
     {
         if (_world == null) return;
         if (_uiManager.Current is not GameplayHUD hud) return;
 
         float half = MapWorldSize * 0.5f;
+        Vector2i minimapGridSize = _sandboxChunkedMode && _sandboxChunkGrid != null
+            ? new Vector2i(
+                _sandboxChunkGrid.Grid.Width,
+                _sandboxChunkGrid.Grid.Height)
+            : new Vector2i(GridColumns, GridRows);
         var units = new List<MinimapUnit>();
 
         foreach (var (entity, _) in _world.Query<TransformComponent>())
         {
             if (!_world.HasComponent<RenderComponent>(entity)) continue;
+            if (_world.HasComponent<ResourceNodeComponent>(entity)) continue;
+            if (_world.HasComponent<MapFeatureComponent>(entity)) continue;
+
             var tf = _world.GetComponent<TransformComponent>(entity)!;
             var render = _world.GetComponent<RenderComponent>(entity);
             if (render == null || !render.Visible) continue;
 
             bool isEnemy = _world.HasComponent<AIControlledComponent>(entity);
-            if (isEnemy && !IsVisibleToPlayer(tf.Position)) continue;
+            if (isEnemy)
+            {
+                if (!IsVisibleToPlayer(tf.Position)) continue;
+            }
+            else if (!IsExploredByPlayer(tf.Position))
+            {
+                continue;
+            }
 
             var kind = GameplayEntityDisplay.Classify(_world, entity);
-            Vector4 color = kind == EntityDisplayKind.Friendly
-                ? GameplayEntityDisplay.FriendlyColor
-                : GameplayEntityDisplay.LabelColor(kind);
+            int playerId = ResolveMinimapPlayerId(entity);
             bool isFriendly = kind == EntityDisplayKind.Friendly;
+            Vector4 color = PlayerColorPalette.GetTintVector4(Math.Max(1, playerId));
+            if (!isFriendly)
+                color.W = 1f;
 
-            units.Add(new MinimapUnit(WorldToNormalized(tf.Position), color, isFriendly));
+            units.Add(new MinimapUnit(WorldToNormalized(tf.Position), color, isFriendly, playerId));
         }
 
         var markers = new List<MinimapMarker>();
@@ -172,68 +401,107 @@ public partial class EngineWindow
 
         float viewW = _rtsCamera.Height * 1.4f;
         float viewH = viewW * Size.X / MathF.Max(1f, Size.Y);
-        var camMin = new Vector2(
-            (_rtsCamera.Target.X - viewW * 0.5f + half) / MapWorldSize,
-            (_rtsCamera.Target.Z - viewH * 0.5f + half) / MapWorldSize);
-        var camMax = new Vector2(
-            (_rtsCamera.Target.X + viewW * 0.5f + half) / MapWorldSize,
-            (_rtsCamera.Target.Z + viewH * 0.5f + half) / MapWorldSize);
+        Vector2 camMin;
+        Vector2 camMax;
+        if (_sandboxChunkedMode && _sandboxChunkGrid != null)
+        {
+            var (minX, maxX, minZ, maxZ) = _sandboxChunkGrid.LoadedWorldBounds;
+            float mapW = MathF.Max(1f, maxX - minX);
+            float mapH = MathF.Max(1f, maxZ - minZ);
+            camMin = new Vector2(
+                (_rtsCamera.Target.X - viewW * 0.5f - minX) / mapW,
+                (_rtsCamera.Target.Z - viewH * 0.5f - minZ) / mapH);
+            camMax = new Vector2(
+                (_rtsCamera.Target.X + viewW * 0.5f - minX) / mapW,
+                (_rtsCamera.Target.Z + viewH * 0.5f - minZ) / mapH);
+        }
+        else
+        {
+            camMin = new Vector2(
+                (_rtsCamera.Target.X - viewW * 0.5f + half) / MapWorldSize,
+                (_rtsCamera.Target.Z - viewH * 0.5f + half) / MapWorldSize);
+            camMax = new Vector2(
+                (_rtsCamera.Target.X + viewW * 0.5f + half) / MapWorldSize,
+                (_rtsCamera.Target.Z + viewH * 0.5f + half) / MapWorldSize);
+        }
+
         camMin = Vector2.Clamp(camMin, Vector2.Zero, Vector2.One);
         camMax = Vector2.Clamp(camMax, Vector2.Zero, Vector2.One);
 
         hud.Minimap.FogOfWar = _fogOfWar;
         hud.Minimap.PlayerId = 0;
-        hud.Minimap.GridSize = new Vector2i(GridColumns, GridRows);
+        hud.Minimap.GridSize = minimapGridSize;
         hud.Minimap.FogDisplayCells = new Vector2i(50, 50);
+        hud.Minimap.SyncFogPaletteFromWorld();
         hud.Minimap.Units = units;
         hud.Minimap.ObjectiveMarkers = markers;
+        hud.Minimap.FeatureMarkers = MinimapFeatureBinder.Collect(
+            _world,
+            GetFogStateAt,
+            WorldToNormalized);
         hud.Minimap.CameraViewport = (camMin, camMax);
     }
 
+    private void UpdateFogNebulaOverlay(float deltaTime) =>
+        _fogNebulaOverlay?.Update(deltaTime);
+
     private void RenderFogOverlay(Matrix4 projection, Matrix4 view)
     {
-        if (_fogOfWar == null || _gridSystem == null || _fogQuadVertCount == 0) return;
+        if (_fogOfWar == null || _gridSystem == null || _fogNebulaOverlay == null || _groundQuadVertCount == 0)
+            return;
 
-        const int chunkCells = 10;
-        float chunkWorld = chunkCells * GridCellSize;
-        int chunksX = GridColumns / chunkCells;
-        int chunksY = GridRows / chunkCells;
+        _ = projection;
+        _ = view;
+
+        // Draw order: terrain/entities first, then static nebula fog veils, then markers/UI rings.
+        float chunkWorld = FogNebulaOverlay.ChunkCells * GridCellSize;
+        Vector4? cameraBounds = TryGetFogCameraBoundsXZ();
+
+        _fogNebulaOverlay.Sync(_fogOfWar, _gridSystem, playerId: 0, chunkWorld, cameraBounds);
+        if (_fogNebulaOverlay.VeilQuads.Count == 0)
+            return;
 
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-        GL.BindVertexArray(_fogQuadVao);
+        GL.BindVertexArray(_groundQuadVao);
 
-        for (int cx = 0; cx < chunksX; cx++)
-        for (int cy = 0; cy < chunksY; cy++)
+        foreach (FogVeilQuad veil in _fogNebulaOverlay.VeilQuads)
         {
-            bool anyVisible = false;
-            bool anyExplored = false;
-            for (int dx = 0; dx < chunkCells; dx++)
-            for (int dy = 0; dy < chunkCells; dy++)
-            {
-                var state = _fogOfWar.GetState(0, cx * chunkCells + dx, cy * chunkCells + dy);
-                if (state == FogState.Visible) anyVisible = true;
-                if (state != FogState.Unexplored) anyExplored = true;
-            }
-
-            if (anyVisible) continue;
-
-            Vector4 color = anyExplored
-                ? new Vector4(0.05f, 0.06f, 0.12f, 0.72f)
-                : new Vector4(0.01f, 0.01f, 0.03f, 0.9f);
-
-            int midX = cx * chunkCells + chunkCells / 2;
-            int midY = cy * chunkCells + chunkCells / 2;
-            Vector3 center = _gridSystem.GridToWorld(midX, midY);
-
-            var model = Matrix4.CreateScale(chunkWorld, 1f, chunkWorld) *
-                        Matrix4.CreateTranslation(center.X, 0.12f, center.Z);
+            var model = Matrix4.CreateScale(veil.SizeX, 1f, veil.SizeZ) *
+                        Matrix4.CreateTranslation(veil.Center.X, veil.Center.Y, veil.Center.Z);
             GL.UniformMatrix4(_uniformModel, false, ref model);
-            GL.Uniform4(_uniformColor, color);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, _fogQuadVertCount);
+            GL.Uniform4(_uniformColor, veil.Color);
+            GL.Uniform1(_uniformRaceTextureIndex, -1);
+            GL.Uniform1(_uniformComponentTextureIndex, -1);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, _groundQuadVertCount);
         }
 
+        GL.BindVertexArray(0);
         GL.Disable(EnableCap.Blend);
+    }
+
+    /// <summary>World-space XZ bounds (minX, maxX, minZ, maxZ) for fog chunk culling on large maps.</summary>
+    private Vector4? TryGetFogCameraBoundsXZ()
+    {
+        float viewW = _rtsCamera.Height * 1.4f;
+        float viewH = viewW * Size.X / MathF.Max(1f, Size.Y);
+        float margin = GridCellSize * FogNebulaOverlay.ChunkCells;
+
+        if (_sandboxChunkedMode && _sandboxChunkGrid != null)
+        {
+            var (minX, maxX, minZ, maxZ) = _sandboxChunkGrid.LoadedWorldBounds;
+            return new Vector4(
+                MathF.Max(minX, _rtsCamera.Target.X - viewW * 0.5f - margin),
+                MathF.Min(maxX, _rtsCamera.Target.X + viewW * 0.5f + margin),
+                MathF.Max(minZ, _rtsCamera.Target.Z - viewH * 0.5f - margin),
+                MathF.Min(maxZ, _rtsCamera.Target.Z + viewH * 0.5f + margin));
+        }
+
+        return new Vector4(
+            _rtsCamera.Target.X - viewW * 0.5f - margin,
+            _rtsCamera.Target.X + viewW * 0.5f + margin,
+            _rtsCamera.Target.Z - viewH * 0.5f - margin,
+            _rtsCamera.Target.Z + viewH * 0.5f + margin);
     }
 
     private void RenderRoutePreviews()
@@ -248,29 +516,23 @@ public partial class EngineWindow
         GL.BindVertexArray(_routePreviewVao);
         var identity = Matrix4.Identity;
         GL.UniformMatrix4(_uniformModel, false, ref identity);
-        GL.Uniform4(_uniformColor, new Vector4(0.2f, 0.85f, 0.55f, 0.45f));
+        GL.Uniform4(_uniformColor, RoutePreviewHelper.DefaultLineColorRgba);
 
         foreach (var (entity, sel) in _world.Query<SelectionComponent>())
         {
             if (!sel.IsSelected) continue;
 
             var queue = _world.GetComponent<WaypointQueueComponent>(entity);
-            if (queue == null || queue.Waypoints.Count == 0) continue;
+            if (queue == null) continue;
 
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
-            var segments = new List<Vector3> { transform.Position };
-            for (int i = queue.CurrentIndex; i < queue.Waypoints.Count; i++)
-                segments.Add(queue.Waypoints[i]);
-
-            if (queue.Patrol && queue.Waypoints.Count > 0)
-                segments.Add(queue.Waypoints[0]);
-
-            if (segments.Count < 2) continue;
+            var segments = RoutePreviewHelper.BuildSegments(transform.Position, queue);
+            if (segments == null) continue;
 
             float[] vertices = MeshBuilder.BuildLineStripVertices(
-                segments, new Vector3(0.2f, 0.85f, 0.55f), y: 0.3f);
+                segments, RoutePreviewHelper.DefaultLineColor, y: RoutePreviewHelper.DefaultLineY);
             int vertCount = MeshBuilder.UpdateDynamicLineStrip(_routePreviewVbo, vertices);
             GL.DrawArrays(PrimitiveType.LineStrip, 0, vertCount);
         }

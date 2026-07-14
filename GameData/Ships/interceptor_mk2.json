@@ -2,6 +2,7 @@
   "id": "interceptor_mk2",
   "displayName": "Interceptor Mk.II",
   "category": "fighter",
+  "shipRole": "military",
   "mesh": "meshes/interceptor_mk2.obj",
   "fallbackMesh": "default",
   "components": {
@@ -11,6 +12,11 @@
       { "slot": 0, "type": "laser", "damage": 22, "range": 220, "fireRate": 2.8 },
       { "slot": 1, "type": "beam", "damage": 35, "range": 180, "fireRate": 0.6 }
     ],
+    "weaponSkill": {
+      "accuracyBonus": 0.14,
+      "reloadModifier": 0.80,
+      "rangeTier": "short"
+    },
     "squadMember": { "formationSlot": -1, "formationOffset": [0, 0, 0] }
   },
   "cost": { "energy": 80, "minerals": 110, "data": 15, "crew": 2 },

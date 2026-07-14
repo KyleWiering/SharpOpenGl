@@ -3,6 +3,7 @@ using SharpOpenGl.Engine.Build;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Missions;
 
 namespace SharpOpenGl.Engine.Multiplayer;
@@ -30,4 +31,13 @@ public sealed class GameCommandContext
 
     /// <summary>Optional structure placement helper for demo scripts.</summary>
     public Func<string, Vector3, bool>? PlaceBuilding { get; init; }
+
+    /// <summary>Optional grid for fog refresh after movement commands.</summary>
+    public GridSystem? Grid { get; init; }
+
+    /// <summary>
+    /// Optional fog tracker. When both <see cref="Grid"/> and this property are set,
+    /// <see cref="GameCommandExecutor"/> refreshes fog for <see cref="PlayerId"/> after successful moves.
+    /// </summary>
+    public FogOfWar? Fog { get; init; }
 }

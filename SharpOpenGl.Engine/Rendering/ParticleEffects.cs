@@ -1,5 +1,7 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Grid;
 
 namespace SharpOpenGl.Engine.Rendering;
 
@@ -220,6 +222,59 @@ public static class ParticleEffects
     }
 
     // ── Weapon fire ───────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Continuous weapon-colored trail behind a live projectile (pooled, capped).
+    /// </summary>
+    public static ParticleEmitter CreateProjectileTrail(
+        WeaponVisualKind visual, Vector3 origin, Vector3 direction, ProjectileType motion = ProjectileType.Linear)
+    {
+        var dir = Vector3.Normalize(direction);
+        Vector4 tint = WeaponProfiles.TrailColor(visual, motion);
+        float emitRate = visual switch
+        {
+            WeaponVisualKind.Beam => 90f,
+            WeaponVisualKind.Rocket or WeaponVisualKind.Torpedo => motion is ProjectileType.Homing or ProjectileType.AoE ? 56f : 48f,
+            WeaponVisualKind.Bomb or WeaponVisualKind.Wave => 36f,
+            _ => 72f,
+        };
+
+        return new ParticleEmitter(48)
+        {
+            Origin = origin,
+            EmitRate = emitRate,
+            BaseVelocity = dir * -6f,
+            VelocitySpread = 0.2f,
+            ParticleLifetime = 0.35f,
+            StartColor = tint,
+            EndColor = tint with { W = 0f },
+        };
+    }
+
+    /// <summary>Harvest beam shimmer pulled along collector→node link.</summary>
+    public static ParticleEmitter CreateHarvestBeamShimmer(
+        Vector3 origin, HarvestMode mode, Vector3 pullDir)
+    {
+        var dir = Vector3.Normalize(pullDir);
+        Vector4 start = mode switch
+        {
+            HarvestMode.TractorBeam => new Vector4(0.38f, 0.84f, 1f, 0.92f),
+            HarvestMode.Eva => new Vector4(0.88f, 0.58f, 0.28f, 0.86f),
+            HarvestMode.Drones => new Vector4(0.48f, 0.96f, 0.64f, 0.88f),
+            _ => new Vector4(0.98f, 0.72f, 0.18f, 0.9f),
+        };
+
+        return new ParticleEmitter(32)
+        {
+            Origin = origin,
+            EmitRate = 28f,
+            BaseVelocity = dir * 2.2f,
+            VelocitySpread = 0.35f,
+            ParticleLifetime = 0.45f,
+            StartColor = start,
+            EndColor = start with { W = 0f },
+        };
+    }
 
     /// <summary>
     /// Short-lived muzzle flash or laser streak effect.

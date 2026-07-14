@@ -5,6 +5,7 @@ using Xunit;
 
 namespace SharpOpenGl.Tests.Config;
 
+[Collection("MovementBalance")]
 public class MovementBalanceTests
 {
     [Fact]

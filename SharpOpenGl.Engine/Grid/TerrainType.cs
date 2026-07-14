@@ -22,4 +22,10 @@ public enum TerrainType
 
     /// <summary>Impassable boundary or solid object.</summary>
     Impassable = 4,
+
+    /// <summary>Electromagnetic ion storm — high movement penalty, heavy sensor disruption.</summary>
+    IonStorm = 5,
+
+    /// <summary>Collapsed wormhole gate — rare hazard with strong sensor echo.</summary>
+    WormholeRemnant = 6,
 }

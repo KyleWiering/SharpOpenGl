@@ -21,6 +21,9 @@ public sealed class BrowserMeshLibrary
     public int MoveTarget { get; private set; }
     public int MoveTargetCount { get; private set; }
     public int ParticleBuffer { get; private set; }
+    public int RoutePreviewBuffer { get; private set; }
+    public int GroundQuad { get; private set; }
+    public int GroundQuadCount { get; private set; }
 
     public int LaserBolt { get; private set; }
     public int LaserBoltCount { get; private set; }
@@ -81,6 +84,11 @@ public sealed class BrowserMeshLibrary
         MoveTargetCount = ProceduralMeshes.VertexCount(target);
 
         ParticleBuffer = await renderer.UploadMeshAsync(new float[4096 * 6]);
+        RoutePreviewBuffer = await renderer.UploadMeshAsync(new float[512 * 6]);
+
+        float[] groundQuad = ProceduralMeshes.BuildGroundQuad(1f, 1f, Vector3.One);
+        GroundQuad = await renderer.UploadMeshAsync(groundQuad);
+        GroundQuadCount = ProceduralMeshes.VertexCount(groundQuad);
 
         float[] laser = ProceduralMeshes.BuildLaserBolt(new Vector3(1f, 0.4f, 0.3f));
         LaserBolt = await renderer.UploadMeshAsync(laser);

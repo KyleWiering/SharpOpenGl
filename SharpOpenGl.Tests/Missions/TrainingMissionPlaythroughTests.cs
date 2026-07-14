@@ -12,6 +12,7 @@ using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Multiplayer;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
+using SharpOpenGl.Tests.Config;
 using Xunit;
 
 namespace SharpOpenGl.Tests.Missions;
@@ -21,6 +22,7 @@ namespace SharpOpenGl.Tests.Missions;
 /// <see cref="MissionPlaythroughAgent"/> + <see cref="ObjectiveSystem"/> harnesses.
 /// Class name matches both <c>TrainingMission</c> and <c>MissionPlaythrough</c> filters.
 /// </summary>
+[Collection("MovementBalance")]
 public class TrainingMissionPlaythroughTests
 {
     private static readonly string[] TrainingMissionIds =

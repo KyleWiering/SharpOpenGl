@@ -25,6 +25,8 @@ public static class ModelMeshSource
         "asteroid_field",
         "nebula",
         "debris",
+        "ion_storm",
+        "wormhole_remnant",
         "laser",
         "beam",
         "torpedo",
@@ -100,6 +102,8 @@ public static class ModelMeshSource
             "asteroid_field" => ProceduralMeshes.BuildAsteroidFieldCluster(new Vector3(0.6f, 0.55f, 0.5f), 3f),
             "nebula" => ProceduralMeshes.BuildNebulaCloud(3f),
             "debris" => ProceduralMeshes.BuildSceneryCluster(new Vector3(0.5f, 0.5f, 0.55f), 3f),
+            "ion_storm" => ProceduralMeshes.BuildIonStorm(3f),
+            "wormhole_remnant" => ProceduralMeshes.BuildWormholeRemnant(3f),
             "laser" => ProceduralMeshes.BuildLaserBolt(new Vector3(1f, 0.5f, 0.35f)),
             "beam" => ProceduralMeshes.BuildBeamStreak(new Vector3(0.55f, 0.95f, 1f)),
             "torpedo" => ProceduralMeshes.BuildTorpedo(new Vector3(0.9f, 0.9f, 0.95f)),
@@ -116,7 +120,8 @@ public static class ModelMeshSource
         "drone_worker" => "Units/drone_worker.obj",
         "shield_generator" => "Units/shield_generator.obj",
         "neutral_planet" or "harvestable_planet" => $"Environment/planets/{objectId}.obj",
-        "asteroid_field" or "nebula" or "debris" => $"Environment/scenery/{objectId}.obj",
+        "asteroid_field" or "nebula" or "debris" or "ion_storm" or "wormhole_remnant"
+            => $"Environment/scenery/{objectId}.obj",
         "laser" or "beam" or "torpedo" or "missile" or "bomb" or "cannon" or "wave" => $"Projectiles/{objectId}.obj",
         _ => $"Effects/{objectId}.obj",
     };

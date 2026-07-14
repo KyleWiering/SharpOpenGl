@@ -12,9 +12,11 @@ public sealed class MissionVictoryScreen : UIScreen
 {
     private readonly Panel _card;
     private readonly Label _titleLabel;
+    private readonly Label _subtitleLabel;
     private readonly Label _missionNameLabel;
     private readonly Label _elapsedLabel;
     private readonly Label _xpLabel;
+    private readonly Label _statsLabel;
     private readonly Label _defeatReasonLabel;
     private readonly ScrollPanel _objectivesPanel;
 
@@ -47,9 +49,10 @@ public sealed class MissionVictoryScreen : UIScreen
             Name = "VictoryCard",
             Anchor = Anchor.Center,
             Position = Vector2.Zero,
-            Size = new Vector2(420f, 520f),
+            Size = new Vector2(440f, 580f),
             BackgroundColor = new Vector4(0.08f, 0.08f, 0.14f, 0.97f),
         };
+        MenuTheme.ApplyPanel(_card);
         AddWidget(_card);
 
         _titleLabel = new Label
@@ -57,20 +60,33 @@ public sealed class MissionVictoryScreen : UIScreen
             Name = "ResultTitle",
             Text = "MISSION COMPLETE",
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(-180f, 24f),
-            Size = new Vector2(360f, 40f),
-            FontSize = 26f,
+            Position = new Vector2(-190f, 20f),
+            Size = new Vector2(380f, 40f),
+            FontSize = 28f,
             TextColor = new Vector4(0.45f, 1f, 0.55f, 1f),
         };
         _card.AddChild(_titleLabel);
+
+        _subtitleLabel = new Label
+        {
+            Name = "ResultSubtitle",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(-190f, 58f),
+            Size = new Vector2(380f, 24f),
+            FontSize = 15f,
+            TextColor = MenuTheme.MutedTextColor,
+        };
+        _card.AddChild(_subtitleLabel);
 
         _missionNameLabel = new Label
         {
             Name = "MissionName",
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(-180f, 68f),
-            Size = new Vector2(360f, 36f),
+            Position = new Vector2(-190f, 88f),
+            Size = new Vector2(380f, 36f),
             FontSize = 22f,
+            WrapWidth = 360f,
+            MaxLines = 2,
             TextColor = new Vector4(0.85f, 0.92f, 1f, 1f),
         };
         _card.AddChild(_missionNameLabel);
@@ -79,8 +95,8 @@ public sealed class MissionVictoryScreen : UIScreen
         {
             Name = "ElapsedTime",
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(-180f, 108f),
-            Size = new Vector2(360f, 28f),
+            Position = new Vector2(-190f, 132f),
+            Size = new Vector2(380f, 28f),
             FontSize = 18f,
             TextColor = MenuTheme.BodyTextColor,
         };
@@ -90,21 +106,35 @@ public sealed class MissionVictoryScreen : UIScreen
         {
             Name = "XpReward",
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(-180f, 138f),
-            Size = new Vector2(360f, 28f),
+            Position = new Vector2(-190f, 162f),
+            Size = new Vector2(380f, 28f),
             FontSize = 18f,
             TextColor = new Vector4(0.95f, 0.85f, 0.35f, 1f),
         };
         _card.AddChild(_xpLabel);
 
+        _statsLabel = new Label
+        {
+            Name = "RunStats",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(-190f, 192f),
+            Size = new Vector2(380f, 72f),
+            FontSize = 15f,
+            WrapWidth = 0f,
+            MaxLines = 4,
+            TextColor = MenuTheme.MutedTextColor,
+        };
+        _card.AddChild(_statsLabel);
+
         _defeatReasonLabel = new Label
         {
             Name = "DefeatReason",
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(-180f, 138f),
-            Size = new Vector2(360f, 48f),
+            Position = new Vector2(-190f, 162f),
+            Size = new Vector2(380f, 56f),
             FontSize = 17f,
-            WrapWidth = 340f,
+            WrapWidth = 360f,
+            MaxLines = 2,
             TextColor = new Vector4(1f, 0.55f, 0.45f, 1f),
             Visible = false,
         };
@@ -114,25 +144,28 @@ public sealed class MissionVictoryScreen : UIScreen
         {
             Name = "ObjectivesSummary",
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(-190f, 176f),
-            Size = new Vector2(380f, 220f),
+            Position = new Vector2(-200f, 268f),
+            Size = new Vector2(400f, 200f),
         };
+        MenuTheme.ApplyPanel(_objectivesPanel);
         _card.AddChild(_objectivesPanel);
 
         const float btnW = 300f;
         const float btnH = 52f;
         const float gap = 12f;
-        const float startY = 412f;
+        const float startY = 472f;
 
         var returnBtn = new Button
         {
             Name = "ReturnToMenu",
             Label = "Return to Menu",
+            TooltipHint = "Exit to main menu",
             Anchor = Anchor.TopCenter,
             Position = new Vector2(-btnW / 2f, startY),
             Size = new Vector2(btnW, btnH),
             FontSize = 20f,
         };
+        MenuTheme.ApplyNavButton(returnBtn, showGlow: true);
         returnBtn.Clicked += () => ReturnToMenuRequested?.Invoke();
         _card.AddChild(returnBtn);
 
@@ -140,11 +173,13 @@ public sealed class MissionVictoryScreen : UIScreen
         {
             Name = "ReplayMission",
             Label = "Replay Mission",
+            TooltipHint = "Retry this mission",
             Anchor = Anchor.TopCenter,
             Position = new Vector2(-btnW / 2f, startY + btnH + gap),
             Size = new Vector2(btnW, btnH),
             FontSize = 20f,
         };
+        MenuTheme.ApplyNavButton(replayBtn, showGlow: false);
         replayBtn.Clicked += () => ReplayMissionRequested?.Invoke();
         _card.AddChild(replayBtn);
     }
@@ -160,6 +195,17 @@ public sealed class MissionVictoryScreen : UIScreen
         _titleLabel.TextColor = isVictory
             ? new Vector4(0.45f, 1f, 0.55f, 1f)
             : new Vector4(1f, 0.45f, 0.4f, 1f);
+
+        _card.BorderColor = isVictory
+            ? new Vector4(0.35f, 0.85f, 0.5f, 0.95f)
+            : new Vector4(0.9f, 0.35f, 0.3f, 0.95f);
+
+        int completed = state.PrimaryObjectives.Count(o => o.IsCompleted);
+        int total = state.PrimaryObjectives.Count;
+
+        _subtitleLabel.Text = isVictory
+            ? (total > 0 ? $"All primary objectives complete ({completed}/{total})" : "Mission accomplished")
+            : "Replay or return to menu";
 
         _missionNameLabel.Text = displayName;
         _elapsedLabel.Text = $"Time: {FormatElapsedTime(state.ElapsedTime)}";
@@ -179,7 +225,15 @@ public sealed class MissionVictoryScreen : UIScreen
             _defeatReasonLabel.Visible = false;
         }
 
+        RebuildStats(state, isVictory);
         RebuildObjectives(state);
+    }
+
+    private void RebuildStats(MissionState state, bool isVictory)
+    {
+        IReadOnlyList<string> lines = state.RunStats.FormatSummaryLines(isVictory);
+        _statsLabel.Text = string.Join("\n", lines);
+        _statsLabel.Visible = lines.Count > 0;
     }
 
     /// <summary>Format mission elapsed time for display.</summary>
@@ -223,20 +277,25 @@ public sealed class MissionVictoryScreen : UIScreen
             if (string.IsNullOrWhiteSpace(description))
                 description = objective.Id.Replace('_', ' ');
 
+            int lineCount = UITextDrawing.WrapTextLimited(
+                $"{marker} {description}", wrapWidth, 16f, maxLines: 2).Count;
+            float labelHeight = Math.Max(32f, lineCount * 16f * UITextDrawing.LineHeightFactor + 4f);
+
             _objectivesPanel.AddChild(new Label
             {
                 Name = $"Objective_{objective.Id}",
                 Text = $"{marker} {description}",
                 Anchor = Anchor.TopLeft,
                 Position = new Vector2(padding, y),
-                Size = new Vector2(contentW, 40f),
+                Size = new Vector2(contentW, labelHeight),
                 FontSize = 16f,
                 WrapWidth = wrapWidth,
+                MaxLines = 2,
                 TextColor = objective.IsCompleted
                     ? new Vector4(0.55f, 0.95f, 0.65f, 1f)
                     : MenuTheme.BodyTextColor,
             });
-            y += 36f;
+            y += labelHeight + 4f;
         }
 
         _objectivesPanel.RecalculateContentHeight(_objectivesPanel.Size);

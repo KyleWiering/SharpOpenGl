@@ -77,7 +77,28 @@ public partial class EngineWindow
             CameraY = _rtsCamera.Target.Z,
             CameraZoom = _rtsCamera.Height / 80f,
             SlotName = slotName,
+            IsSandboxSession = _isSandboxSession,
+            ProceduralMapSeed = _proceduralMapSeed,
+            SandboxSeedText = ResolveSandboxSeedTextForSave(),
         });
+    }
+
+    private string ResolveSandboxSeedTextForSave()
+    {
+        if (!string.IsNullOrWhiteSpace(_lastSandboxSeedText))
+            return _lastSandboxSeedText;
+
+        if (_uiManager.Current is GameplayHUD hud && !string.IsNullOrWhiteSpace(hud.SessionSubtitle))
+        {
+            const string prefix = "Seed: ";
+            string subtitle = hud.SessionSubtitle;
+            if (subtitle.StartsWith(prefix, StringComparison.Ordinal))
+                return subtitle[prefix.Length..].Trim();
+
+            return subtitle;
+        }
+
+        return _proceduralMapSeed.ToString();
     }
 
     private void ApplySaveData(SaveData data)

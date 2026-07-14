@@ -2,6 +2,7 @@
   "id": "miner_tractor",
   "displayName": "Tractor Miner",
   "category": "miner",
+  "shipRole": "engineering",
   "mesh": "meshes/miner_basic.obj",
   "fallbackMesh": "default",
   "components": {

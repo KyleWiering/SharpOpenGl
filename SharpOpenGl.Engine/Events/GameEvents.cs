@@ -69,6 +69,26 @@ public enum ExplosionVfxKind
 /// <summary>Fired when a combat impact or destruction should spawn particle VFX.</summary>
 public record ExplosionVfxEvent(Vector3 Position, ExplosionVfxKind Kind, float Scale = 1f);
 
+/// <summary>Short-lived combat ring overlay kinds (line primitive, no mesh upload).</summary>
+public enum CombatRingVfxKind
+{
+    /// <summary>Brief ring flash when shields deplete to zero.</summary>
+    ShieldBreak,
+
+    /// <summary>Expanding ring on ship destruction.</summary>
+    DeathExpand,
+
+    /// <summary>Race ultimate cast pulse around the hero.</summary>
+    UltimateCast,
+}
+
+/// <summary>Fired when a brief line-ring overlay should expand at a world position.</summary>
+public record CombatRingVfxEvent(
+    Vector3 Position,
+    CombatRingVfxKind Kind,
+    float Radius = 7f,
+    Vector4? Tint = null);
+
 // ── Mission events ─────────────────────────────────────────────────────────
 
 /// <summary>Fired when a mission transitions to the InProgress phase.</summary>

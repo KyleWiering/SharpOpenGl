@@ -2,6 +2,7 @@
   "id": "destroyer_assault",
   "displayName": "Ravager Destroyer",
   "category": "destroyer",
+  "shipRole": "military",
   "mesh": "meshes/destroyer_assault.obj",
   "fallbackMesh": "default",
   "components": {
@@ -11,7 +12,12 @@
       { "slot": 0, "type": "railgun", "damage": 150, "range": 500, "fireRate": 1.0 },
       { "slot": 1, "type": "laser", "damage": 40, "range": 300, "fireRate": 3.0 },
       { "slot": 2, "type": "missile", "damage": 120, "range": 600, "fireRate": 0.5 }
-    ]
+    ],
+    "weaponSkill": {
+      "accuracyBonus": 0.06,
+      "reloadModifier": 0.95,
+      "rangeTier": "medium"
+    }
   },
   "cost": { "energy": 300, "minerals": 400, "data": 50, "crew": 8 },
   "buildTime": 60,

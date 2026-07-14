@@ -51,23 +51,24 @@ public class BuilderShipPlacementTests
         var builderComp = world.GetComponent<StructureBuilderComponent>(builder);
         Assert.NotNull(builderComp);
         Assert.Equal(80f, builderComp!.PlacementRange);
-        Assert.Equal(FullBuildTreeIds.Length, builderComp.BuildableIds.Count);
+        Assert.Equal(SkirmishMapLogic.BuilderTier1BuildingIds.Length, builderComp.BuildableIds.Count);
         Assert.Equal(
-            FullBuildTreeIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToArray(),
+            SkirmishMapLogic.BuilderTier1BuildingIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToArray(),
             builderComp.BuildableIds.OrderBy(id => id, StringComparer.OrdinalIgnoreCase).ToArray());
-        Assert.Contains("command_center", builderComp.BuildableIds, StringComparer.OrdinalIgnoreCase);
-        Assert.Contains("shipyard_small", builderComp.BuildableIds, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("command_center", builderComp.BuildableIds, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("shipyard_small", builderComp.BuildableIds, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public void Support_repair_whitelist_includes_hq_and_small_shipyard()
+    public void Support_repair_whitelist_is_tier1_builder_only()
     {
         var def = LoadShipDefinition("support_repair");
         var builder = def.Components!.StructureBuilder!;
         Assert.NotNull(builder.BuildableIds);
-        Assert.Contains("command_center", builder.BuildableIds!, StringComparer.OrdinalIgnoreCase);
-        Assert.Contains("shipyard_small", builder.BuildableIds!, StringComparer.OrdinalIgnoreCase);
-        Assert.Equal(FullBuildTreeIds.Length, builder.BuildableIds!.Length);
+        Assert.Equal(SkirmishMapLogic.BuilderTier1BuildingIds.Length, builder.BuildableIds!.Length);
+        foreach (string tier1Id in SkirmishMapLogic.BuilderTier1BuildingIds)
+            Assert.Contains(tier1Id, builder.BuildableIds!, StringComparer.OrdinalIgnoreCase);
+        Assert.DoesNotContain("shipyard_small", builder.BuildableIds!, StringComparer.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -138,7 +139,7 @@ public class BuilderShipPlacementTests
 
         var catalog = CreateCatalog();
         var views = catalog.BuildViews(world, playerId: 1, CreateFundedResources(), supply: null);
-        var whitelist = FullBuildTreeIds;
+        var whitelist = SkirmishMapLogic.BuilderTier1BuildingIds;
 
         var filtered = FilterBuildViews(views, whitelist);
         var visibleIds = filtered
@@ -164,7 +165,7 @@ public class BuilderShipPlacementTests
         world.AddComponent(builder, new StructureBuilderComponent
         {
             PlacementRange = placementRange,
-            BuildableIds = FullBuildTreeIds.ToList(),
+            BuildableIds = SkirmishMapLogic.BuilderTier1BuildingIds.ToList(),
         });
         return builder;
     }
@@ -208,6 +209,9 @@ public class BuilderShipPlacementTests
             {
                 Id = category.Id,
                 DisplayName = category.DisplayName,
+                TierIndex = category.TierIndex,
+                UnlockedCount = buildings.Count(static entry => entry.IsUnlocked),
+                TotalCount = buildings.Count,
                 Buildings = buildings,
             });
         }

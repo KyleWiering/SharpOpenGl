@@ -2,6 +2,7 @@
   "id": "dreadnought",
   "displayName": "Sovereign Dreadnought",
   "category": "dreadnought",
+  "shipRole": "military",
   "mesh": "meshes/dreadnought.obj",
   "fallbackMesh": "default",
   "components": {

@@ -2,6 +2,7 @@
   "id": "freighter_bulk",
   "displayName": "Bulk Freighter",
   "category": "transport",
+  "shipRole": "engineering",
   "mesh": "meshes/freighter_bulk.obj",
   "fallbackMesh": "default",
   "components": {

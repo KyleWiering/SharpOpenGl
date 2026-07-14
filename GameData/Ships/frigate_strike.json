@@ -2,6 +2,7 @@
   "id": "frigate_strike",
   "displayName": "Strike Frigate",
   "category": "frigate",
+  "shipRole": "military",
   "mesh": "meshes/frigate_strike.obj",
   "fallbackMesh": "default",
   "components": {
@@ -11,6 +12,11 @@
       { "slot": 0, "type": "cannon", "damage": 45, "range": 340, "fireRate": 1.0 },
       { "slot": 1, "type": "torpedo", "damage": 90, "range": 400, "fireRate": 0.35 }
     ],
+    "weaponSkill": {
+      "accuracyBonus": 0.07,
+      "reloadModifier": 0.90,
+      "rangeTier": "medium"
+    },
     "sightRadius": 6
   },
   "cost": { "energy": 180, "minerals": 240, "data": 35, "crew": 5 },

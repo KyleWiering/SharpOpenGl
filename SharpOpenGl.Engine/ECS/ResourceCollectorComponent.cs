@@ -67,6 +67,9 @@ public sealed class ResourceCollectorComponent
     /// <summary>Current phase of the collection state machine.</summary>
     public CollectorState State { get; set; } = CollectorState.Idle;
 
+    /// <summary>Current orbit angle (radians) around the assigned harvest node. NaN until assigned.</summary>
+    public float OrbitAngle { get; set; } = float.NaN;
+
     /// <summary><c>true</c> when the cargo hold is at capacity.</summary>
     public bool IsFull => CarryAmount >= CarryCapacity;
 }

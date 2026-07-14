@@ -57,6 +57,14 @@ public sealed class WebGlRenderer : IRenderer
             meshId, vertices, pointCount, MatrixToArray(model), pointSize);
     }
 
+    public void DrawLineStrip(int meshId, float[] vertices, int vertexCount, Matrix4 model, Vector4 color)
+    {
+        if (!_inFrame || meshId <= 0 || vertexCount <= 0 || vertices.Length == 0) return;
+        _ = _js.InvokeVoidAsync("sharpGl.drawLineStrip",
+            meshId, vertices, vertexCount, MatrixToArray(model),
+            new[] { color.X, color.Y, color.Z, color.W });
+    }
+
     public void EndFrame() => _inFrame = false;
 
     public void Resize(int width, int height) =>

@@ -193,8 +193,7 @@ public class UIManagerTests
         var hud = CreateHudWithBuildMapEntry();
         mgr.Push(hud);
 
-        var (pos, _) = hud.BuildMapPanel.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
-        var hoverPoint = pos + new Vector2(20f, 80f);
+        var hoverPoint = BuildMapFirstEntryHoverPoint(hud);
         mgr.HandlePointerMove(hoverPoint, false, UIScaler.ReferenceSize);
         mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
 
@@ -215,8 +214,7 @@ public class UIManagerTests
         var hud = CreateHudWithBuildMapEntry();
         mgr.Push(hud);
 
-        var (pos, _) = hud.BuildMapPanel.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
-        var hoverPoint = pos + new Vector2(20f, 80f);
+        var hoverPoint = BuildMapFirstEntryHoverPoint(hud);
         mgr.HandlePointerMove(hoverPoint, false, UIScaler.ReferenceSize);
         mgr.Update(0.1f);
 
@@ -237,8 +235,7 @@ public class UIManagerTests
         var hud = CreateHudWithBuildMapEntry();
         mgr.Push(hud);
 
-        var (pos, _) = hud.BuildMapPanel.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
-        mgr.HandlePointerMove(pos + new Vector2(20f, 80f), false, UIScaler.ReferenceSize);
+        mgr.HandlePointerMove(BuildMapFirstEntryHoverPoint(hud), false, UIScaler.ReferenceSize);
         mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
 
         mgr.HandlePointerMove(new Vector2(5f, 5f), false, UIScaler.ReferenceSize);
@@ -255,8 +252,7 @@ public class UIManagerTests
         var hud = CreateHudWithBuildMapEntry();
         mgr.Push(hud);
 
-        var (pos, _) = hud.BuildMapPanel.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
-        var hoverPoint = pos + new Vector2(20f, 80f);
+        var hoverPoint = BuildMapFirstEntryHoverPoint(hud);
         mgr.HandlePointerMove(hoverPoint, false, UIScaler.ReferenceSize);
         mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
 
@@ -276,8 +272,7 @@ public class UIManagerTests
         var hud = CreateHudWithBuildMapEntry();
         mgr.Push(hud);
 
-        var (pos, _) = hud.BuildMapPanel.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
-        mgr.HandlePointerMove(pos + new Vector2(20f, 80f), false, UIScaler.ReferenceSize);
+        mgr.HandlePointerMove(BuildMapFirstEntryHoverPoint(hud), false, UIScaler.ReferenceSize);
         mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
 
         mgr.Push(new FakeScreen("Overlay", isOverlay: true));
@@ -316,6 +311,19 @@ public class UIManagerTests
         ];
 
         return hud;
+    }
+
+    private static Vector2 BuildMapFirstEntryHoverPoint(GameplayHUD hud)
+    {
+        var (pos, _) = hud.BuildMapPanel.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
+        const float tileSize = 64f;
+        const float padding = 10f;
+        const float titleHeight = 28f;
+        const float categoryHeaderHeight = 20f;
+        const float headerFontSize = 12f;
+        float contentTop = padding + titleHeight + headerFontSize * 2f + 10f;
+        float rowY = contentTop + categoryHeaderHeight;
+        return pos + new Vector2(padding + tileSize * 0.5f, rowY + tileSize * 0.5f);
     }
 
     private sealed class DrawOrderRecordingRenderer : IUIRenderer

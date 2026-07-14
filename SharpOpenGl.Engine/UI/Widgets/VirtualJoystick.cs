@@ -24,6 +24,18 @@ public sealed class VirtualJoystick : Widget
     /// <summary>Thumb nub colour.</summary>
     public Vector4 ThumbColor { get; set; } = new Vector4(1f, 1f, 1f, 0.55f);
 
+    /// <summary>
+    /// Inner deadzone as a fraction of <see cref="BaseRadius"/> (0–1).
+    /// Small thumb jitter below this threshold reports zero axis output.
+    /// </summary>
+    public float DeadzoneFraction { get; set; } = 0.12f;
+
+    /// <summary>
+    /// Response curve exponent applied after deadzone removal.
+    /// Values &lt; 1 boost mid-range deflection for snappier touch pan.
+    /// </summary>
+    public float ResponseExponent { get; set; } = 0.72f;
+
     // ── State ─────────────────────────────────────────────────────────────────
 
     private Vector2 _thumbOffset;   // pixels, clamped to BaseRadius
@@ -32,16 +44,9 @@ public sealed class VirtualJoystick : Widget
 
     /// <summary>
     /// Current normalised axis output in the range [-1, 1] per axis.
-    /// Zero when the thumb is at centre.
+    /// Zero when the thumb is at centre or inside the deadzone.
     /// </summary>
-    public Vector2 Axis
-    {
-        get
-        {
-            float r = BaseRadius;
-            return r > 0f ? new Vector2(_thumbOffset.X / r, _thumbOffset.Y / r) : Vector2.Zero;
-        }
-    }
+    public Vector2 Axis => NormalizeAxis(_thumbOffset);
 
     /// <summary>Whether the joystick is currently being held.</summary>
     public bool IsActive => _isDragging;
@@ -116,6 +121,24 @@ public sealed class VirtualJoystick : Widget
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    internal Vector2 NormalizeAxis(Vector2 thumbOffset)
+    {
+        float r = BaseRadius;
+        if (r <= 0f)
+            return Vector2.Zero;
+
+        Vector2 raw = new Vector2(thumbOffset.X / r, thumbOffset.Y / r);
+        float len = raw.Length;
+        float deadzone = Math.Clamp(DeadzoneFraction, 0f, 0.45f);
+        if (len <= deadzone)
+            return Vector2.Zero;
+
+        float scaled = (len - deadzone) / (1f - deadzone);
+        float exponent = Math.Clamp(ResponseExponent, 0.35f, 2f);
+        float response = MathF.Pow(Math.Clamp(scaled, 0f, 1f), exponent);
+        return raw / len * response;
+    }
 
     private Vector2 ClampToRadius(Vector2 offset)
     {

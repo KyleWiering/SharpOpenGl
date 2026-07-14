@@ -36,6 +36,7 @@ class Program
             return;
         }
 
+        bool sandboxMode = args.Contains("--sandbox");
         bool screenshotMode = args.Contains("--screenshot");
         bool demoRecordingMode = args.Contains("--demo-recording");
         bool meshPreviewMode = args.Contains("--mesh-preview");
@@ -60,9 +61,12 @@ class Program
                 meshHull = args[i + 1];
             if (args[i] is "--category" or "--asset-kind")
                 meshCategory = args[i + 1];
+            if (args[i] == "--sandbox-seed")
+                SandboxLaunchOptions.SeedText = args[i + 1];
         }
 
-        bool headlessCapture = screenshotMode || demoRecordingMode || meshPreviewMode;
+        SandboxLaunchOptions.Enabled = sandboxMode;
+        bool headlessCapture = screenshotMode || demoRecordingMode || meshPreviewMode || sandboxMode;
 
         MeshPreviewLaunchOptions.Enabled = meshPreviewMode;
         MeshPreviewLaunchOptions.Race = meshRace;
@@ -84,7 +88,9 @@ class Program
                 ? $"SharpOpenGL Mesh Preview — {meshCategory} {meshRace}/{meshHull}"
                 : demoRecordingMode
                     ? $"SharpOpenGL Demo — {demoMissionId}"
-                    : "SharpOpenGL - Space RTS",
+                    : sandboxMode
+                        ? "SharpOpenGL Sandbox"
+                        : "SharpOpenGL - Space RTS",
             APIVersion = new Version(3, 3),
             Profile = ContextProfile.Core,
             Flags = headlessCapture
@@ -109,7 +115,7 @@ class Program
                 screenshotPath,
                 demoRecordingMode,
                 demoMissionId,
-                demoOutputPath);
+                demoVideoPath: demoOutputPath);
             game.Run();
         }
         catch (Exception ex)
@@ -185,7 +191,12 @@ class Program
         string json = JsonSerializer.Serialize(reports, ModelQualityScorer.JsonOptions);
         Console.WriteLine(json);
         if (!string.IsNullOrWhiteSpace(output))
+        {
+            string? dir = Path.GetDirectoryName(output);
+            if (!string.IsNullOrEmpty(dir))
+                Directory.CreateDirectory(dir);
             File.WriteAllText(output, json);
+        }
     }
 
     private static string? ResolveGalleryScreenshotHull(string[] args, bool screenshotMode, string screenshotPath, string cliHull)

@@ -3,6 +3,8 @@
   "id": "ship_template",
   "displayName": "Unnamed Ship",
   "category": "fighter",
+  "_comment_shipRole": "Optional: military | engineering | political. Omitted hulls infer from category (miner/freighter/transport/support → engineering; hero → political; else military).",
+  "shipRole": "military",
   "mesh": "",
   "fallbackMesh": "default",
   "components": {

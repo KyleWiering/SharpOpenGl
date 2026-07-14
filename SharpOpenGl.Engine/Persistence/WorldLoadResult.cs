@@ -19,4 +19,13 @@ public sealed class WorldLoadResult
     /// <summary>Maps saved entity indices to newly created entities.</summary>
     public IReadOnlyDictionary<int, Entity> EntityIdMap { get; init; } =
         new Dictionary<int, Entity>();
+
+    /// <summary>True when the save originated from a menu sandbox session.</summary>
+    public bool IsSandboxSession { get; init; }
+
+    /// <summary>Procedural map seed restored from the save file.</summary>
+    public int ProceduralMapSeed { get; init; }
+
+    /// <summary>Original sandbox seed text (empty for legacy or mission saves).</summary>
+    public string SandboxSeedText { get; init; } = string.Empty;
 }

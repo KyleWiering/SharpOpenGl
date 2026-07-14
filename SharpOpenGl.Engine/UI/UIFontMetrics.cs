@@ -75,7 +75,9 @@ public static class UIFontGlyphSegments
         TopHalfLeft, BottomHalfRight,
         TopPeakLeft, TopPeakRight,
         BottomValleyLeft, BottomValleyRight,
-        MiddleRight, TopTick
+        MiddleRight, MiddleLeft,
+        TopCenterCap, BottomCenterCap,
+        TopTick
     }
 
     public static Segment[] GetSegments(char c) => char.ToUpperInvariant(c) switch
@@ -88,7 +90,7 @@ public static class UIFontGlyphSegments
         'F' => [Segment.Top, Segment.Middle, Segment.TopLeft, Segment.BottomLeft],
         'G' => [Segment.Top, Segment.Bottom, Segment.TopLeft, Segment.BottomLeft, Segment.BottomRight, Segment.MiddleRight],
         'H' => [Segment.LeftFull, Segment.RightFull, Segment.Middle],
-        'I' => [Segment.Top, Segment.Bottom, Segment.CenterVert],
+        'I' => [Segment.CenterVert, Segment.TopCenterCap, Segment.BottomCenterCap],
         'J' => [Segment.Top, Segment.TopRight, Segment.BottomRight, Segment.Bottom, Segment.BottomLeft],
         'K' => [Segment.LeftFull, Segment.DiagMidLeftTopRight, Segment.DiagMidLeftBottomRight],
         'L' => [Segment.TopLeft, Segment.BottomLeft, Segment.Bottom],
@@ -98,7 +100,7 @@ public static class UIFontGlyphSegments
         'P' => [Segment.Top, Segment.Middle, Segment.TopLeft, Segment.TopRight, Segment.BottomLeft],
         'Q' => [Segment.Top, Segment.Bottom, Segment.TopLeft, Segment.TopRight, Segment.BottomLeft, Segment.BottomRight, Segment.DiagMidRightBottomRight],
         'R' => [Segment.Top, Segment.Middle, Segment.TopLeft, Segment.TopRight, Segment.BottomLeft, Segment.DiagMidRightBottomRight],
-        'S' => [Segment.TopHalfLeft, Segment.TopLeft, Segment.Middle, Segment.BottomRight, Segment.BottomHalfLeft, Segment.Bottom],
+        'S' => [Segment.TopHalfLeft, Segment.TopLeft, Segment.Middle, Segment.MiddleLeft, Segment.BottomRight, Segment.BottomHalfLeft, Segment.Bottom],
         'T' => [Segment.Top, Segment.CenterVert],
         'U' => [Segment.LeftFull, Segment.RightFull, Segment.Bottom],
         'V' => [Segment.TopLeft, Segment.TopRight, Segment.BottomLeft, Segment.BottomRight, Segment.Bottom],

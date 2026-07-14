@@ -139,4 +139,20 @@ public class SaveManagerTests : IDisposable
         mgr.Save(data);
         Assert.False(string.IsNullOrEmpty(data.SavedAt));
     }
+
+    [Fact]
+    public void CreateInMemory_round_trips_without_filesystem()
+    {
+        var mgr = SaveManager.CreateInMemory();
+        var data = MakeSave("BrowserSlot");
+        Assert.True(mgr.Save(data));
+
+        Assert.Single(mgr.ListSaveFiles());
+        Assert.True(mgr.SlotExists("BrowserSlot"));
+
+        var loaded = mgr.Load("BrowserSlot");
+        Assert.NotNull(loaded);
+        Assert.Equal("tutorial_01", loaded!.MissionId);
+        Assert.Equal(500f, loaded.PlayerResources[0].Energy);
+    }
 }

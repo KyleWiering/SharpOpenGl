@@ -31,6 +31,16 @@ public static class BuildingFootprint
         return true;
     }
 
+    /// <summary>
+    /// Snap a world cursor position to the centre of the nearest grid cell.
+    /// Uses <see cref="GridSystem.WorldToGrid"/> and <see cref="GridSystem.GridToWorld"/>.
+    /// </summary>
+    public static Vector3 SnapToCellCenter(GridSystem grid, Vector3 worldPos)
+    {
+        grid.WorldToGrid(worldPos, out int x, out int y);
+        return grid.GridToWorld(x, y);
+    }
+
     /// <summary>Enumerate all grid cells covered by a footprint.</summary>
     public static IEnumerable<(int X, int Y)> EnumerateCells(
         GridSystem grid, Vector3 worldPos, int cols, int rows)

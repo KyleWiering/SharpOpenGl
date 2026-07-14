@@ -2,6 +2,7 @@
   "id": "gunship_heavy",
   "displayName": "Aegis Gunship",
   "category": "gunship",
+  "shipRole": "military",
   "mesh": "meshes/gunship_heavy.obj",
   "fallbackMesh": "default",
   "components": {
@@ -12,6 +13,11 @@
       { "slot": 1, "type": "flak", "damage": 25, "range": 220, "fireRate": 3.5 },
       { "slot": 2, "type": "missile", "damage": 75, "range": 450, "fireRate": 0.3 }
     ],
+    "weaponSkill": {
+      "accuracyBonus": 0.04,
+      "reloadModifier": 1.10,
+      "rangeTier": "long"
+    },
     "sightRadius": 5
   },
   "cost": { "energy": 220, "minerals": 300, "data": 40, "crew": 6 },

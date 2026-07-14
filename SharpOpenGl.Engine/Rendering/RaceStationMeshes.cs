@@ -4147,29 +4147,33 @@ public static class RaceStationMeshes
 
     private static void BuildRadiantRepairBay(RaceMeshWriter w, Vector3 primary, Vector3 secondary, Vector3 accent, float s)
     {
-        float padR = s * 1.12f;
-        float innerR = s * 0.60f;
-        float rimH = s * 0.05f;
+        float padR = s * 1.18f;
+        float innerR = s * 0.64f;
+        float rimH = s * 0.06f;
 
         RadiantAddSolarPad(w, padR, innerR, rimH, s, primary, secondary, accent);
-        ReadOnlySpan<float> ringR = stackalloc float[] { 0.44f, 0.32f, 0.20f };
+        ReadOnlySpan<float> ringR = stackalloc float[] { 0.48f, 0.36f, 0.24f };
         RadiantAddGlowRingTiers(w, rimH, s, ringR, primary, secondary, accent);
+
+        RetroAddBoxUniform(w, -s * 0.22f, s * 0.22f, rimH + s * 0.02f, rimH + s * 0.14f, -padR * 0.34f, padR * 0.34f, secondary * 0.90f);
+        RetroAddBoxUniform(w, -s * 0.18f, s * 0.18f, rimH + s * 0.14f, rimH + s * 0.22f, -padR * 0.30f, padR * 0.30f, primary * 0.94f);
 
         for (int slot = 0; slot < 3; slot++)
         {
-            float x = -s * 0.18f + slot * s * 0.18f;
-            RetroAddBoxUniform(w, x - s * 0.10f, x + s * 0.10f, rimH, rimH + s * 0.025f, -padR * 0.72f, -padR * 0.52f, secondary * 0.88f);
-            RetroAddBoxUniform(w, x - s * 0.08f, x + s * 0.08f, rimH + s * 0.025f, rimH + s * 0.08f, -padR * 0.70f, -padR * 0.58f, primary * 0.92f);
-            RadiantAddGlowRing(w, x, rimH + s * 0.03f, -padR * 0.62f, s * 0.12f, s * 0.020f, 8, slot % 2 == 0 ? accent : secondary);
+            float x = -s * 0.20f + slot * s * 0.20f;
+            RetroAddBoxUniform(w, x - s * 0.11f, x + s * 0.11f, rimH, rimH + s * 0.028f, -padR * 0.76f, -padR * 0.54f, secondary * 0.88f);
+            RetroAddBoxUniform(w, x - s * 0.09f, x + s * 0.09f, rimH + s * 0.028f, rimH + s * 0.10f, -padR * 0.74f, -padR * 0.60f, primary * 0.92f);
+            RadiantAddGlowRing(w, x, rimH + s * 0.035f, -padR * 0.66f, s * 0.13f, s * 0.022f, 8, slot % 2 == 0 ? accent : secondary);
         }
 
-        for (int arm = 0; arm < 3; arm++)
+        for (int arm = 0; arm < 4; arm++)
         {
-            float angle = MathF.PI * 0.15f + arm * MathF.PI * 0.35f;
-            RadiantAddSolarPetal(w, 0, rimH + s * 0.03f, padR * 0.35f, angle, s * 0.42f, s, primary, secondary, accent);
+            float angle = MathF.PI * 0.10f + arm * MathF.PI * 0.45f;
+            RadiantAddSolarPetal(w, 0, rimH + s * 0.04f, padR * 0.38f, angle, s * 0.46f, s, primary, secondary, accent);
         }
 
-        RetroAddBoxUniform(w, -s * 0.08f, s * 0.08f, rimH + s * 0.02f, rimH + s * 0.07f, -s * 0.08f, s * 0.08f, accent * 0.96f);
+        RetroAddBoxUniform(w, -s * 0.10f, s * 0.10f, rimH + s * 0.24f, rimH + s * 0.34f, -s * 0.08f, s * 0.08f, accent * 0.96f);
+        RadiantAddGlowRing(w, 0, rimH + s * 0.26f, 0, s * 0.16f, s * 0.026f, 10, accent);
     }
 
     private static void BuildRadiantSupplyDepot(RaceMeshWriter w, Vector3 primary, Vector3 secondary, Vector3 accent, float s)
@@ -5947,16 +5951,80 @@ public static class RaceStationMeshes
         Vector3 primary, Vector3 secondary, Vector3 accent, float s) =>
         BuildReactor(w, race, primary, secondary, accent, s, omitRing: true);
 
+    /// <summary>
+    /// Nexar-style fortress capstone — wide pad + offset hub cluster without the full command-center mesh.
+    /// Targets ≤400 tris and flush box panels (no tri chevrons).
+    /// </summary>
+    private static void BuildAsymmetricFortressCore(RaceMeshWriter w, RaceVisualDefinition race,
+        Vector3 primary, Vector3 secondary, Vector3 accent, float s)
+    {
+        float hubOffset = s * race.Modifiers.Asymmetry * 0.22f;
+        float padR = s * 1.20f;
+        float rimH = s * 0.05f;
+        float hubScale = s * 0.34f;
+
+        AsymmetricAddStaggeredPad(w, s, padR, rimH, hubOffset, primary, secondary);
+        AsymmetricAddOffsetHub(w, hubOffset, rimH, hubScale, primary, secondary, accent, tiers: 2);
+        AsymmetricAddDiagonalAccentStripe(w, hubOffset, rimH, hubScale, accent);
+        AsymmetricAddAmberAccentWell(w, hubOffset, rimH, hubScale, accent);
+
+        RetroAddBoxUniform(w, hubOffset - padR * 0.34f, hubOffset + padR * 0.34f, rimH + s * 0.04f, rimH + s * 0.12f,
+            -padR * 0.30f, padR * 0.30f, secondary);
+
+        for (int pod = -1; pod <= 1; pod += 2)
+        {
+            float x = hubOffset + pod * s * 0.44f;
+            RetroAddBoxUniform(w, x - s * 0.08f, x + s * 0.08f, rimH + s * 0.06f, rimH + s * 0.16f,
+                s * 0.14f, s * 0.26f, accent);
+        }
+
+        RetroAddBoxUniform(w, hubOffset - s * 0.30f, hubOffset - s * 0.10f, rimH + s * 0.20f, rimH + s * 0.28f,
+            -s * 0.22f, -s * 0.04f, secondary * 0.94f);
+        RetroAddBoxUniform(w, hubOffset + s * 0.10f, hubOffset + s * 0.30f, rimH + s * 0.20f, rimH + s * 0.28f,
+            s * 0.06f, s * 0.24f, secondary * 0.90f);
+        RetroAddBoxUniform(w, hubOffset - s * 0.06f, hubOffset + s * 0.06f, rimH + s * 0.28f, rimH + s * 0.36f,
+            -s * 0.08f, s * 0.08f, accent * 1.05f);
+    }
+
     private static void BuildFortressCore(RaceMeshWriter w, RaceVisualDefinition race,
         Vector3 primary, Vector3 secondary, Vector3 accent, float s)
     {
         float styleScale = 0.85f + race.Modifiers.Superstructure * 0.3f;
+
+        if (race.Style.Equals("asymmetric", StringComparison.OrdinalIgnoreCase))
+        {
+            // wo-mesh-r2-03 — dedicated asymmetric fortress (no command-center mesh reuse).
+            BuildAsymmetricFortressCore(w, race, primary, secondary, accent, 8f * styleScale);
+            return;
+        }
+
         BuildCommandCenter(w, race, primary, secondary, accent, 8f * styleScale, omitMast: true);
+
         for (int pod = -1; pod <= 1; pod += 2)
         {
             float x = pod * s * 0.35f;
-            w.TriColored(new Vector3(x - s * 0.08f, s * 0.48f, s * 0.16f), new Vector3(x + s * 0.08f, s * 0.48f, s * 0.16f),
-                new Vector3(x, s * 0.58f, s * 0.24f), accent);
+            RetroAddBoxUniform(w, x - s * 0.08f, x + s * 0.08f, s * 0.48f, s * 0.58f,
+                s * 0.14f, s * 0.26f, accent);
+        }
+
+        if (race.Style.Equals("truss", StringComparison.OrdinalIgnoreCase))
+        {
+            float rimH = s * 0.05f;
+            for (int ring = 0; ring < 3; ring++)
+            {
+                float t = ring / 2f;
+                float half = s * MathHelper.Lerp(0.52f, 0.28f, t);
+                RetroAddBoxUniform(w, -half, half, rimH + s * (0.18f + t * 0.16f), rimH + s * (0.22f + t * 0.16f),
+                    -half * 0.6f, half * 0.6f, ring == 1 ? secondary : primary * 0.92f);
+            }
+            for (int leg = 0; leg < 4; leg++)
+            {
+                float angle = leg * MathF.PI * 0.5f + MathF.PI * 0.25f;
+                float cx = MathF.Cos(angle) * s * 0.38f;
+                float cz = MathF.Sin(angle) * s * 0.38f;
+                RetroAddBoxUniform(w, cx - s * 0.04f, cx + s * 0.04f, rimH, rimH + s * 0.26f,
+                    cz - s * 0.04f, cz + s * 0.10f, accent);
+            }
         }
     }
 

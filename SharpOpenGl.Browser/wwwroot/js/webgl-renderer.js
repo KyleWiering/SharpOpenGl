@@ -425,6 +425,7 @@ void main() {
         gl.bindVertexArray(mesh.vao);
         const mode = primitiveType === 1 ? gl.LINES
             : primitiveType === 0 ? gl.POINTS
+            : primitiveType === 3 ? gl.LINE_STRIP
             : gl.TRIANGLES;
         gl.drawArrays(mode, 0, vertexCount);
         gl.bindVertexArray(null);
@@ -449,5 +450,23 @@ void main() {
         gl.bindVertexArray(null);
     }
 
-    return { init, resize, clear, uploadMesh, beginFrame, drawMesh, drawPoints };
+    function drawLineStrip(meshId, vertices, vertexCount, model, color) {
+        if (!gl || meshId <= 0 || vertexCount <= 0) return;
+        const mesh = meshes[meshId];
+        if (!mesh) return;
+
+        gl.uniformMatrix4fv(locModel, false, model);
+        gl.uniform4fv(locColor, color ?? [0.2, 0.85, 0.55, 0.45]);
+        gl.uniform1i(locRaceTextureIndex, -1);
+        gl.uniform1i(locComponentTextureIndex, -1);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, mesh.vbo);
+        gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(vertices));
+
+        gl.bindVertexArray(mesh.vao);
+        gl.drawArrays(gl.LINE_STRIP, 0, vertexCount);
+        gl.bindVertexArray(null);
+    }
+
+    return { init, resize, clear, uploadMesh, beginFrame, drawMesh, drawPoints, drawLineStrip };
 })();

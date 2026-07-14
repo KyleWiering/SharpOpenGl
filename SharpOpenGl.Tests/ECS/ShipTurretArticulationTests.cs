@@ -444,7 +444,7 @@ public class ShipTurretArticulationTests
         CombatBalance.ResetForTests();
         var grid = new GridSystem(32, 32, cellSize: 10f);
         var fog = new FogOfWar(grid, playerCount: 1);
-        var gate = new CombatFogGate { Grid = grid, Fog = fog, FogPlayerId = 0 };
+        var gate = new CombatFogGate { Grid = grid, Fog = fog };
 
         var (world, system, ship, yawPart, pitchPart) = SpawnCombatShip(
             LoadShip("corvette_fast"),

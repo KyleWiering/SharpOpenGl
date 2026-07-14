@@ -2,6 +2,7 @@
   "id": "bomber_heavy",
   "displayName": "Thunderhawk Bomber",
   "category": "bomber",
+  "shipRole": "military",
   "mesh": "meshes/bomber_heavy.obj",
   "fallbackMesh": "default",
   "components": {
@@ -11,6 +12,11 @@
       { "slot": 0, "type": "torpedo", "damage": 200, "range": 400, "fireRate": 0.3 },
       { "slot": 1, "type": "bomb", "damage": 350, "range": 100, "fireRate": 0.2 }
     ],
+    "weaponSkill": {
+      "accuracyBonus": 0.03,
+      "reloadModifier": 1.20,
+      "rangeTier": "long"
+    },
     "squadMember": {
       "formationSlot": -1,
       "formationOffset": [0, 0, 0]

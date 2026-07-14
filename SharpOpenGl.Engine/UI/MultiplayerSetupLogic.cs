@@ -23,7 +23,10 @@ public sealed class MultiplayerSlotState
 public sealed record MultiplayerPlayerSlot(int SlotIndex, bool IsHuman, string RaceId);
 
 /// <summary>Validated multiplayer lobby configuration passed into gameplay spawn.</summary>
-public sealed record MultiplayerSetupResult(IReadOnlyList<MultiplayerPlayerSlot> Players, string MapId)
+public sealed record MultiplayerSetupResult(
+    IReadOnlyList<MultiplayerPlayerSlot> Players,
+    string MapId,
+    SkirmishDifficultyTier Difficulty = SkirmishDifficultyTier.Normal)
 {
     public int ActivePlayerCount => Players.Count;
     public int AiCount => Players.Count(p => !p.IsHuman);
@@ -141,7 +144,8 @@ public static class MultiplayerSetupLogic
     public static MultiplayerSetupResult? BuildResult(
         IReadOnlyList<MultiplayerSlotState> slots,
         string[] raceIds,
-        SkirmishMapEntry selectedMap)
+        SkirmishMapEntry selectedMap,
+        SkirmishDifficultyTier difficulty = SkirmishDifficultyTier.Normal)
     {
         if (!CanStart(slots, selectedMap)) return null;
 
@@ -158,7 +162,7 @@ public static class MultiplayerSetupLogic
 
         return players.Count == 0
             ? null
-            : new MultiplayerSetupResult(players, selectedMap.Id);
+            : new MultiplayerSetupResult(players, selectedMap.Id, difficulty);
     }
 
     public static string DescribeMapValidation(

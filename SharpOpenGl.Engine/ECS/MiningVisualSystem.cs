@@ -42,6 +42,8 @@ public sealed class MiningVisualSystem : GameSystem
 
         var state = GetOrCreateState(world, collectorEntity);
         RegisterNodeVisual(world, collectorEntity, collector, state, deltaTime);
+        EnsureHarvestBeamVisual(world, collectorEntity, collector);
+        TickHarvestBeamPulse(world, collectorEntity, deltaTime);
 
         switch (collector.HarvestMode)
         {
@@ -531,6 +533,37 @@ public sealed class MiningVisualSystem : GameSystem
         return state;
     }
 
+    private static void EnsureHarvestBeamVisual(
+        World world, Entity collectorEntity, ResourceCollectorComponent collector)
+    {
+        if (!world.IsAlive(collector.AssignedNode))
+        {
+            world.RemoveComponent<HarvestBeamVisualComponent>(collectorEntity);
+            return;
+        }
+
+        if (!world.HasComponent<HarvestBeamVisualComponent>(collectorEntity))
+        {
+            world.AddComponent(collectorEntity, new HarvestBeamVisualComponent
+            {
+                NodeEntity = collector.AssignedNode,
+                Mode = collector.HarvestMode,
+            });
+            return;
+        }
+
+        var beam = world.GetComponent<HarvestBeamVisualComponent>(collectorEntity)!;
+        beam.NodeEntity = collector.AssignedNode;
+        beam.Mode = collector.HarvestMode;
+    }
+
+    private static void TickHarvestBeamPulse(World world, Entity collectorEntity, float deltaTime)
+    {
+        var beam = world.GetComponent<HarvestBeamVisualComponent>(collectorEntity);
+        if (beam != null)
+            beam.PulsePhase += deltaTime * 4f;
+    }
+
     private static void CleanupCollectorVisuals(World world, Entity collectorEntity, bool keepState = false)
     {
         if (!keepState)
@@ -550,6 +583,8 @@ public sealed class MiningVisualSystem : GameSystem
         }
 
         world.RemoveComponent<TractorBeamVisualComponent>(collectorEntity);
+        if (!keepState)
+            world.RemoveComponent<HarvestBeamVisualComponent>(collectorEntity);
     }
 
     private static void PruneOrphanedVisuals(World world)

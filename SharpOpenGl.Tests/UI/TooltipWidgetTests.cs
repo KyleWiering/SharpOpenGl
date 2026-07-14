@@ -127,6 +127,31 @@ public class TooltipWidgetTests
     }
 
     [Fact]
+    public void TooltipContent_FromCommandButton_includes_button_label_for_abbreviated_commands()
+    {
+        TooltipContent content = TooltipContent.FromCommandButton("Attack Move", "Attack Move (A)");
+        IReadOnlyList<string> lines = content.ToLines();
+
+        Assert.Equal("Attack Move (A)", content.Title);
+        Assert.Equal("Button: Attack Move", content.RoleLine);
+        Assert.Equal(2, lines.Count);
+    }
+
+    [Fact]
+    public void TooltipContent_FormatPrerequisiteChain_joins_locked_prerequisites()
+    {
+        var entry = new SharpOpenGl.Engine.Build.BuildMapEntryView
+        {
+            IsUnlocked = false,
+            Prerequisites = ["Command Center", "Power Reactor"],
+        };
+
+        string? chain = TooltipContent.FormatPrerequisiteChain(entry);
+
+        Assert.Equal("Prerequisite chain: Command Center → Power Reactor", chain);
+    }
+
+    [Fact]
     public void Widget_default_GetTooltipContent_returns_null()
     {
         var panel = new Panel();

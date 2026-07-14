@@ -11,6 +11,8 @@ public sealed class PathFollowingSystem : GameSystem
 {
     private readonly GridSystem _grid;
     private const float WaypointArrivalThreshold = 2.5f;
+    private const float StuckRecoverySeconds = 1.25f;
+    private const float MinProgressDistance = 0.35f;
 
     public PathFollowingSystem(GridSystem grid)
     {
@@ -60,7 +62,49 @@ public sealed class PathFollowingSystem : GameSystem
 
             int targetIndex = SelectLookAheadIndex(path, transform.Position);
             movement.PathTarget = path.Waypoints[targetIndex];
+
+            if (TryRecoverFromStuck(world, entity, dest, path, movement, transform, deltaTime))
+                continue;
         }
+    }
+
+    private bool TryRecoverFromStuck(
+        World world,
+        Entity entity,
+        DestinationComponent dest,
+        PathComponent path,
+        MovementComponent movement,
+        TransformComponent transform,
+        float deltaTime)
+    {
+        if (movement.PathTarget == null)
+            return false;
+
+        float dist = PathRouteHelper.HorizontalDistance(transform.Position, movement.PathTarget.Value);
+        if (dist + MinProgressDistance < path.LastProgressDistance)
+        {
+            path.StuckSeconds = 0f;
+            path.LastProgressDistance = dist;
+            return false;
+        }
+
+        path.StuckSeconds += deltaTime;
+        if (path.StuckSeconds < StuckRecoverySeconds)
+            return false;
+
+        path.StuckSeconds = 0f;
+        path.LastProgressDistance = float.MaxValue;
+
+        if (path.CurrentWaypointIndex < path.Waypoints.Count - 1)
+        {
+            path.CurrentWaypointIndex++;
+            movement.PathTarget = path.Waypoints[path.CurrentWaypointIndex];
+            return false;
+        }
+
+        world.RemoveComponent<PathComponent>(entity);
+        movement.PathTarget = null;
+        return true;
     }
 
     private void AdvancePassedWaypoints(PathComponent path, Vector3 position)

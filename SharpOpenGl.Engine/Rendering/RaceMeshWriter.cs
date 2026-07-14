@@ -1032,7 +1032,9 @@ internal sealed partial class RaceMeshWriter
             else if (maintainFighter && ax > hw * 0.52f && y > hgt * 0.16f && y < hgt * 0.28f && z > len * 0.02f && lum is > 0.52f and < 0.82f)
                 delta += 0.026f * MathF.Sin(x * 7.4f + z * 4.2f);
             else if (maintainFighter && y > hgt * 0.36f && y < hgt * 0.48f && ax < hw * 0.14f && lum is > 0.54f and < 0.78f)
-                delta -= 0.040f * MathF.Sin(z * 5.6f);
+                delta -= 0.052f * MathF.Sin(z * 5.6f);
+            else if (maintainFighter && y > hgt * 0.28f && y < hgt * 0.42f && ax < hw * 0.18f && z > len * 0.02f && lum is > 0.52f and < 0.82f)
+                delta += 0.038f * MathF.Sin(z * 4.8f);
             else if (y < hgt * 0.08f && lum > 0.56f)
                 delta -= maintainFighter ? 0.048f : 0.05f;
             else if (isHero && y > hgt * 0.36f && y < hgt * 0.52f && lum is > 0.54f and < 0.78f)
@@ -1065,7 +1067,7 @@ internal sealed partial class RaceMeshWriter
     {
         float hw = wid * 0.5f;
         bool isFrigate = hullKey is "frigate";
-        bool isGunship = hullKey is "gunship";
+        bool isGunship = hullKey is "gunship" or "gunship_heavy";
         bool isBomber = hullKey is "bomber";
         bool isCorvette = hullKey is "corvette";
         for (int i = 0; i < _verts.Count; i += 6)
@@ -1088,9 +1090,11 @@ internal sealed partial class RaceMeshWriter
             else if (isFrigate && z < -len * 0.04f && y < hgt * 0.28f && ax > hw * 0.04f && lum is >= 0.38f and < 0.52f)
                 delta += 0.020f * MathF.Sin(z * 8.2f);
             else if (isGunship && y < hgt * 0.12f && z > len * 0.08f && ax < hw * 0.18f && lum > 0.46f)
-                delta -= 0.078f;
+                delta -= hullKey is "gunship_heavy" ? 0.088f : 0.078f;
             else if (isGunship && ax > hw * 0.34f && ax < hw * 0.50f && y < hgt * 0.18f && lum is > 0.30f and < 0.42f)
-                delta -= 0.044f;
+                delta -= hullKey is "gunship_heavy" ? 0.052f : 0.044f;
+            else if (isGunship && hullKey is "gunship_heavy" && y > hgt * 0.44f && y < hgt * 0.58f && ax < hw * 0.22f && lum is > 0.56f and < 0.88f)
+                delta += 0.036f * MathF.Sin(z * 5.2f);
             else if (isBomber && y < hgt * 0.12f && ax > hw * 0.16f && ax < hw * 0.34f && lum is > 0.30f and < 0.42f)
                 delta -= 0.042f;
             else if (isBomber && z < -len * 0.04f && y < hgt * 0.28f && ax > hw * 0.04f && lum is >= 0.38f and < 0.52f)

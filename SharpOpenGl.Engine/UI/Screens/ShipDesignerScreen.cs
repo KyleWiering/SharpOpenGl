@@ -1,5 +1,6 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Rendering;
+using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl.Engine.UI.Screens;
@@ -20,6 +21,9 @@ public enum DesignerAssetCategory
 /// </remarks>
 public sealed class ShipDesignerScreen : UIScreen
 {
+    private const float LabelPadding = 4f;
+    private const float PickerLabelWidth = 224f;
+
     private string _modelId = "fighter_basic";
     private string _raceId = RaceShipMeshes.DefaultRace;
     private int _modelIndex;
@@ -90,10 +94,10 @@ public sealed class ShipDesignerScreen : UIScreen
             Position = new Vector2(32f, -72f),
             Size = new Vector2(720f, 48f),
             FontSize = 18f,
-            WrapWidth = 700f,
             MaxLines = 2,
             TextColor = new Vector4(0.75f, 0.82f, 0.95f, 1f),
         };
+        ApplyPreviewLabelWrap();
         AddWidget(_previewLabel);
 
         _controlPanel = new ScrollPanel
@@ -105,13 +109,16 @@ public sealed class ShipDesignerScreen : UIScreen
         };
         AddWidget(_controlPanel);
 
+        float pickerWrapWidth = UITextDrawing.ContentWrapWidth(PickerLabelWidth, LabelPadding);
         _raceLabel = new Label
         {
             Name = "RaceLabel",
             Anchor = Anchor.TopLeft,
             Position = new Vector2(68f, 16f),
-            Size = new Vector2(224f, 36f),
+            Size = new Vector2(PickerLabelWidth, 36f),
             FontSize = 16f,
+            WrapWidth = pickerWrapWidth,
+            MaxLines = 1,
             TextColor = new Vector4(0.9f, 0.92f, 1f, 1f),
         };
         _controlPanel.AddChild(_raceLabel);
@@ -121,8 +128,10 @@ public sealed class ShipDesignerScreen : UIScreen
             Name = "ModelLabel",
             Anchor = Anchor.TopLeft,
             Position = new Vector2(68f, 68f),
-            Size = new Vector2(224f, 36f),
+            Size = new Vector2(PickerLabelWidth, 36f),
             FontSize = 16f,
+            WrapWidth = pickerWrapWidth,
+            MaxLines = 1,
             TextColor = new Vector4(0.9f, 0.92f, 1f, 1f),
         };
         _controlPanel.AddChild(_modelLabel);
@@ -287,7 +296,12 @@ public sealed class ShipDesignerScreen : UIScreen
         _previewLabel.Text = PreviewMeshReady
             ? $"Previewing {FormatDisplayName(_modelId)} ({FormatDisplayName(_raceId)} {assetKind})"
             : $"Select a {assetKind}, then use < > or Load Model to preview";
+        ApplyPreviewLabelWrap();
+        _controlPanel.RecalculateContentHeight(_controlPanel.Size);
     }
+
+    private void ApplyPreviewLabelWrap() =>
+        _previewLabel.WrapWidth = UITextDrawing.ContentWrapWidth(_previewLabel.Size.X, LabelPadding);
 
     private static string FormatDisplayName(string id)
     {

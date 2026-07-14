@@ -299,6 +299,14 @@ internal static class FactoryHelpers
     {
         int radius = components?.SightRadius > 0 ? components.SightRadius : 5;
         world.AddComponent(entity, new SightRadiusComponent { Radius = radius });
+        ApplyWeaponSkill(world, entity, components?.WeaponSkill);
+    }
+
+    /// <summary>Apply <see cref="WeaponSkillComponent"/> when <c>components.weaponSkill</c> is declared.</summary>
+    internal static void ApplyWeaponSkill(World world, Entity entity, WeaponSkillDefinition? def)
+    {
+        if (def == null) return;
+        world.AddComponent(entity, WeaponSkillProfiles.Resolve(def));
     }
 
     /// <summary>Apply <see cref="ResourceCollectorComponent"/> from definition.</summary>

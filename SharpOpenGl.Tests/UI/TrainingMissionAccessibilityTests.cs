@@ -118,7 +118,7 @@ public class TrainingMissionAccessibilityTests
         screen.Draw(renderer);
 
         Assert.Contains(renderer.Texts, t => t == "✓");
-        Assert.Contains(renderer.Texts, t => t == "✓ Mission completed");
+        Assert.Contains(renderer.Texts, t => t == "Mission completed");
 
         var node = screen.GetStarMapNodes().Single(n => n.Id == missionId);
         Assert.True(node.IsCompleted);

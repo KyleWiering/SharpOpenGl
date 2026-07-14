@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.ECS;
 
@@ -88,6 +89,19 @@ public sealed class ShipRepairDefinition
 
     /// <summary>Entity categories this unit may repair.</summary>
     public string[] RepairableCategories { get; set; } = [];
+}
+
+/// <summary>JSON shape for hull weapon skill (<c>components.weaponSkill</c>).</summary>
+public sealed class WeaponSkillDefinition
+{
+    /// <summary>Additive damage multiplier on hit (e.g. 0.10 → +10% effective damage).</summary>
+    public float AccuracyBonus { get; set; }
+
+    /// <summary>Fire-rate divisor; values below 1 increase fire rate, 1.0 is baseline.</summary>
+    public float ReloadModifier { get; set; } = 1f;
+
+    /// <summary>Engagement tier: <c>short</c>, <c>medium</c>, or <c>long</c>.</summary>
+    public string RangeTier { get; set; } = "medium";
 }
 
 /// <summary>JSON shape for a resource collector block.</summary>
@@ -215,6 +229,12 @@ public sealed class ComponentsDefinition
     public ShipRepairDefinition? ShipRepair { get; set; }
     public StructureBuilderDefinition? StructureBuilder { get; set; }
 
+    /// <summary>
+    /// Military hull combat modifiers (accuracy, reload, range tier).
+    /// JSON key: <c>weaponSkill</c>. Omitted on engineering/political hulls.
+    /// </summary>
+    public WeaponSkillDefinition? WeaponSkill { get; set; }
+
     /// <summary>Fog-of-war reveal radius in grid cells.</summary>
     public int SightRadius { get; set; } = 5;
 }
@@ -235,6 +255,13 @@ public sealed class EntityDefinition
 
     /// <summary>Broad category tag (e.g. "hero", "fighter", "worker", "base").</summary>
     public string Category { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Optional build-tree role badge (military / engineering / political).
+    /// When omitted, <see cref="ShipRoleResolver.InferFromCategory"/> applies at runtime.
+    /// </summary>
+    [JsonConverter(typeof(ShipRoleJsonConverter))]
+    public ShipRole? ShipRole { get; set; }
 
     /// <summary>Asset key for the preferred mesh, relative to the mesh root.</summary>
     public string Mesh { get; set; } = string.Empty;

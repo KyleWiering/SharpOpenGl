@@ -2,6 +2,7 @@
   "id": "drone_swarm",
   "displayName": "Swarm Drone",
   "category": "drone",
+  "shipRole": "military",
   "mesh": "meshes/drone_swarm.obj",
   "fallbackMesh": "default",
   "components": {

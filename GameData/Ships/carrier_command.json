@@ -2,6 +2,7 @@
   "id": "carrier_command",
   "displayName": "Sovereign Carrier",
   "category": "carrier",
+  "shipRole": "political",
   "mesh": "meshes/carrier_command.obj",
   "fallbackMesh": "default",
   "components": {

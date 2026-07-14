@@ -7,4 +7,5 @@ public enum UIKey
     Down,
     Enter,
     Escape,
+    Backspace,
 }

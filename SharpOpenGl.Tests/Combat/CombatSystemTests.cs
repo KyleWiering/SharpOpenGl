@@ -1,6 +1,9 @@
+using System.Text.Json;
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Audio;
+using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Rendering;
@@ -126,7 +129,8 @@ public class CombatSystemTests
 
     private static Entity MakeFighter(World world, int faction, Vector3 pos, float range = 200f,
         float hp = 100f, TargetPriority targeting = TargetPriority.Closest, int priority = 10,
-        string projectileType = "linear", float damage = 10f)
+        string projectileType = "linear", float damage = 10f, float fireRate = 2f,
+        WeaponSkillComponent? weaponSkill = null)
     {
         Entity e = world.CreateEntity();
         world.AddComponent(e, new TransformComponent { Position = pos });
@@ -141,9 +145,11 @@ public class CombatSystemTests
         wl.Weapons.Add(new WeaponComponent
         {
             Slot = 0, Type = "laser", Damage = damage, Range = range,
-            FireRate = 2f, ProjectileType = projectileType
+            FireRate = fireRate, ProjectileType = projectileType
         });
         world.AddComponent(e, wl);
+        if (weaponSkill != null)
+            world.AddComponent(e, weaponSkill);
         return e;
     }
 
@@ -222,11 +228,11 @@ public class CombatSystemTests
     // CombatSystem — projectiles and unit death
 
     private static (World world, GridSystem grid, FogOfWar fog, CombatFogGate gate)
-        MakeFogCombatWorld()
+        MakeFogCombatWorld(int playerCount = 2)
     {
         var grid = new GridSystem(32, 32, cellSize: 10f);
-        var fog = new FogOfWar(grid, playerCount: 1);
-        var gate = new CombatFogGate { Grid = grid, Fog = fog, FogPlayerId = 0 };
+        var fog = new FogOfWar(grid, playerCount: playerCount);
+        var gate = new CombatFogGate { Grid = grid, Fog = fog };
         var bus = new EventBus();
         var world = new World();
         world.AddSystem(new StanceSystem(gate));
@@ -296,19 +302,89 @@ public class CombatSystemTests
     }
 
     [Fact]
-    public void CombatSystem_ai_attacker_ignores_fog_restrictions()
+    public void CombatSystem_ai_attacker_does_not_fire_through_fog()
     {
         var (world, grid, fog, _) = MakeFogCombatWorld();
-        fog.Reveal(0, 0, 0, radius: 2);
+        fog.Reveal(1, 0, 0, radius: 2);
 
         Entity aiAttacker = MakeFighter(world, faction: 2, pos: grid.GridToWorld(0, 0), range: 500f);
         world.AddComponent(aiAttacker, new AIControlledComponent { PlayerId = 2 });
         MakeFighter(world, faction: 1, pos: grid.GridToWorld(20, 0));
 
-        world.Update(0.001f);
+        world.Update(0.6f);
 
         var ct = world.GetComponent<CombatTargetComponent>(aiAttacker)!;
+        Assert.Equal(Entity.Null, ct.CurrentTarget);
+
+        bool fired = false;
+        foreach (var _ in world.Query<ProjectileComponent>())
+            fired = true;
+        Assert.False(fired);
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void CombatSystem_player_unit_does_not_fire_through_fog()
+    {
+        var (world, grid, fog, _) = MakeFogCombatWorld();
+        fog.Reveal(0, 0, 0, radius: 2);
+
+        Entity attacker = MakeFighter(world, faction: 1, pos: grid.GridToWorld(0, 0), range: 500f);
+        MakeFighter(world, faction: 2, pos: grid.GridToWorld(20, 0));
+
+        world.Update(0.6f);
+
+        var ct = world.GetComponent<CombatTargetComponent>(attacker)!;
+        Assert.Equal(Entity.Null, ct.CurrentTarget);
+
+        bool fired = false;
+        foreach (var _ in world.Query<ProjectileComponent>())
+            fired = true;
+        Assert.False(fired);
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void CombatSystem_fires_normally_when_target_visible()
+    {
+        var (world, grid, fog, _) = MakeFogCombatWorld();
+        fog.Reveal(0, 0, 0, radius: 2);
+        fog.Reveal(0, 20, 0, radius: 1);
+
+        Entity attacker = MakeFighter(world, faction: 1, pos: grid.GridToWorld(0, 0), range: 500f);
+        MakeFighter(world, faction: 2, pos: grid.GridToWorld(20, 0), hp: 2000f);
+
+        world.Update(0.6f);
+
+        var ct = world.GetComponent<CombatTargetComponent>(attacker)!;
         Assert.NotEqual(Entity.Null, ct.CurrentTarget);
+
+        bool fired = false;
+        foreach (var _ in world.Query<ProjectileComponent>())
+            fired = true;
+        Assert.True(fired);
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void CombatFogGate_resolves_player_id_from_building_and_ai_components()
+    {
+        var world = new World();
+
+        Entity building = world.CreateEntity();
+        world.AddComponent(building, new BuildingComponent { PlayerId = 3 });
+        Assert.Equal(2, CombatFogGate.ResolveFogPlayerId(world, building));
+
+        Entity ai = world.CreateEntity();
+        world.AddComponent(ai, new AIControlledComponent { PlayerId = 2 });
+        Assert.Equal(1, CombatFogGate.ResolveFogPlayerId(world, ai));
+
+        Entity fighter = world.CreateEntity();
+        world.AddComponent(fighter, new CombatTargetComponent { Faction = 1 });
+        Assert.Equal(0, CombatFogGate.ResolveFogPlayerId(world, fighter));
 
         world.Dispose();
     }
@@ -431,6 +507,200 @@ public class CombatSystemTests
 
         var heroComp = world.GetComponent<HeroComponent>(hero)!;
         Assert.Equal(50, heroComp.XP);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // CombatSystem — weapon skill modifiers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public void WeaponSkill_accuracy_bonus_increases_damage_dealt()
+    {
+        var (world, bus, _) = MakeCombatWorld();
+        const float baseDamage = 100f;
+
+        MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: baseDamage,
+            weaponSkill: new WeaponSkillComponent { AccuracyBonus = 0.10f });
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 500f);
+
+        DamageDealtEvent? dealt = null;
+        bus.Subscribe<DamageDealtEvent>(e => dealt = e);
+
+        world.Update(0.001f);
+
+        Assert.NotNull(dealt);
+        Assert.Equal(baseDamage * 1.10f, dealt!.RawDamage, 2);
+        Assert.Equal(500f - baseDamage * 1.10f, world.GetComponent<HealthComponent>(target)!.CurrentHP, 2);
+    }
+
+    [Fact]
+    public void WeaponSkill_reload_modifier_reduces_cooldown()
+    {
+        var (world, _, _) = MakeCombatWorld();
+
+        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            fireRate: 2f,
+            weaponSkill: new WeaponSkillComponent { ReloadModifier = 0.5f });
+        MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0));
+
+        world.Update(0.001f);
+
+        var weapon = world.GetComponent<WeaponListComponent>(attacker)!.Weapons[0];
+        Assert.Equal(0.25f, weapon.Cooldown, 3);
+    }
+
+    [Fact]
+    public void WeaponSkill_range_tier_extends_engagement_distance()
+    {
+        var (world, _, _) = MakeCombatWorld();
+        const float baseRange = 100f;
+        float effectiveRange = baseRange * WeaponSkillProfiles.RangeMultiplier(WeaponRangeTier.Long);
+
+        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: baseRange,
+            weaponSkill: new WeaponSkillComponent { RangeTier = WeaponRangeTier.Long });
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(effectiveRange - 1f, 0, 0));
+
+        world.Update(0.001f);
+
+        var ct = world.GetComponent<CombatTargetComponent>(attacker)!;
+        Assert.Equal(target, ct.CurrentTarget);
+    }
+
+    [Fact]
+    public void WeaponSkill_missing_uses_baseline()
+    {
+        var (world, bus, _) = MakeCombatWorld();
+        const float baseDamage = 50f;
+
+        Entity attacker = MakeFighter(world, faction: 1, pos: Vector3.Zero, range: 500f,
+            projectileType: "instant", damage: baseDamage, fireRate: 2f);
+        Entity target = MakeFighter(world, faction: 2, pos: new Vector3(5f, 0, 0), hp: 200f);
+
+        DamageDealtEvent? dealt = null;
+        bus.Subscribe<DamageDealtEvent>(e => dealt = e);
+
+        world.Update(0.001f);
+
+        var weapon = world.GetComponent<WeaponListComponent>(attacker)!.Weapons[0];
+        Assert.Equal(0.5f, weapon.Cooldown, 3);
+        Assert.NotNull(dealt);
+        Assert.Equal(baseDamage, dealt!.RawDamage, 2);
+        Assert.Equal(150f, world.GetComponent<HealthComponent>(target)!.CurrentHP, 2);
+    }
+
+    [Theory]
+    [InlineData("fighter_basic", 0.12f, 0.85f, "short")]
+    [InlineData("destroyer_assault", 0.06f, 0.95f, "medium")]
+    [InlineData("gunship_heavy", 0.04f, 1.10f, "long")]
+    [InlineData("scout_light", 0.08f, 0.75f, "medium")]
+    [InlineData("cruiser_heavy", 0.05f, 1.05f, "long")]
+    [InlineData("frigate_strike", 0.07f, 0.90f, "medium")]
+    [InlineData("bomber_heavy", 0.03f, 1.20f, "long")]
+    [InlineData("interceptor_mk2", 0.14f, 0.80f, "short")]
+    public void WeaponSkill_sample_hull_json_deserializes(string hullId, float accuracy, float reload, string tier)
+    {
+        string path = Path.Combine(GetGameDataPath(), "Ships", $"{hullId}.json");
+        Assert.True(File.Exists(path), $"Missing sample hull: {path}");
+
+        var def = JsonSerializer.Deserialize<EntityDefinition>(File.ReadAllText(path), GameDataJsonOptions);
+        Assert.NotNull(def?.Components?.WeaponSkill);
+        Assert.Equal(accuracy, def.Components.WeaponSkill.AccuracyBonus, 3);
+        Assert.Equal(reload, def.Components.WeaponSkill.ReloadModifier, 3);
+        Assert.Equal(tier, def.Components.WeaponSkill.RangeTier, ignoreCase: true);
+    }
+
+    [Theory]
+    [InlineData("fighter_basic")]
+    [InlineData("destroyer_assault")]
+    [InlineData("gunship_heavy")]
+    [InlineData("scout_light")]
+    [InlineData("cruiser_heavy")]
+    [InlineData("frigate_strike")]
+    [InlineData("bomber_heavy")]
+    [InlineData("interceptor_mk2")]
+    public void WeaponSkill_factory_spawns_component_from_gamedata(string hullId)
+    {
+        string path = Path.Combine(GetGameDataPath(), "Ships", $"{hullId}.json");
+        var def = JsonSerializer.Deserialize<EntityDefinition>(File.ReadAllText(path), GameDataJsonOptions);
+        Assert.NotNull(def);
+
+        var world = new World();
+        Entity entity = world.CreateEntity();
+        FactoryHelpers.ApplySightRadius(world, entity, def!.Components);
+
+        var skill = world.GetComponent<WeaponSkillComponent>(entity);
+        Assert.NotNull(skill);
+        Assert.Equal(def.Components!.WeaponSkill!.AccuracyBonus, skill!.AccuracyBonus, 3);
+    }
+
+    [Fact]
+    public void WeaponSkill_military_hulls_have_distinct_profiles()
+    {
+        string[] militaryHulls =
+        [
+            "fighter_basic",
+            "destroyer_assault",
+            "gunship_heavy",
+            "scout_light",
+            "cruiser_heavy",
+            "frigate_strike",
+            "bomber_heavy",
+            "interceptor_mk2",
+        ];
+
+        var profiles = new HashSet<(float Accuracy, float Reload, string Tier)>();
+        foreach (string hullId in militaryHulls)
+        {
+            string path = Path.Combine(GetGameDataPath(), "Ships", $"{hullId}.json");
+            var def = JsonSerializer.Deserialize<EntityDefinition>(File.ReadAllText(path), GameDataJsonOptions);
+            Assert.NotNull(def?.Components?.WeaponSkill);
+
+            var skill = def.Components.WeaponSkill;
+            var tuple = (skill.AccuracyBonus, skill.ReloadModifier, skill.RangeTier.ToLowerInvariant());
+            Assert.True(profiles.Add(tuple), $"Duplicate weaponSkill profile on {hullId}: {tuple}");
+        }
+
+        Assert.True(profiles.Count >= 8);
+    }
+
+    [Theory]
+    [InlineData("miner_basic")]
+    [InlineData("transport_cargo")]
+    public void WeaponSkill_engineering_hull_omits_skill(string hullId)
+    {
+        string path = Path.Combine(GetGameDataPath(), "Ships", $"{hullId}.json");
+        var def = JsonSerializer.Deserialize<EntityDefinition>(File.ReadAllText(path), GameDataJsonOptions);
+        Assert.NotNull(def);
+
+        Assert.Null(def.Components?.WeaponSkill);
+
+        var world = new World();
+        Entity entity = world.CreateEntity();
+        FactoryHelpers.ApplySightRadius(world, entity, def!.Components);
+
+        Assert.Null(world.GetComponent<WeaponSkillComponent>(entity));
+        var baseline = WeaponSkillProfiles.Baseline();
+        Assert.Equal(0f, baseline.AccuracyBonus);
+        Assert.Equal(1f, baseline.ReloadModifier);
+        Assert.Equal(WeaponRangeTier.Medium, baseline.RangeTier);
+    }
+
+    private static readonly JsonSerializerOptions GameDataJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
+    private static string GetGameDataPath()
+    {
+        string? dir = AppDomain.CurrentDomain.BaseDirectory;
+        while (dir != null && !File.Exists(Path.Combine(dir, "SharpOpenGl.sln")))
+            dir = Directory.GetParent(dir)?.FullName;
+        if (dir == null)
+            throw new InvalidOperationException("Could not locate SharpOpenGl.sln.");
+        return Path.Combine(dir, "GameData");
     }
 
     [Fact]

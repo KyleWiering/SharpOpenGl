@@ -16,6 +16,11 @@ public partial class EngineWindow
 {
     private BuildMapCatalog? _buildMapCatalog;
     private bool _placementPreviewValid;
+    private PlacementFailureReason _placementPreviewReason = PlacementFailureReason.None;
+    private bool _placementPreviewInRange = true;
+    private Vector3? _placementSnappedPos;
+    private float _placementHintFlashTimer;
+    private float _placementValidPulsePhase;
     private int _defenseTurretVao, _defenseTurretVbo, _defenseTurretVertCount;
     private int _sensorArrayVao, _sensorArrayVbo, _sensorArrayVertCount;
     private int _resourceRefineryVao, _resourceRefineryVbo, _resourceRefineryVertCount;
@@ -115,6 +120,9 @@ public partial class EngineWindow
             {
                 Id = category.Id,
                 DisplayName = category.DisplayName,
+                TierIndex = category.TierIndex,
+                UnlockedCount = buildings.Count(static entry => entry.IsUnlocked),
+                TotalCount = buildings.Count,
                 Buildings = buildings,
             });
         }
@@ -137,6 +145,11 @@ public partial class EngineWindow
         _placementBuildingId = buildingId;
         _placementBuilderEntity = builderEntity;
         _placementPreviewValid = false;
+        _placementPreviewReason = PlacementFailureReason.None;
+        _placementPreviewInRange = true;
+        _placementSnappedPos = null;
+        _placementHintFlashTimer = 0f;
+        _placementValidPulsePhase = 0f;
         _attackMoveMode = false;
         _attackMode = false;
         _patrolMode = false;
@@ -144,15 +157,32 @@ public partial class EngineWindow
         _harvestCommandMode = false;
 
         if (_definitions.TryGetValue(buildingId, out var def))
-            Console.WriteLine($"[Place] Click to place: {def.DisplayName} (right-click to cancel)");
+        {
+            string displayName = string.IsNullOrWhiteSpace(def.DisplayName)
+                ? buildingId
+                : def.DisplayName;
+            SetPlacementHint($"{displayName} — Right-click to cancel", isValid: true);
+
+            // Rotation input for components.building.rotates is deferred (no rotate key binding yet).
+            _ = def.Components?.Building?.Rotates;
+        }
     }
 
-    private void CancelPlacementMode()
+    private void CancelPlacementMode(bool keepSuccessToast = false)
     {
         _placementBuildingId = null;
         _placementBuilderEntity = null;
         _placementPreviewValid = false;
+        _placementPreviewReason = PlacementFailureReason.None;
+        _placementPreviewInRange = true;
+        _placementSnappedPos = null;
+        _placementValidPulsePhase = 0f;
         _builderPickEntity = null;
+        if (!keepSuccessToast)
+        {
+            _placementHintFlashTimer = 0f;
+            ClearPlacementHint();
+        }
     }
 
     private void EnterBuilderStructurePickMode()
@@ -204,13 +234,106 @@ public partial class EngineWindow
         if (distance <= range)
             return true;
 
-        reason = $"Builder out of range ({range:0}m)";
+        reason = PlacementFailureReasonExtensions.ToBuilderRangeMessage(range);
         return false;
+    }
+
+    private bool TryGetSnappedPlacementCursor(out Vector3 snappedPos)
+    {
+        snappedPos = default;
+        if (_gridSystem == null)
+            return false;
+
+        Vector3? worldPos = ScreenToWorldGround(new Vector2(MousePosition.X, MousePosition.Y));
+        if (worldPos == null)
+            return false;
+
+        snappedPos = BuildingFootprint.SnapToCellCenter(_gridSystem, worldPos.Value);
+        return true;
+    }
+
+    private void SetPlacementHint(string hint, bool isValid, bool flash = false)
+    {
+        if (_uiManager.Current is not GameplayHUD hud)
+            return;
+
+        hud.PlacementHint = hint;
+        hud.PlacementHintIsValid = isValid;
+        hud.PlacementHintFlash = flash ? 1f : 0f;
+        if (flash)
+            _placementHintFlashTimer = 0.55f;
+    }
+
+    private void ClearPlacementHint()
+    {
+        if (_uiManager.Current is not GameplayHUD hud)
+            return;
+
+        hud.PlacementHint = string.Empty;
+        hud.PlacementHintIsValid = true;
+        hud.PlacementHintFlash = 0f;
+    }
+
+    private void FlashPlacementFailure(string message)
+    {
+        SetPlacementHint(message, isValid: false, flash: true);
+    }
+
+    private void FlashPlacementSuccess(string message)
+    {
+        SetPlacementHint(message, isValid: true, flash: true);
+    }
+
+    private static Vector4 ResolvePlacementCategoryMarker(
+        PlacementFailureReason reason, bool inRange)
+    {
+        if (!inRange)
+            return new Vector4(0.95f, 0.35f, 0.95f, 0.95f);
+
+        return reason switch
+        {
+            PlacementFailureReason.Locked or PlacementFailureReason.CannotAfford
+                or PlacementFailureReason.SupplyCap or PlacementFailureReason.UnknownDefinition =>
+                new Vector4(1f, 0.78f, 0.2f, 0.95f),
+            PlacementFailureReason.ImpassableTerrain or PlacementFailureReason.OutOfBounds
+                or PlacementFailureReason.ResourceBlocked =>
+                new Vector4(1f, 0.52f, 0.12f, 0.95f),
+            PlacementFailureReason.CellOccupied =>
+                new Vector4(0.72f, 0.1f, 0.1f, 0.95f),
+            _ => new Vector4(0.85f, 0.85f, 0.85f, 0.9f),
+        };
+    }
+
+    private void TickPlacementHintFlash(float deltaTime)
+    {
+        if (_placementBuildingId != null)
+            _placementValidPulsePhase += deltaTime * 4.5f;
+
+        if (_placementHintFlashTimer > 0f)
+        {
+            _placementHintFlashTimer = Math.Max(0f, _placementHintFlashTimer - deltaTime);
+            if (_uiManager.Current is GameplayHUD hud && !string.IsNullOrWhiteSpace(hud.PlacementHint))
+                hud.PlacementHintFlash = _placementHintFlashTimer / 0.55f;
+
+            if (_placementHintFlashTimer <= 0f && _placementBuildingId == null)
+                ClearPlacementHint();
+            return;
+        }
+
+        if (_placementBuildingId != null && _placementPreviewValid &&
+            _uiManager.Current is GameplayHUD previewHud)
+        {
+            previewHud.PlacementHintFlash = 0.5f + 0.5f * MathF.Sin(_placementValidPulsePhase);
+        }
     }
 
     private void UpdatePlacementPreview()
     {
         _placementPreviewValid = false;
+        _placementPreviewReason = PlacementFailureReason.None;
+        _placementPreviewInRange = true;
+        _placementSnappedPos = null;
+
         if (_placementBuildingId == null || _world == null || _gridSystem == null ||
             _resourceManager == null || _buildMapCatalog == null)
             return;
@@ -218,48 +341,124 @@ public partial class EngineWindow
         if (!_definitions.TryGetValue(_placementBuildingId, out var def))
             return;
 
-        Vector3? worldPos = ScreenToWorldGround(new Vector2(MousePosition.X, MousePosition.Y));
-        if (worldPos == null) return;
+        if (!TryGetSnappedPlacementCursor(out Vector3 snappedPos))
+            return;
+
+        _placementSnappedPos = snappedPos;
 
         var result = BuildingPlacementValidator.Validate(
-            _gridSystem, _world, playerId: 1, def, worldPos.Value,
+            _gridSystem, _world, playerId: 1, def, snappedPos,
             _buildMapCatalog, _resourceManager, _supplySystem);
 
         bool inRange = true;
+        string rangeReason = string.Empty;
         if (_placementBuilderEntity is Entity builderEntity)
-            inRange = IsBuilderInPlacementRange(builderEntity, worldPos.Value, out _);
+            inRange = IsBuilderInPlacementRange(builderEntity, snappedPos, out rangeReason);
 
+        _placementPreviewReason = result.Reason;
+        _placementPreviewInRange = inRange;
         _placementPreviewValid = result.IsValid && inRange;
+
+        string displayName = string.IsNullOrWhiteSpace(def.DisplayName)
+            ? _placementBuildingId
+            : def.DisplayName;
+        string status = PlacementFailureReasonExtensions.BuildStatusMessage(result, inRange, rangeReason);
+        bool flash = _placementHintFlashTimer > 0f;
+        SetPlacementHint($"{displayName} — {status}", _placementPreviewValid, flash);
+
+        if (_uiManager.Current is GameplayHUD hud)
+        {
+            if (flash)
+                hud.PlacementHintFlash = _placementHintFlashTimer / 0.55f;
+            else if (_placementPreviewValid)
+                hud.PlacementHintFlash = 0.5f + 0.5f * MathF.Sin(_placementValidPulsePhase);
+            else
+                hud.PlacementHintFlash = 0f;
+        }
     }
 
     private void RenderPlacementPreview()
     {
-        if (_placementBuildingId == null || _gridSystem == null || _fogQuadVertCount == 0) return;
+        if (_placementBuildingId == null || _gridSystem == null || _groundQuadVertCount == 0) return;
         if (!_definitions.TryGetValue(_placementBuildingId, out var def)) return;
-
-        Vector3? worldPos = ScreenToWorldGround(new Vector2(MousePosition.X, MousePosition.Y));
-        if (worldPos == null) return;
+        if (_placementSnappedPos is not Vector3 worldPos) return;
 
         var (cols, rows) = BuildingFootprint.GetSize(def.Components?.Building?.Footprint);
-        Vector4 color = _placementPreviewValid
-            ? new Vector4(0.2f, 0.9f, 0.35f, 0.45f)
+        float pulse = _placementPreviewValid
+            ? 0.78f + 0.22f * MathF.Sin(_placementValidPulsePhase)
+            : 1f;
+        Vector4 fillColor = _placementPreviewValid
+            ? new Vector4(0.2f, 0.9f, 0.35f, 0.45f * pulse)
             : new Vector4(0.95f, 0.2f, 0.2f, 0.5f);
+        Vector4 edgeColor = _placementPreviewValid
+            ? new Vector4(0.1f, 0.95f, 0.4f, 0.75f * pulse)
+            : ResolvePlacementCategoryMarker(_placementPreviewReason, _placementPreviewInRange);
 
         GL.Enable(EnableCap.Blend);
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-        GL.BindVertexArray(_fogQuadVao);
+        GL.BindVertexArray(_groundQuadVao);
 
-        foreach (var (x, y) in BuildingFootprint.EnumerateCells(_gridSystem, worldPos.Value, cols, rows))
+        foreach (var (x, y) in BuildingFootprint.EnumerateCells(_gridSystem, worldPos, cols, rows))
         {
             Vector3 center = _gridSystem.GridToWorld(x, y);
             var model = Matrix4.CreateScale(GridCellSize, 1f, GridCellSize) *
                         Matrix4.CreateTranslation(center.X, 0.18f, center.Z);
             GL.UniformMatrix4(_uniformModel, false, ref model);
-            GL.Uniform4(_uniformColor, color);
-            GL.DrawArrays(PrimitiveType.Triangles, 0, _fogQuadVertCount);
+            GL.Uniform4(_uniformColor, fillColor);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, _groundQuadVertCount);
+
+            float edgeThickness = 0.22f;
+            float edgeHeight = 0.24f;
+            float half = GridCellSize * 0.5f;
+            DrawPlacementEdge(center, half, edgeThickness, edgeHeight, 0f, -half, edgeColor);
+            DrawPlacementEdge(center, half, edgeThickness, edgeHeight, 0f, half, edgeColor);
+            DrawPlacementEdge(center, half, edgeThickness, edgeHeight, -half, 0f, edgeColor);
+            DrawPlacementEdge(center, half, edgeThickness, edgeHeight, half, 0f, edgeColor);
         }
 
+        if (!_placementPreviewValid)
+            RenderPlacementCornerMarkers(worldPos, cols, rows, edgeColor);
+
         GL.Disable(EnableCap.Blend);
+    }
+
+    private void DrawPlacementEdge(
+        Vector3 center, float half, float thickness, float height, float offsetX, float offsetZ, Vector4 color)
+    {
+        bool horizontal = MathF.Abs(offsetZ) > MathF.Abs(offsetX);
+        float scaleX = horizontal ? GridCellSize : thickness;
+        float scaleZ = horizontal ? thickness : GridCellSize;
+        var model = Matrix4.CreateScale(scaleX, 1f, scaleZ) *
+                    Matrix4.CreateTranslation(center.X + offsetX, height, center.Z + offsetZ);
+        GL.UniformMatrix4(_uniformModel, false, ref model);
+        GL.Uniform4(_uniformColor, color);
+        GL.DrawArrays(PrimitiveType.Triangles, 0, _groundQuadVertCount);
+    }
+
+    private void RenderPlacementCornerMarkers(Vector3 worldPos, int cols, int rows, Vector4 color)
+    {
+        if (!BuildingFootprint.TryGetOrigin(_gridSystem!, worldPos, cols, rows, out int originX, out int originY))
+            return;
+
+        int maxX = originX + cols - 1;
+        int maxY = originY + rows - 1;
+        var corners = new[]
+        {
+            _gridSystem!.GridToWorld(originX, originY),
+            _gridSystem.GridToWorld(maxX, originY),
+            _gridSystem.GridToWorld(originX, maxY),
+            _gridSystem.GridToWorld(maxX, maxY),
+        };
+
+        float markerSize = GridCellSize * 0.22f;
+        foreach (Vector3 corner in corners)
+        {
+            var model = Matrix4.CreateScale(markerSize, 1f, markerSize) *
+                        Matrix4.CreateTranslation(corner.X, 0.3f, corner.Z);
+            GL.UniformMatrix4(_uniformModel, false, ref model);
+            GL.Uniform4(_uniformColor, color);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, _groundQuadVertCount);
+        }
     }
 
     private (int meshId, int vertCount, Vector3 scale) ResolveBuildingMesh(string buildingType, int playerId = 1)

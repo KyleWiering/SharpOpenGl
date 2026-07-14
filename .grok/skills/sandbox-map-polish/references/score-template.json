@@ -1,0 +1,48 @@
+{
+  "project_slug": "sandbox-map-polish",
+  "target": "sandbox_map",
+  "score_number": 1,
+  "scored_at": "2026-07-14T00:00:00Z",
+  "scorer": "worker",
+  "mode": "checklist",
+  "chunkVariety": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "economyScatter": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "fogTwoLayer": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "explorationFeel": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "perfBudget": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "deductions": [
+    {
+      "issue": "",
+      "points": 0,
+      "category": ""
+    }
+  ],
+  "overallScore": 0,
+  "passThreshold": 80,
+  "passed": false,
+  "fogGatePassed": false,
+  "topBlockers": [],
+  "testsRun": "dotnet test SharpOpenGl.Tests --filter FullyQualifiedName~SandboxChunkGrid|FogNebulaOverlay|FogVisualPalette|SandboxBootstrap",
+  "testsPassed": null,
+  "nextActions": []
+}

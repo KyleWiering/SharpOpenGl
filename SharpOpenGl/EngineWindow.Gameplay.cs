@@ -34,6 +34,13 @@ public partial class EngineWindow
     private CampaignProgressManager? _campaignProgressManager;
     private string? _pendingMissionId;
     private MultiplayerSetupResult? _pendingSkirmishSetup;
+    private SkirmishDifficultyTier _skirmishDifficulty = SkirmishDifficultyTier.Normal;
+    private AIBuildQueueSystem? _aiBuildQueueSystem;
+    private SandboxSetupResult? _pendingSandboxSetup;
+    private string _lastSandboxSeedText = string.Empty;
+    private bool _isSandboxSession;
+    /// <summary>Deterministic seed threaded into procedural map generation for this session.</summary>
+    private int _proceduralMapSeed;
     private bool _gameplayEventsHooked;
     private bool _missionResultOverlayShown;
     private bool _victoryRewardsApplied;
@@ -125,7 +132,7 @@ public partial class EngineWindow
         if (_gameplayEventsHooked) return;
         _gameplayEventsHooked = true;
 
-        _eventBus.Subscribe<UnitDiedEvent>(_ => _triggerSystem?.RecordKill());
+        _eventBus.Subscribe<UnitDiedEvent>(OnUnitDiedForMissionStats);
         _eventBus.Subscribe<DialogEvent>(evt =>
             Console.WriteLine($"[{evt.Speaker}] {evt.Text}"));
         _eventBus.Subscribe<MissionVictoryEvent>(OnMissionVictory);
@@ -134,6 +141,17 @@ public partial class EngineWindow
 
     private bool IsMissionResultOverlayActive() =>
         _uiManager.Current is MissionVictoryScreen;
+
+    private void OnUnitDiedForMissionStats(UnitDiedEvent evt)
+    {
+        _triggerSystem?.RecordKill();
+
+        if (_missionController?.CurrentMission == null || _world == null) return;
+        if (!_world.TryGetEntityByIndex(evt.VictimId, out Entity victim)) return;
+
+        _world.TryGetEntityByIndex(evt.KillerId, out Entity killer);
+        _missionController.CurrentMission.RunStats.RecordDeath(_world, victim, killer);
+    }
 
     private void OnMissionVictory(MissionVictoryEvent evt)
     {
@@ -240,6 +258,7 @@ public partial class EngineWindow
 
         var briefing = new BriefingScreen();
         briefing.SetMission(definition);
+        // UIManager attaches a Briefing → LoadingScreen → StartRequested campaign transition on Push.
         briefing.StartRequested += () =>
         {
             _uiManager.Pop();
@@ -268,7 +287,11 @@ public partial class EngineWindow
         _uiManager.Push(designer);
     }
 
-    private void InitializeWorldCore(string? missionId, bool skipWorldSpawn = false)
+    private void InitializeWorldCore(
+        string? missionId,
+        bool skipWorldSpawn = false,
+        SandboxSetupResult? sandboxSetup = null,
+        MultiplayerSetupResult? skirmishSetup = null)
     {
         _fleetGalleryMode = false;
         _world?.Dispose();
@@ -279,6 +302,18 @@ public partial class EngineWindow
         _objectiveSystem = null;
         _missionResultOverlayShown = false;
         _victoryRewardsApplied = false;
+        _proceduralMapSeed = 0;
+        _sandboxChunkedMode = sandboxSetup != null;
+        if (_sandboxChunkedMode && sandboxSetup != null)
+        {
+            _proceduralMapSeed = sandboxSetup.ParsedSeed;
+            var sandboxConfig = SandboxConfig.Load(ResolveGameDataPath());
+            _sandboxChunkLoadRadius = sandboxConfig.ChunkLoadRadius;
+        }
+        else
+        {
+            _sandboxChunkLoadRadius = SandboxConfig.Defaults.ChunkLoadRadius;
+        }
 
         EnsureGameplayEventHooks();
 
@@ -290,6 +325,7 @@ public partial class EngineWindow
         _world.AddSystem(new ShieldRegenSystem());
         _world.AddSystem(new RepairSystem(_eventBus) { PlayerFaction = 1 });
         _world.AddSystem(new ProjectileSystem(_eventBus));
+        _world.AddSystem(new CombatFeedbackSystem(_eventBus));
         _abilitySystem = new AbilitySystem(_eventBus);
         _world.AddSystem(_abilitySystem);
         _world.AddSystem(_aiSystem);
@@ -341,6 +377,8 @@ public partial class EngineWindow
         _buildSystem.OnUnitSpawned = (world, spawned, _, building, def) =>
             FinalizeSpawnedUnit(spawned, def, building.PlayerId, isEnemy: false);
         _world.AddSystem(_buildSystem);
+        _aiBuildQueueSystem = new AIBuildQueueSystem();
+        _world.AddSystem(_aiBuildQueueSystem);
         RegisterShipyardPreviewSystem();
 
         _supplySystem = new SupplySystem(_resourceManager);
@@ -350,17 +388,20 @@ public partial class EngineWindow
         {
             if (!string.IsNullOrEmpty(missionId) && _missionController?.CurrentMission != null)
                 SetupMissionWorld(missionId);
-            else if (_pendingSkirmishSetup != null)
-                SetupSkirmishWorld(_pendingSkirmishSetup);
+            else if (skirmishSetup != null)
+                SetupSkirmishWorld(skirmishSetup);
+            else if (sandboxSetup != null)
+                SetupSandboxWorld(sandboxSetup);
             else
                 SetupSandboxWorld();
         }
 
         _missionController?.BeginGameplay();
 
-        if (_missionController?.CurrentMission != null)
+        bool hasActiveMission = _missionController?.CurrentMission != null;
+        if (SandboxSessionPolicy.ShouldRegisterMissionSystems(missionId, sandboxSetup, hasActiveMission))
         {
-            var state = _missionController.CurrentMission;
+            var state = _missionController!.CurrentMission!;
             state.Phase = MissionPhase.InProgress;
             _objectiveSystem = new ObjectiveSystem(state, _eventBus, _resourceManager) { PlayerId = 1 };
             _triggerSystem = new TriggerSystem(state, _eventBus, _resourceManager, _unitFactory, _assetManager)
@@ -386,30 +427,120 @@ public partial class EngineWindow
         }
     }
 
-    private void SetupSandboxWorld()
+    private void SetupSandboxWorld(SandboxSetupResult? setup = null)
     {
         if (_world == null) return;
 
-        ConfigureDefaultFactionRaces();
-        SpawnDefaultHeroAndFleet();
-        RevealAreaAt(Vector3.Zero, 18);
-        SpawnAIPlayer(new Random(123));
-        SpawnMapContent("sector_alpha");
-        SpawnPlayerBase();
-        SpawnMiners(new Random(123));
+        bool menuSandbox = setup != null;
+        SandboxConfig config = menuSandbox
+            ? SandboxConfig.Load(ResolveGameDataPath())
+            : SandboxConfig.Defaults;
 
-        var heroMovement = _world.GetComponent<MovementComponent>(_heroEntity);
-        if (heroMovement != null)
-            heroMovement.PathTarget = new Vector3(50f, 0f, 50f);
+        if (menuSandbox)
+        {
+            _proceduralMapSeed = setup!.ParsedSeed;
+            _lastSandboxSeedText = setup.SeedText;
+            Console.WriteLine($"[Sandbox] Starting seed={setup.ParsedSeed} text='{setup.SeedText}'");
+            config.ApplyStartingResources(_resourceManager!, _humanPlayerId);
+            BindSandboxSessionHud(setup);
+        }
+        else
+        {
+            _proceduralMapSeed = HashProceduralSeed("sandbox");
+        }
+
+        ConfigureDefaultFactionRaces();
+
+        bool quietStart = SandboxSessionPolicy.ShouldUseQuietStart(setup, config);
+        Vector3 spawnCenter = Vector3.Zero;
+
+        if (quietStart)
+        {
+            spawnCenter = SpawnSandboxStartingUnit(config.StartingUnitId);
+            RevealAreaAt(spawnCenter, config.InitialRevealRadius);
+            _rtsCamera.Target = spawnCenter;
+        }
+        else
+        {
+            SpawnDefaultHeroAndFleet();
+            RevealAreaAt(spawnCenter, menuSandbox ? config.InitialRevealRadius : 18);
+
+            var heroMovement = _world.GetComponent<MovementComponent>(_heroEntity);
+            if (heroMovement != null)
+                heroMovement.PathTarget = new Vector3(50f, 0f, 50f);
+        }
+
+        if (!menuSandbox || config.SpawnHostileAi)
+            SpawnAIPlayer(new Random(menuSandbox ? setup!.ParsedSeed : 123));
+
+        if (_sandboxChunkedMode)
+            SpawnPendingSandboxChunkEconomy();
+        else
+            SpawnMapContent("sector_alpha");
+
+        if (!quietStart)
+        {
+            Stance stationStance = menuSandbox && !config.SpawnHostileAi
+                ? Stance.Neutral
+                : Stance.Defensive;
+            SpawnPlayerBase(stationStance: stationStance);
+            SpawnMiners(new Random(menuSandbox ? setup!.ParsedSeed : 123));
+        }
 
 #if DEBUG
-        SpawnArticulationDemo();
+        if (!menuSandbox)
+            SpawnArticulationDemo();
 #endif
+    }
+
+    private Vector3 SpawnSandboxStartingUnit(string unitId)
+    {
+        if (_world == null) return Vector3.Zero;
+
+        string resolvedId = string.IsNullOrWhiteSpace(unitId) ? "support_repair" : unitId;
+        if (!_definitions.TryGetValue(resolvedId, out var def))
+            def = _assetManager?.Load<EntityDefinition>($"Ships/{resolvedId}");
+
+        if (def == null)
+        {
+            Console.WriteLine($"[Sandbox] Could not load starting unit '{resolvedId}'; falling back to default fleet.");
+            SpawnDefaultHeroAndFleet();
+            return Vector3.Zero;
+        }
+
+        Vector3 spawnPos = Vector3.Zero;
+        SpawnPlayerUnit(def, spawnPos, selectFirst: true);
+        return spawnPos;
+    }
+
+    private void BindSandboxSessionHud(SandboxSetupResult setup)
+    {
+        _lastSandboxSeedText = setup.SeedText;
+
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        hud.ObjectivePanel.Visible = false;
+        hud.ObjectivePanel.Objectives = [];
+        hud.SessionSubtitle = FormatSandboxSeedSubtitle(setup.SeedText);
+    }
+
+    private static string FormatSandboxSeedSubtitle(string seedText)
+    {
+        const float maxWidth = 360f;
+        const float fontSize = 16f;
+        string label = $"Seed: {seedText}";
+        return UITextDrawing.TruncateWithEllipsis(label, maxWidth, fontSize);
     }
 
     private void SetupSkirmishWorld(MultiplayerSetupResult setup)
     {
         if (_world == null) return;
+
+        _skirmishDifficulty = setup.Difficulty;
+        _aiBuildQueueSystem?.SetDifficulty(setup.Difficulty);
+
+        // Skirmish procedural scatter: hash of map id + active player count for reproducible lobbies.
+        _proceduralMapSeed = HashProceduralSeed($"{setup.MapId}:{setup.Players.Count}");
 
         ConfigureFactionRaces(setup.Players);
         GrantSkirmishHumanStartingResources();
@@ -441,6 +572,7 @@ public partial class EngineWindow
             }
             else
             {
+                GrantSkirmishAiStartingResources(playerId);
                 SpawnSkirmishAiFaction(playerId, spawnCenter);
                 RevealAreaAt(spawnCenter, 10);
             }
@@ -470,6 +602,9 @@ public partial class EngineWindow
 
     private void SetupSkirmishWorldLegacyRing(MultiplayerSetupResult setup)
     {
+        // Legacy ring layout: explicit seed from player count (matches prior Random(...) formula).
+        _proceduralMapSeed = setup.Players.Count * 17 + 42;
+
         var spawnPositions = ComputeSkirmishSpawnPositions(setup.Players.Count);
         int factionIndex = 0;
 
@@ -485,6 +620,7 @@ public partial class EngineWindow
             }
             else
             {
+                GrantSkirmishAiStartingResources(playerId);
                 SpawnSkirmishAiFaction(playerId, spawnCenter);
                 RevealAreaAt(spawnCenter, 10);
             }
@@ -493,7 +629,7 @@ public partial class EngineWindow
         }
 
         SpawnMapContent("sector_alpha");
-        SpawnResourceNodes(new Random(setup.Players.Count * 17 + 42));
+        SpawnResourceNodes(_proceduralMapSeed);
 
         factionIndex = 0;
         foreach (var player in setup.Players.OrderBy(p => p.SlotIndex))
@@ -661,6 +797,18 @@ public partial class EngineWindow
         res.SetStartingAmount(ResourceType.Crew, SkirmishMapLogic.SkirmishStartingCrew);
     }
 
+    private void GrantSkirmishAiStartingResources(int playerId)
+    {
+        if (_resourceManager == null) return;
+
+        var amounts = SkirmishDifficultyTuning.AiStartingResources(_skirmishDifficulty);
+        var res = _resourceManager.GetPlayer(playerId) ?? _resourceManager.AddPlayer(playerId);
+        res.SetStartingAmount(ResourceType.Energy, amounts.Energy);
+        res.SetStartingAmount(ResourceType.Minerals, amounts.Minerals);
+        res.SetStartingAmount(ResourceType.Data, amounts.Data);
+        res.SetStartingAmount(ResourceType.Crew, amounts.Crew);
+    }
+
     private void SpawnSkirmishLegacyPlayerBase(int playerId, Vector3 spawnCenter, bool isHumanPlayer)
     {
         Vector3 ccPos = spawnCenter + new Vector3(-20f, 0f, -20f);
@@ -720,8 +868,9 @@ public partial class EngineWindow
             scoutDef = _definitions.GetValueOrDefault("fighter_basic");
         if (scoutDef == null) return;
 
+        int scoutCount = SkirmishDifficultyTuning.AiScoutSpawnCount(_skirmishDifficulty);
         var rng = new Random(playerId * 97);
-        for (int i = 0; i < 4; i++)
+        for (int i = 0; i < scoutCount; i++)
         {
             float x = spawnCenter.X + (rng.NextSingle() - 0.5f) * 120f;
             float z = spawnCenter.Z + (rng.NextSingle() - 0.5f) * 120f;
@@ -747,6 +896,9 @@ public partial class EngineWindow
         ConfigureDefaultFactionRaces();
         var mission = _missionController.CurrentMission.Definition;
         var start = mission.StartConditions;
+        // Mission procedural scatter: hash of mission id + authored map id.
+        string proceduralMapId = string.IsNullOrWhiteSpace(mission.Map) ? "sector_alpha" : mission.Map;
+        _proceduralMapSeed = HashProceduralSeed($"{missionId}:{proceduralMapId}");
         var rng = new Random(missionId.GetHashCode());
 
         if (_resourceManager != null)
@@ -1054,7 +1206,8 @@ public partial class EngineWindow
             ConfigureGalleryShowcaseUnit(entity);
         if (isAiControlled)
         {
-            _world.AddComponent(entity, new AIControlledComponent { PlayerId = playerId, Aggressiveness = 0.6f });
+            float aggressiveness = SkirmishDifficultyTuning.AiAggressiveness(_skirmishDifficulty);
+            _world.AddComponent(entity, new AIControlledComponent { PlayerId = playerId, Aggressiveness = aggressiveness });
             if (!_world.HasComponent<SelectionComponent>(entity))
             {
                 _world.AddComponent(entity, new SelectionComponent
@@ -1063,6 +1216,16 @@ public partial class EngineWindow
                     SelectionRadius = ResolveSelectionRadius(def),
                 });
             }
+
+            var aiCollector = _world.GetComponent<ResourceCollectorComponent>(entity);
+            if (aiCollector != null)
+            {
+                aiCollector.PlayerId = playerId;
+                var aiTf = _world.GetComponent<TransformComponent>(entity);
+                if (aiCollector.DepositTarget == Entity.Null && aiTf != null)
+                    aiCollector.DepositTarget = AIPlayerSystem.FindDepositTarget(_world, playerId, aiTf.Position);
+            }
+
             var enemyTf = _world.GetComponent<TransformComponent>(entity);
             if (enemyTf != null) RevealAreaAt(enemyTf.Position, 10);
             _aiEntities.Add(entity);
@@ -1170,6 +1333,7 @@ public partial class EngineWindow
             {
                 Faction = faction,
                 Priority = isEnemy ? 10 : _world.HasComponent<HeroComponent>(entity) ? 100 : 20,
+                TargetingMode = isEnemy ? TargetPriority.LowestHP : TargetPriority.Closest,
             });
         }
 
@@ -1349,6 +1513,11 @@ public partial class EngineWindow
 
     private void UpdateCameraControls(float dt)
     {
+        EnsurePersistence();
+        var settings = _settingsManager!.Current.Clamped();
+        _rtsCamera.PanSpeedMultiplier = settings.CameraPanSpeed;
+        _rtsCamera.ZoomSpeedMultiplier = settings.CameraZoomSpeed;
+
         bool unitsSelected = HasSelectedUnits();
         bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) || KeyboardState.IsKeyDown(Keys.RightShift);
 
@@ -1366,6 +1535,11 @@ public partial class EngineWindow
 
         _rtsCamera.Pan(axes.Strafe, axes.Forward, dt);
         _rtsCamera.AdjustHeight(axes.Height, dt);
+
+        if (settings.EdgeScrolling && !_cameraPanDragActive)
+            _rtsCamera.ApplyEdgeScroll(UiMousePosition, UiViewportSize, dt);
+
+        ClampCameraTarget();
     }
 
     private void HandleShipControlCommand(string command)
@@ -1484,26 +1658,10 @@ public partial class EngineWindow
     {
         if (_uiManager.Current is not GameplayHUD hud) return;
 
-        if (_missionController?.CurrentMission == null)
-        {
-            hud.ObjectivePanel.Visible = false;
-            return;
-        }
-
-        var mission = _missionController.CurrentMission;
-        hud.ObjectivePanel.Visible = true;
-        hud.ObjectivePanel.MissionTitle = mission.Definition.DisplayName;
-
-        var lines = new List<ObjectiveLine>();
-        foreach (var obj in mission.PrimaryObjectives)
-        {
-            string text = obj.Definition.Description;
-            if (string.IsNullOrWhiteSpace(text))
-                text = obj.Definition.Id.Replace('_', ' ');
-            lines.Add(new ObjectiveLine { Text = text, IsCompleted = obj.IsCompleted });
-        }
-
-        hud.ObjectivePanel.Objectives = lines;
+        MissionHudBinder.BindObjectivePanel(
+            hud,
+            _missionController?.CurrentMission,
+            hideForSandbox: _isSandboxSession);
     }
 
     private void BindShipControlBar()
@@ -1535,6 +1693,12 @@ public partial class EngineWindow
         hud.BindShipControlBar(
             hasWeapons, hasMovement, hasResourceCollector, hasStructureBuilder,
             stance, anySelected, formation, showFormation);
+
+        bool buildModeActive = _placementBuildingId != null || _builderPickEntity != null;
+        if (buildModeActive)
+            hud.ShipControlBar.SetActiveCommand("build");
+        else if (hud.ShipControlBar.ActiveCommand == "build")
+            hud.ShipControlBar.ClearActiveCommand();
     }
     private void RegisterProceduralMeshes()
     {

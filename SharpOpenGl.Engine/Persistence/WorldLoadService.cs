@@ -17,7 +17,7 @@ public static class WorldLoadService
     {
         RestoreResources(ctx.ResourceManager, data.PlayerResources);
         RestoreMissionProgress(ctx.MissionState, data);
-        RestoreFog(ctx.GridSystem, ctx.FogOfWar, ctx.FogPlayerId, data.FogStates);
+        RestoreFog(ctx.GridSystem, ctx.FogOfWar, data.FogStates);
 
         var idMap = new Dictionary<int, Entity>();
         Entity hero = Entity.Null;
@@ -46,6 +46,9 @@ public static class WorldLoadService
             HeroEntity = hero,
             CommandCenterEntity = commandCenter,
             EntityIdMap = idMap,
+            IsSandboxSession = data.IsSandboxSession,
+            ProceduralMapSeed = data.ProceduralMapSeed,
+            SandboxSeedText = data.SandboxSeedText ?? string.Empty,
         };
     }
 
@@ -89,24 +92,21 @@ public static class WorldLoadService
     private static void RestoreFog(
         GridSystem grid,
         FogOfWar fog,
-        int playerId,
         Dictionary<string, int> fogStates)
     {
+        int maxPlayers = fog.PlayerCount;
         foreach (var (key, ordinal) in fogStates)
         {
             if (!TryParseFogKey(key, out int keyPlayer, out int x, out int y))
                 continue;
-            if (keyPlayer != playerId)
+            if ((uint)keyPlayer >= (uint)maxPlayers)
                 continue;
             if (!Enum.IsDefined(typeof(FogState), ordinal))
                 continue;
 
             GridCell? cell = grid.GetCell(x, y);
-            cell?.SetFog(playerId, (FogState)ordinal);
+            cell?.SetFog(keyPlayer, (FogState)ordinal);
         }
-
-        // Ensure saved explored cells remain at least explored even if fog system resets them.
-        _ = fog;
     }
 
     private static Entity SpawnEntity(WorldLoadContext ctx, EntitySaveRecord record)
@@ -139,8 +139,11 @@ public static class WorldLoadService
             Position = new Vector3(record.X, 1f, record.Y),
             Scale = new Vector3(6f, 6f, 6f),
         });
-        float amount = record.Health > 0f ? record.Health : 5000f;
-        float maxAmount = record.Shields > 0f ? record.Shields : amount;
+        // Shields stores MaxAmount; Health stores Amount (including 0 for depleted nodes).
+        float maxAmount = record.Shields > 0f
+            ? record.Shields
+            : record.Health > 0f ? record.Health : 5000f;
+        float amount = record.Health;
         ctx.World.AddComponent(entity, new ResourceNodeComponent
         {
             ResourceType = type,

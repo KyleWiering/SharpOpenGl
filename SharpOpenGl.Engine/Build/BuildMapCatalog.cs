@@ -20,6 +20,10 @@ public sealed class BuildMapEntryView
     public int CrewCost { get; init; }
     public float BuildTime { get; init; }
     public IReadOnlyList<string> Prerequisites { get; init; } = [];
+    /// <summary>Prerequisites satisfied out of <see cref="PrerequisiteTotalCount"/>.</summary>
+    public int PrerequisiteMetCount { get; init; }
+    /// <summary>Total prerequisite structures required before unlock.</summary>
+    public int PrerequisiteTotalCount { get; init; }
     public string? LockReason { get; init; }
     public string? AffordReason { get; init; }
     public bool IsUnlocked { get; set; }
@@ -33,6 +37,10 @@ public sealed class BuildMapCategoryView
 {
     public string Id { get; init; } = string.Empty;
     public string DisplayName { get; init; } = string.Empty;
+    /// <summary>1-based tier index from category order in <c>build_map.json</c>.</summary>
+    public int TierIndex { get; init; }
+    public int UnlockedCount { get; set; }
+    public int TotalCount { get; set; }
     public List<BuildMapEntryView> Buildings { get; init; } = [];
 }
 
@@ -98,13 +106,16 @@ public sealed class BuildMapCatalog
         var builtTypes = BuildingFootprint.GetBuiltTypes(world, playerId);
         var player = resources.GetPlayer(playerId);
         var views = new List<BuildMapCategoryView>();
+        int tierIndex = 0;
 
         foreach (var category in _config.Categories)
         {
+            tierIndex++;
             var categoryView = new BuildMapCategoryView
             {
                 Id = category.Id,
                 DisplayName = category.DisplayName,
+                TierIndex = tierIndex,
             };
 
             foreach (var entry in category.Buildings)
@@ -114,7 +125,9 @@ public sealed class BuildMapCatalog
 
                 var (cols, rows) = BuildingFootprint.GetSize(def.Components?.Building?.Footprint);
                 int crew = def.Cost?.Crew ?? 0;
-                bool unlocked = IsUnlocked(entry.Prerequisites, builtTypes);
+                int prereqTotal = entry.Prerequisites.Count;
+                int prereqMet = CountMetPrerequisites(entry.Prerequisites, builtTypes);
+                bool unlocked = prereqTotal == 0 || prereqMet == prereqTotal;
                 bool afford = CanAfford(def, player) && HasSupplyHeadroom(supply, playerId, crew);
 
                 categoryView.Buildings.Add(new BuildMapEntryView
@@ -131,6 +144,8 @@ public sealed class BuildMapCatalog
                     CrewCost = crew,
                     BuildTime = def.BuildTime,
                     Prerequisites = FormatPrerequisiteNames(entry.Prerequisites),
+                    PrerequisiteMetCount = prereqMet,
+                    PrerequisiteTotalCount = prereqTotal,
                     LockReason = unlocked ? null : FormatLockReason(entry.Prerequisites, builtTypes),
                     AffordReason = unlocked && !afford
                         ? FormatAffordReason(def, player, supply, playerId)
@@ -142,7 +157,11 @@ public sealed class BuildMapCatalog
             }
 
             if (categoryView.Buildings.Count > 0)
+            {
+                categoryView.TotalCount = categoryView.Buildings.Count;
+                categoryView.UnlockedCount = categoryView.Buildings.Count(static b => b.IsUnlocked);
                 views.Add(categoryView);
+            }
         }
 
         return views;
@@ -224,6 +243,22 @@ public sealed class BuildMapCatalog
             return null;
 
         return $"Insufficient: {string.Join(", ", shortages)}";
+    }
+
+    private static int CountMetPrerequisites(
+        IReadOnlyList<string> prerequisiteIds, IReadOnlySet<string> builtTypes)
+    {
+        if (prerequisiteIds.Count == 0)
+            return 0;
+
+        int met = 0;
+        foreach (string required in prerequisiteIds)
+        {
+            if (builtTypes.Contains(required))
+                met++;
+        }
+
+        return met;
     }
 
     private string ResolveDisplayName(string id) =>

@@ -2,6 +2,7 @@
   "id": "miner_basic",
   "displayName": "Mining Barge",
   "category": "miner",
+  "shipRole": "engineering",
   "mesh": "meshes/miner_basic.obj",
   "fallbackMesh": "default",
   "components": {

@@ -52,6 +52,9 @@ public sealed class GameCommandExecutor
                 RouteCommands.AssignDestination(world, entity, target);
         }
 
+        if (context.Grid != null && context.Fog != null)
+            FogCommandSync.RefreshPlayerFog(context.Grid, context.Fog, context.World, context.PlayerId);
+
         return true;
     }
 

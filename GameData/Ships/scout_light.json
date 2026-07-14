@@ -2,6 +2,7 @@
   "id": "scout_light",
   "displayName": "Whisper Scout",
   "category": "scout",
+  "shipRole": "military",
   "mesh": "meshes/scout_light.obj",
   "fallbackMesh": "default",
   "components": {
@@ -10,6 +11,11 @@
     "weapons": [
       { "slot": 0, "type": "laser", "damage": 8, "range": 150, "fireRate": 3.0 }
     ],
+    "weaponSkill": {
+      "accuracyBonus": 0.08,
+      "reloadModifier": 0.75,
+      "rangeTier": "medium"
+    },
     "sightRadius": 8
   },
   "defaultStance": "defensive",

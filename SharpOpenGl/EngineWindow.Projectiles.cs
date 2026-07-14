@@ -15,9 +15,9 @@ public partial class EngineWindow
     private void LoadProjectileMeshes()
     {
         RegisterProjectileMesh("projectile/laser_bolt",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildLaserBolt(new Vector3(1f, 0.5f, 0.35f), 1.8f)));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildLaserBolt(new Vector3(1f, 0.5f, 0.35f), 2.6f)));
         RegisterProjectileMesh("projectile/beam",
-            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildBeamStreak(new Vector3(0.55f, 0.95f, 1f), 3f)));
+            MeshBuilder.UploadProcedural(ProceduralMeshes.BuildBeamStreak(new Vector3(0.55f, 0.95f, 1f), 4.5f)));
         RegisterProjectileMesh("projectile/torpedo",
             MeshBuilder.UploadProcedural(ProceduralMeshes.BuildTorpedo(new Vector3(0.9f, 0.9f, 0.95f), 1.8f)));
         RegisterProjectileMesh("projectile/rocket",
@@ -68,7 +68,8 @@ public partial class EngineWindow
         return s * ry * rx * rz * t;
     }
 
-    private void AttachStationWeapons(Entity entity, params (string type, float damage, float range, float rate)[] weapons)
+    private void AttachStationWeapons(Entity entity, Stance stationStance,
+        params (string type, float damage, float range, float rate)[] weapons)
     {
         if (_world == null) return;
         var wl = new WeaponListComponent();
@@ -92,5 +93,6 @@ public partial class EngineWindow
             TargetingMode = TargetPriority.Closest,
             Priority = 50,
         });
+        _world.AddComponent(entity, new StanceComponent { CurrentStance = stationStance });
     }
 }

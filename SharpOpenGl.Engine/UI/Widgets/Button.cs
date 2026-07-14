@@ -2,10 +2,26 @@ using OpenTK.Mathematics;
 
 namespace SharpOpenGl.Engine.UI.Widgets;
 
+/// <summary>Shared contract for clickable buttons discovered by <see cref="UIScreen"/>.</summary>
+public interface IUIButton
+{
+    /// <summary>Whether the pointer is currently hovering over this button.</summary>
+    bool IsHovered { get; }
+
+    /// <summary>Whether the button can receive input.</summary>
+    bool IsEnabled { get; }
+
+    /// <summary>Whether keyboard navigation has highlighted this button.</summary>
+    bool IsKeyboardFocused { get; }
+
+    /// <summary>Programmatically activate the button (keyboard / accessibility).</summary>
+    void Activate();
+}
+
 /// <summary>
 /// A clickable button widget with a label and optional hover-state colour.
 /// </summary>
-public sealed class Button : Widget
+public sealed class Button : Widget, IUIButton
 {
     /// <summary>Horizontal inset reserved on each side of button face text.</summary>
     public const float TextPadding = 20f;
@@ -61,6 +77,15 @@ public sealed class Button : Widget
     /// <summary>Whether the button can receive input.</summary>
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>Invisible padding expanding the pointer hit rect beyond <see cref="Size"/>.</summary>
+    public float HitPadding { get; set; }
+
+    /// <summary>When true, hit rect is clamped to at least 44×44 logical pixels.</summary>
+    public bool RequireMinimumHitExtent { get; set; }
+
+    /// <summary>Minimum touch-target extent used with <see cref="RequireMinimumHitExtent"/>.</summary>
+    public const float MinimumHitExtent = 44f;
+
     /// <summary>Raised when the pointer first enters the button bounds.</summary>
     public event Action? HoverEntered;
 
@@ -112,8 +137,30 @@ public sealed class Button : Widget
             HoverEntered?.Invoke();
     }
 
-    private bool PointInHitArea(Vector2 point, Vector2 containerPosition, Vector2 containerSize) =>
-        Contains(point, containerPosition, containerSize);
+    /// <summary>Returns the expanded logical hit rect for diagnostics and tests.</summary>
+    public static (Vector2 Position, Vector2 Size) GetExpandedHitRect(
+        Vector2 visualPosition, Vector2 visualSize, float hitPadding = 0f, bool requireMinimumExtent = false)
+    {
+        float hitW = visualSize.X + hitPadding * 2f;
+        float hitH = visualSize.Y + hitPadding * 2f;
+        if (requireMinimumExtent)
+        {
+            hitW = MathF.Max(hitW, MinimumHitExtent);
+            hitH = MathF.Max(hitH, MinimumHitExtent);
+        }
+
+        float expandX = (hitW - visualSize.X) * 0.5f;
+        float expandY = (hitH - visualSize.Y) * 0.5f;
+        return (visualPosition - new Vector2(expandX, expandY), new Vector2(hitW, hitH));
+    }
+
+    private bool PointInHitArea(Vector2 point, Vector2 containerPosition, Vector2 containerSize)
+    {
+        var (pos, size) = Resolve(containerPosition, containerSize);
+        var (hitPos, hitSize) = GetExpandedHitRect(pos, size, HitPadding, RequireMinimumHitExtent);
+        return point.X >= hitPos.X && point.X < hitPos.X + hitSize.X
+            && point.Y >= hitPos.Y && point.Y < hitPos.Y + hitSize.Y;
+    }
 
     /// <inheritdoc/>
     protected override void OnDraw(IUIRenderer renderer, Vector2 position, Vector2 size)

@@ -4,6 +4,7 @@ using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Entities;
+using SharpOpenGl.Engine.Grid;
 using Xunit;
 
 namespace SharpOpenGl.Tests.Build;
@@ -90,6 +91,39 @@ public class BuildMapCatalogTests
     };
 
     [Fact]
+    public void BuildMapCatalog_BuildViews_computes_tier_index()
+    {
+        var config = LoadBuildMapConfig();
+        var defs = LoadAllBaseDefinitions();
+        var catalog = new BuildMapCatalog(config, defs);
+        var world = new World();
+        var resources = new ResourceManager();
+        resources.AddPlayer(1);
+
+        var views = catalog.BuildViews(world, 1, resources, supply: null);
+
+        Assert.Equal(5, views.Count);
+        Assert.Equal("production", views[0].Id);
+        Assert.Equal(1, views[0].TierIndex);
+        Assert.Equal(4, views[0].TotalCount);
+        Assert.Equal(1, views[0].UnlockedCount);
+
+        Assert.Equal("economy", views[1].Id);
+        Assert.Equal(2, views[1].TierIndex);
+
+        Assert.Equal("defense", views[2].Id);
+        Assert.Equal(3, views[2].TierIndex);
+
+        Assert.Equal("support", views[3].Id);
+        Assert.Equal(4, views[3].TierIndex);
+
+        Assert.Equal("capstone", views[4].Id);
+        Assert.Equal(5, views[4].TierIndex);
+        Assert.Equal(0, views[4].UnlockedCount);
+        Assert.Equal(2, views[4].TotalCount);
+    }
+
+    [Fact]
     public void BuildViews_populates_build_time_lock_and_afford_metadata()
     {
         var config = LoadBuildMapConfig();
@@ -126,6 +160,42 @@ public class BuildMapCatalogTests
         Assert.Equal("Insufficient: minerals", reactor.AffordReason);
         Assert.Null(reactor.LockReason);
         Assert.Equal(30f, reactor.BuildTime);
+    }
+
+    [Fact]
+    public void BuildViews_populates_prerequisite_progress_counts()
+    {
+        var config = LoadBuildMapConfig();
+        var defs = LoadAllBaseDefinitions();
+        var catalog = new BuildMapCatalog(config, defs);
+        var world = new World();
+        var resources = new ResourceManager();
+        resources.AddPlayer(1);
+
+        var cc = world.CreateEntity();
+        world.AddComponent(cc, new BuildingComponent
+        {
+            BuildingType = "command_center",
+            PlayerId = 1,
+        });
+        var reactor = world.CreateEntity();
+        world.AddComponent(reactor, new BuildingComponent
+        {
+            BuildingType = "power_reactor",
+            PlayerId = 1,
+        });
+
+        var views = catalog.BuildViews(world, 1, resources, supply: null);
+        var shipyard = views.SelectMany(c => c.Buildings).First(b => b.Id == "shipyard_small");
+        var uplink = views.SelectMany(c => c.Buildings).First(b => b.Id == "orbital_uplink");
+
+        Assert.Equal(2, shipyard.PrerequisiteMetCount);
+        Assert.Equal(2, shipyard.PrerequisiteTotalCount);
+        Assert.True(shipyard.IsUnlocked);
+
+        Assert.Equal(1, uplink.PrerequisiteMetCount);
+        Assert.Equal(4, uplink.PrerequisiteTotalCount);
+        Assert.False(uplink.IsUnlocked);
     }
 
     [Fact]
@@ -194,6 +264,31 @@ public class BuildMapCatalogTests
         }
 
         Assert.Equal(16, builtSet.Count);
+    }
+
+    [Fact]
+    public void Skirmish_starting_resources_afford_all_tier1_builder_structures()
+    {
+        var defs = LoadAllBaseDefinitions();
+        float energy = SkirmishMapLogic.SkirmishStartingEnergy;
+        float minerals = SkirmishMapLogic.SkirmishStartingMinerals;
+        float data = SkirmishMapLogic.SkirmishStartingData;
+        float crew = SkirmishMapLogic.SkirmishStartingCrew;
+
+        foreach (string buildingId in SkirmishMapLogic.BuilderTier1BuildingIds)
+        {
+            Assert.True(defs.TryGetValue(buildingId, out EntityDefinition? def), $"Missing base definition for '{buildingId}'.");
+            Assert.NotNull(def);
+            var cost = def.Cost;
+            Assert.True(energy >= cost.Energy,
+                $"{buildingId} energy cost {cost.Energy} exceeds skirmish start {energy}.");
+            Assert.True(minerals >= cost.Minerals,
+                $"{buildingId} minerals cost {cost.Minerals} exceeds skirmish start {minerals}.");
+            Assert.True(data >= cost.Data,
+                $"{buildingId} data cost {cost.Data} exceeds skirmish start {data}.");
+            Assert.True(crew >= cost.Crew,
+                $"{buildingId} crew cost {cost.Crew} exceeds skirmish start {crew}.");
+        }
     }
 
     [Fact]

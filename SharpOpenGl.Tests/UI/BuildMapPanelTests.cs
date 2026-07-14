@@ -10,17 +10,18 @@ namespace SharpOpenGl.Tests.UI;
 public class BuildMapPanelTests
 {
     private static readonly Vector2 ReferenceViewport = UIScaler.ReferenceSize;
-    private const float TileSize = 56f;
-    private const float IconSize = 48f;
+    private const float TileSize = 64f;
+    private const float IconSize = 52f;
     private const float PanelPadding = 10f;
     private const float TitleHeight = 28f;
     private const float CategoryHeaderHeight = 20f;
     private const float HeaderFontSize = 12f;
 
-    /// <summary>Local offset to the centre of the first 56×56 entry tile.</summary>
+    /// <summary>Local offset to the centre of the first 64×64 entry tile.</summary>
     private static Vector2 FirstEntryTileCenterOffset()
     {
-        float contentTop = PanelPadding + TitleHeight + HeaderFontSize + 8f;
+        var panelSize = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight);
+        float contentTop = BuildMapPanel.GetHeaderBlockHeight(BuildMapPanel.IsCompactHeader(panelSize));
         float rowY = contentTop + CategoryHeaderHeight;
         return new Vector2(PanelPadding + TileSize * 0.5f, rowY + TileSize * 0.5f);
     }
@@ -79,7 +80,8 @@ public class BuildMapPanelTests
         bool opened = false;
         hud.BuildMapRequested += () => opened = true;
 
-        var tap = new Vector2(1756f, 28f);
+        // Build button: TopRight (-120, 8), size 112×44 → centre ≈ (1744, 30).
+        var tap = new Vector2(1744f, 30f);
         bool consumed = hud.HandlePointerTapped(tap, 0, ReferenceViewport);
 
         Assert.True(consumed);
@@ -115,16 +117,154 @@ public class BuildMapPanelTests
         Assert.DoesNotContain(renderer.TextDraws, draw => draw.Text.Contains("M:", StringComparison.Ordinal));
         Assert.DoesNotContain(renderer.TextDraws, draw => draw.Text.Contains("Footprint", StringComparison.Ordinal));
         Assert.Contains(renderer.TextDraws, draw => draw.Text == "Build Structures");
-        Assert.Contains(renderer.TextDraws, draw => draw.Text == "Defense");
+        Assert.Contains(renderer.TextDraws, draw =>
+            draw.Text.Contains("structure icon", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(renderer.TextDraws, draw =>
+            draw.Text.Contains("Defense", StringComparison.Ordinal)
+            && draw.Text.Contains("Tier", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void Entry_tile_hit_area_is_56_by_56()
+    public void Category_header_includes_tier_and_unlock_counts()
     {
+        var panel = new BuildMapPanel
+        {
+            Anchor = Anchor.MiddleLeft,
+            Position = new Vector2(GameplayHudLayout.BuildMapPanelPositionX, -232f),
+            Size = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight),
+            Visible = true,
+            Categories =
+            [
+                new BuildMapCategoryView
+                {
+                    Id = "economy",
+                    DisplayName = "Economy",
+                    TierIndex = 2,
+                    UnlockedCount = 1,
+                    TotalCount = 4,
+                    Buildings =
+                    [
+                        new BuildMapEntryView
+                        {
+                            Id = "power_reactor",
+                            Name = "Power Reactor",
+                            IsUnlocked = true,
+                            CanAfford = true,
+                            Icon = BuildIconCatalog.Get("power_reactor"),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var renderer = new RecordingRenderer();
+        panel.Draw(renderer, Vector2.Zero, ReferenceViewport);
+
+        string expectedHeader = BuildMapPanel.FormatCategoryHeader("Economy", 2, 1, 1);
+        Assert.Contains(renderer.TextDraws, draw => draw.Text == expectedHeader);
+        Assert.Contains(renderer.TextDraws, draw =>
+            draw.Text.Contains("Tier 2", StringComparison.Ordinal)
+            && draw.Text.Contains("(1/1)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Locked_tile_tooltip_includes_prerequisite_chain()
+    {
+        var panel = new BuildMapPanel
+        {
+            Anchor = Anchor.MiddleLeft,
+            Position = new Vector2(GameplayHudLayout.BuildMapPanelPositionX, -232f),
+            Size = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight),
+            Visible = true,
+            Categories =
+            [
+                new BuildMapCategoryView
+                {
+                    Id = "production",
+                    DisplayName = "Production",
+                    TierIndex = 1,
+                    Buildings =
+                    [
+                        new BuildMapEntryView
+                        {
+                            Id = "shipyard_small",
+                            Name = "Small Shipyard",
+                            IsUnlocked = false,
+                            CanAfford = true,
+                            Prerequisites = ["Command Center", "Power Reactor"],
+                            LockReason = "Requires: Power Reactor",
+                            Icon = BuildIconCatalog.Get("shipyard_small"),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var (pos, _) = panel.Resolve(Vector2.Zero, ReferenceViewport);
+        panel.UpdatePointerState(pos + FirstEntryTileCenterOffset(), false, Vector2.Zero, ReferenceViewport);
+
+        TooltipContent? content = panel.GetTooltipContent();
+
+        Assert.NotNull(content);
+        IReadOnlyList<string> lines = content!.ToLines();
+        Assert.Contains("Prerequisite chain: Command Center → Power Reactor", lines);
+        Assert.DoesNotContain(lines, line => line.StartsWith('•'));
+    }
+
+    [Fact]
+    public void Locked_entry_draws_prerequisite_micro_label()
+    {
+        var panel = new BuildMapPanel
+        {
+            Anchor = Anchor.MiddleLeft,
+            Position = new Vector2(GameplayHudLayout.BuildMapPanelPositionX, -232f),
+            Size = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight),
+            Visible = true,
+            Categories =
+            [
+                new BuildMapCategoryView
+                {
+                    Id = "production",
+                    DisplayName = "Production",
+                    TierIndex = 1,
+                    Buildings =
+                    [
+                        new BuildMapEntryView
+                        {
+                            Id = "shipyard_small",
+                            Name = "Small Shipyard",
+                            IsUnlocked = false,
+                            CanAfford = true,
+                            LockReason = "Requires: Power Reactor",
+                            Icon = BuildIconCatalog.Get("shipyard_small"),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var renderer = new RecordingRenderer();
+        panel.Draw(renderer, Vector2.Zero, ReferenceViewport);
+
+        Assert.Contains(renderer.TextDraws, draw => draw.Text.StartsWith("Needs:", StringComparison.Ordinal));
+        Assert.Contains(renderer.TextDraws, draw =>
+            draw.Text.Contains("Powe", StringComparison.Ordinal)
+            || draw.Text.Contains("Power", StringComparison.Ordinal));
+        float microLabelSize = renderer.TextDraws
+            .Where(draw => draw.Text.StartsWith("Needs:", StringComparison.Ordinal))
+            .Select(draw => draw.FontSize)
+            .Max();
+        Assert.True(microLabelSize >= 8f, $"Locked micro-label font should be ≥8px, was {microLabelSize}");
+    }
+
+    [Fact]
+    public void Entry_tile_hit_area_expands_beyond_visual_tile()
+    {
+        const float tileHitPadding = 2f;
         var panel = CreatePanelWithEntry(unlocked: true, afford: true);
         var (pos, _) = panel.Resolve(Vector2.Zero, ReferenceViewport);
         var tileCenter = pos + FirstEntryTileCenterOffset();
-        float halfTile = TileSize * 0.5f;
+        float halfExpanded = TileSize * 0.5f + tileHitPadding;
 
         string? selected = null;
         panel.BuildingSelected += id => selected = id;
@@ -133,12 +273,71 @@ public class BuildMapPanelTests
         Assert.Equal("defense_turret", selected);
 
         selected = null;
-        Assert.True(panel.HandlePointerTapped(tileCenter + new Vector2(halfTile, 0f), 0, Vector2.Zero, ReferenceViewport));
-        Assert.Null(selected);
+        Assert.True(panel.HandlePointerTapped(
+            tileCenter + new Vector2(halfExpanded - 1f, 0f), 0, Vector2.Zero, ReferenceViewport));
+        Assert.Equal("defense_turret", selected);
 
         selected = null;
-        Assert.True(panel.HandlePointerTapped(tileCenter + new Vector2(0f, halfTile), 0, Vector2.Zero, ReferenceViewport));
+        Assert.True(panel.HandlePointerTapped(
+            tileCenter + new Vector2(halfExpanded + 1f, 0f), 0, Vector2.Zero, ReferenceViewport));
         Assert.Null(selected);
+    }
+
+    [Fact]
+    public void Close_button_hit_rect_includes_vertical_padding()
+    {
+        const float closeButtonWidth = 48f;
+        var panel = CreatePanelWithEntry(unlocked: true, afford: true);
+        var (pos, size) = panel.Resolve(Vector2.Zero, ReferenceViewport);
+
+        bool closed = false;
+        panel.CloseRequested += () => closed = true;
+
+        float closeCenterX = pos.X + size.X - PanelPadding - closeButtonWidth * 0.5f;
+        float aboveVisualY = pos.Y + PanelPadding - 6f;
+        panel.HandlePointerTapped(new Vector2(closeCenterX, aboveVisualY), 0, Vector2.Zero, ReferenceViewport);
+
+        Assert.True(closed);
+    }
+
+    [Fact]
+    public void Filtered_categories_preserve_tier_index_from_build_map()
+    {
+        var views = new List<BuildMapCategoryView>
+        {
+            new()
+            {
+                Id = "production",
+                DisplayName = "Production",
+                TierIndex = 1,
+                Buildings = [CreateEntryView("command_center")],
+            },
+            new()
+            {
+                Id = "economy",
+                DisplayName = "Economy",
+                TierIndex = 2,
+                Buildings = [CreateEntryView("power_reactor")],
+            },
+        };
+
+        var filtered = FilterBuildViews(views, ["power_reactor"]);
+
+        Assert.Single(filtered);
+        Assert.Equal("Economy", filtered[0].DisplayName);
+        Assert.Equal(2, filtered[0].TierIndex);
+
+        var panel = new BuildMapPanel
+        {
+            Size = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight),
+            Visible = true,
+            Categories = filtered,
+        };
+        var renderer = new RecordingRenderer();
+        panel.Draw(renderer, Vector2.Zero, ReferenceViewport);
+
+        string expectedHeader = BuildMapPanel.FormatCategoryHeader("Economy", 2, 1, 1);
+        Assert.Contains(renderer.TextDraws, draw => draw.Text == expectedHeader);
     }
 
     [Fact]
@@ -213,6 +412,7 @@ public class BuildMapPanelTests
         {
             Id = "defense_turret",
             Name = "Defense Turret",
+            CategoryName = "Defense",
             FootprintCols = 1,
             FootprintRows = 1,
             EnergyCost = 60,
@@ -229,12 +429,200 @@ public class BuildMapPanelTests
         IReadOnlyList<string> lines = content.ToLines();
 
         Assert.Equal("Defense Turret", content.Title);
+        Assert.Equal("Category: Defense", content.RoleLine);
         Assert.Equal("E:60 M:90 D:0 C:1", content.CostLine);
         Assert.Equal("Footprint: 1×1", content.Footprint);
         Assert.Equal("Build: 18s", content.BuildTime);
-        Assert.Contains("• Sensor Array", lines);
-        Assert.Contains("Requires: Sensor Array", lines);
+        Assert.Contains("Prerequisite chain: Sensor Array", lines);
         Assert.Contains("Insufficient: minerals", lines);
+    }
+
+    [Fact]
+    public void TooltipContent_FormatPrerequisiteChain_returns_null_when_unlocked()
+    {
+        var entry = new BuildMapEntryView
+        {
+            IsUnlocked = true,
+            Prerequisites = ["Sensor Array"],
+        };
+
+        Assert.Null(TooltipContent.FormatPrerequisiteChain(entry));
+    }
+
+    [Theory]
+    [InlineData(1, "production", "T1")]
+    [InlineData(2, "economy", "T2")]
+    [InlineData(3, "defense", "T3")]
+    [InlineData(4, "support", "T3")]
+    [InlineData(5, "capstone", "Cap")]
+    public void FormatTierBadge_maps_category_tiers(int tierIndex, string categoryId, string expected)
+    {
+        Assert.Equal(expected, BuildMapPanel.FormatTierBadge(tierIndex, categoryId));
+    }
+
+    [Fact]
+    public void Draw_entry_tiles_emit_tier_badges()
+    {
+        var panel = CreatePanelWithEntry(unlocked: true, afford: true);
+        var renderer = new RecordingRenderer();
+
+        panel.Draw(renderer, Vector2.Zero, ReferenceViewport);
+
+        Assert.Contains(renderer.TextDraws, draw => draw.Text == "T3");
+    }
+
+    [Fact]
+    public void Capstone_locked_entry_draws_prerequisite_progress_micro_label()
+    {
+        var panel = new BuildMapPanel
+        {
+            Anchor = Anchor.MiddleLeft,
+            Position = new Vector2(GameplayHudLayout.BuildMapPanelPositionX, -232f),
+            Size = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight),
+            Visible = true,
+            Categories =
+            [
+                new BuildMapCategoryView
+                {
+                    Id = "capstone",
+                    DisplayName = "Capstone",
+                    TierIndex = 5,
+                    Buildings =
+                    [
+                        new BuildMapEntryView
+                        {
+                            Id = "orbital_uplink",
+                            Name = "Orbital Uplink",
+                            CategoryId = "capstone",
+                            IsUnlocked = false,
+                            CanAfford = true,
+                            PrerequisiteMetCount = 2,
+                            PrerequisiteTotalCount = 4,
+                            Prerequisites = ["Command Center", "Medium Shipyard", "Sensor Array", "Comms Relay"],
+                            LockReason = "Requires: Comms Relay, Sensor Array",
+                            Icon = BuildIconCatalog.Get("orbital_uplink"),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var renderer = new RecordingRenderer();
+        panel.Draw(renderer, Vector2.Zero, ReferenceViewport);
+
+        Assert.Contains(renderer.TextDraws, draw => draw.Text == "Cap");
+        Assert.Contains(renderer.TextDraws, draw =>
+            draw.Text.Contains("2/4", StringComparison.Ordinal)
+            && draw.Text.Contains("Needs", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void FormatPrerequisiteMicroLabel_shows_progress_and_unlock_path()
+    {
+        var entry = new BuildMapEntryView
+        {
+            CategoryId = "capstone",
+            IsUnlocked = false,
+            PrerequisiteMetCount = 2,
+            PrerequisiteTotalCount = 3,
+            LockReason = "Requires: Comms",
+        };
+
+        string? label = BuildMapPanel.FormatPrerequisiteMicroLabel(entry);
+
+        Assert.Equal("2/3 · Needs Comms", label);
+    }
+
+    [Fact]
+    public void Locked_entry_tooltip_includes_prerequisite_progress_for_capstone()
+    {
+        var entry = new BuildMapEntryView
+        {
+            Id = "fortress_core",
+            Name = "Fortress Core",
+            CategoryId = "capstone",
+            IsUnlocked = false,
+            PrerequisiteMetCount = 2,
+            PrerequisiteTotalCount = 5,
+            Prerequisites = ["Command Center", "Large Shipyard", "Shield Emitter", "Missile Battery", "Repair Bay"],
+            LockReason = "Requires: Shield Emitter",
+        };
+
+        TooltipContent content = TooltipContent.FromBuildEntry(entry);
+        IReadOnlyList<string> lines = content.ToLines();
+
+        Assert.Contains(lines, line =>
+            line.Contains("2/5 met", StringComparison.Ordinal)
+            && line.Contains("Prerequisites:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Entry_states_use_distinct_fill_colors()
+    {
+        var panel = new BuildMapPanel
+        {
+            Anchor = Anchor.MiddleLeft,
+            Position = new Vector2(GameplayHudLayout.BuildMapPanelPositionX, -232f),
+            Size = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight),
+            Visible = true,
+            Categories =
+            [
+                new BuildMapCategoryView
+                {
+                    Id = "defense",
+                    DisplayName = "Defense",
+                    Buildings =
+                    [
+                        new BuildMapEntryView
+                        {
+                            Id = "enabled",
+                            Name = "Enabled Turret",
+                            IsUnlocked = true,
+                            CanAfford = true,
+                            Icon = BuildIconCatalog.Get("defense_turret"),
+                        },
+                        new BuildMapEntryView
+                        {
+                            Id = "locked",
+                            Name = "Locked Turret",
+                            IsUnlocked = false,
+                            CanAfford = true,
+                            Icon = BuildIconCatalog.Get("defense_turret"),
+                        },
+                        new BuildMapEntryView
+                        {
+                            Id = "unaffordable",
+                            Name = "Unaffordable Turret",
+                            IsUnlocked = true,
+                            CanAfford = false,
+                            Icon = BuildIconCatalog.Get("defense_turret"),
+                        },
+                    ],
+                },
+            ],
+        };
+
+        var renderer = new ColorRecordingRenderer();
+        panel.Draw(renderer, Vector2.Zero, ReferenceViewport);
+
+        Assert.Contains(renderer.FillColors, color => color == panel.EnabledColor);
+        Assert.Contains(renderer.FillColors, color => color == panel.LockedColor);
+        Assert.Contains(renderer.FillColors, color => color == panel.UnaffordableColor);
+    }
+
+    [Fact]
+    public void Hovering_entry_emits_hover_outline_ring()
+    {
+        var panel = CreatePanelWithEntry(unlocked: true, afford: true);
+        var (pos, _) = panel.Resolve(Vector2.Zero, ReferenceViewport);
+        panel.UpdatePointerState(pos + FirstEntryTileCenterOffset(), false, Vector2.Zero, ReferenceViewport);
+
+        var renderer = new OutlineRecordingRenderer();
+        panel.Draw(renderer, Vector2.Zero, ReferenceViewport);
+
+        Assert.Contains(renderer.OutlineColors, color => color == panel.HoverOutlineColor);
+        Assert.True(renderer.OutlineDrawCount >= 2,
+            "Hovered entry should draw base outline plus hover ring.");
     }
 
     [Fact]
@@ -307,6 +695,9 @@ public class BuildMapPanelTests
             {
                 Id = category.Id,
                 DisplayName = category.DisplayName,
+                TierIndex = category.TierIndex,
+                UnlockedCount = buildings.Count(static entry => entry.IsUnlocked),
+                TotalCount = buildings.Count,
                 Buildings = buildings,
             });
         }
@@ -320,7 +711,7 @@ public class BuildMapPanelTests
         {
             Anchor = Anchor.MiddleLeft,
             Position = new Vector2(12f, -220f),
-            Size = new Vector2(420f, 640f),
+            Size = new Vector2(GameplayHudLayout.BuildMapPanelWidth, GameplayHudLayout.BuildMapPanelHeight),
             Visible = true,
             Categories =
             [
@@ -328,6 +719,7 @@ public class BuildMapPanelTests
                 {
                     Id = "defense",
                     DisplayName = "Defense",
+                    TierIndex = 3,
                     Buildings =
                     [
                         new BuildMapEntryView
@@ -375,5 +767,34 @@ public class BuildMapPanelTests
 
         public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) =>
             TextDraws.Add((text, fontSize, position));
+    }
+
+    private sealed class ColorRecordingRenderer : IUIRenderer
+    {
+        public Vector2 ViewportSize { get; } = ReferenceViewport;
+        public List<Vector4> FillColors { get; } = new();
+
+        public void DrawRect(Vector2 position, Vector2 size, Vector4 color) => FillColors.Add(color);
+
+        public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color) { }
+
+        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) { }
+    }
+
+    private sealed class OutlineRecordingRenderer : IUIRenderer
+    {
+        public Vector2 ViewportSize { get; } = ReferenceViewport;
+        public int OutlineDrawCount { get; private set; }
+        public List<Vector4> OutlineColors { get; } = new();
+
+        public void DrawRect(Vector2 position, Vector2 size, Vector4 color) { }
+
+        public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color)
+        {
+            OutlineDrawCount++;
+            OutlineColors.Add(color);
+        }
+
+        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) { }
     }
 }

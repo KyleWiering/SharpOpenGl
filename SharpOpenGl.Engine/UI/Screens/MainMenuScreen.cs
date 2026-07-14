@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl.Engine.UI.Screens;
@@ -8,7 +9,7 @@ namespace SharpOpenGl.Engine.UI.Screens;
 /// </summary>
 public sealed class MainMenuScreen : UIScreen
 {
-    private readonly List<Button> _navButtons = new();
+    private readonly List<IconButton> _navButtons = new();
     private int _focusedIndex;
 
     /// <inheritdoc/>
@@ -16,6 +17,9 @@ public sealed class MainMenuScreen : UIScreen
 
     /// <summary>Fired when the "New Game" button is clicked.</summary>
     public event Action? NewGameRequested;
+
+    /// <summary>Fired when the "Sandbox" button is clicked.</summary>
+    public event Action? SandboxRequested;
 
     /// <summary>Fired when the "Multiplayer" button is clicked.</summary>
     public event Action? MultiplayerRequested;
@@ -39,7 +43,7 @@ public sealed class MainMenuScreen : UIScreen
     public bool HasSave { get; private set; }
 
     /// <summary>Navigation buttons in screen order.</summary>
-    public IReadOnlyList<Button> NavButtons => _navButtons;
+    public IReadOnlyList<IconButton> NavButtons => _navButtons;
 
     /// <summary>
     /// Initialise the main menu layout.
@@ -56,7 +60,7 @@ public sealed class MainMenuScreen : UIScreen
     public void SetHasSave(bool hasSave)
     {
         HasSave = hasSave;
-        Button? continueBtn = FindButton("Continue");
+        IconButton? continueBtn = FindNavButton("Continue");
         if (continueBtn != null)
             continueBtn.IsEnabled = hasSave;
         if (!hasSave && _focusedIndex < _navButtons.Count && _navButtons[_focusedIndex].Name == "Continue")
@@ -64,9 +68,9 @@ public sealed class MainMenuScreen : UIScreen
     }
 
     /// <summary>Find a navigation button by <see cref="Widget.Name"/>.</summary>
-    public new Button? FindButton(string name)
+    public IconButton? FindNavButton(string name)
     {
-        foreach (Button button in _navButtons)
+        foreach (IconButton button in _navButtons)
         {
             if (button.Name == name)
                 return button;
@@ -117,6 +121,17 @@ public sealed class MainMenuScreen : UIScreen
         AddWidget(title);
 
         const float subtitleWidth = 900f;
+        const float subtitleScrimHeight = 48f;
+        AddWidget(new Panel
+        {
+            Name = "SubtitleScrim",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(0f, 176f),
+            Size = new Vector2(subtitleWidth, subtitleScrimHeight),
+            BackgroundColor = MenuTheme.SubtitleScrimColor,
+            DrawBorder = false,
+        });
+
         var subtitle = new Label
         {
             Name = "Subtitle",
@@ -132,36 +147,42 @@ public sealed class MainMenuScreen : UIScreen
         AddWidget(subtitle);
 
         float btnW = 400f;
-        float btnH = 64f;
-        float gap = 14f;
-        float totalH = 7 * btnH + 6 * gap;
+        float btnH = 58f;
+        float gap = 10f;
+        float totalH = 8 * btnH + 7 * gap;
         float startY = MathF.Max(248f, (1080f - totalH) * 0.5f);
 
-        (string label, string name, Action? handler, bool enabled)[] entries =
+        (string label, string name, MenuIconKind icon, string tooltip, Action? handler, bool enabled)[] entries =
         [
-            ("New Game", "NewGame", () => NewGameRequested?.Invoke(), true),
-            ("Multiplayer", "Multiplayer", () => MultiplayerRequested?.Invoke(), true),
-            ("Continue", "Continue", () => ContinueRequested?.Invoke(), HasSave),
-            ("Load Game", "LoadGame", () => LoadGameRequested?.Invoke(), HasSave),
-            ("Ship Designer", "ShipDesigner", () => ShipDesignerRequested?.Invoke(), true),
-            ("Settings", "Settings", () => SettingsRequested?.Invoke(), true),
-            ("Quit", "Quit", () => QuitRequested?.Invoke(), true),
+            ("New Game", "NewGame", MenuIconKind.NavNewGame, "Start a new campaign", () => NewGameRequested?.Invoke(), true),
+            ("Sandbox", "Sandbox", MenuIconKind.NavSandbox, "Custom skirmish setup", () => SandboxRequested?.Invoke(), true),
+            ("Multiplayer", "Multiplayer", MenuIconKind.NavMultiplayer, "Host or join multiplayer", () => MultiplayerRequested?.Invoke(), true),
+            ("Continue", "Continue", MenuIconKind.NavContinue, "Resume last save", () => ContinueRequested?.Invoke(), HasSave),
+            ("Load Game", "LoadGame", MenuIconKind.NavLoadGame, "Choose a save slot", () => LoadGameRequested?.Invoke(), HasSave),
+            ("Ship Designer", "ShipDesigner", MenuIconKind.NavShipDesigner, "Design custom hulls", () => ShipDesignerRequested?.Invoke(), true),
+            ("Settings", "Settings", MenuIconKind.NavSettings, "Audio and display options", () => SettingsRequested?.Invoke(), true),
+            ("Quit", "Quit", MenuIconKind.NavQuit, "Exit to desktop", () => QuitRequested?.Invoke(), true),
         ];
 
         for (int i = 0; i < entries.Length; i++)
         {
-            (string label, string name, Action? handler, bool enabled) = entries[i];
-            var btn = new Button
+            (string label, string name, MenuIconKind icon, string tooltip, Action? handler, bool enabled) = entries[i];
+            var btn = new IconButton
             {
                 Name = name,
+                Icon = icon,
                 Label = label,
+                TooltipHint = tooltip,
+                Layout = IconButtonLayout.IconLeftOfLabel,
+                IconSize = IconButton.TitleNavIconSize,
+                FontSize = 20f,
+                RequireMinimumHitExtent = true,
                 Anchor = Anchor.TopCenter,
                 Position = new Vector2(-btnW / 2f, startY + i * (btnH + gap)),
                 Size = new Vector2(btnW, btnH),
-                FontSize = 20f,
                 IsEnabled = enabled,
             };
-            MenuTheme.ApplyNavButton(btn);
+            IconButton.ApplyMenuTheme(btn, showGlow: true);
             btn.Clicked += () => handler?.Invoke();
             AddWidget(btn);
             _navButtons.Add(btn);

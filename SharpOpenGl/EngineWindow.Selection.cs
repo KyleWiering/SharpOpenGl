@@ -112,7 +112,7 @@ public partial class EngineWindow
             sel.IsSelected = false;
     }
 
-    private Button? _lastHoveredButton;
+    private IUIButton? _lastHoveredButton;
 
     private void UpdateUiPointerState()
     {
@@ -122,7 +122,7 @@ public partial class EngineWindow
                            MouseState.IsButtonDown(MouseButton.Right);
         _uiManager.HandlePointerMove(screenPoint, pointerDown, UiViewportSize);
 
-        Button? hovered = _uiManager.FindHoveredButton();
+        IUIButton? hovered = _uiManager.FindHoveredButton();
         if (hovered != null && hovered != _lastHoveredButton && hovered.IsEnabled)
             PlayUiHover();
         _lastHoveredButton = hovered;

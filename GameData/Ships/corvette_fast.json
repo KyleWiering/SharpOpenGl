@@ -2,6 +2,7 @@
   "id": "corvette_fast",
   "displayName": "Swift Corvette",
   "category": "corvette",
+  "shipRole": "military",
   "mesh": "meshes/corvette_fast.obj",
   "fallbackMesh": "default",
   "components": {

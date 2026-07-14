@@ -44,6 +44,17 @@ public sealed class TractorBeamVisualComponent
 }
 
 /// <summary>
+/// Harvest beam line primitive from collector to assigned node while extracting.
+/// Tagged by <see cref="ResourceSystem"/> for all harvest modes.
+/// </summary>
+public sealed class HarvestBeamVisualComponent
+{
+    public Entity NodeEntity { get; set; }
+    public HarvestMode Mode { get; set; }
+    public float PulsePhase { get; set; }
+}
+
+/// <summary>
 /// Surface mining VFX state on a resource node while collectors are extracting.
 /// Attached to <c>collector.AssignedNode</c>, not the collector.
 /// </summary>

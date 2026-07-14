@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.UI.Screens;
 
 namespace SharpOpenGl;
 
@@ -24,6 +25,8 @@ public partial class EngineWindow
         {
             var sel = _world.GetComponent<SelectionComponent>(hitEntity.Value)!;
             sel.IsSelected = shiftHeld ? !sel.IsSelected : true;
+            if (sel.IsSelected && _uiManager.Current is GameplayHUD hud)
+                hud.DismissFirstMissionOnboardingHint();
             return;
         }
 

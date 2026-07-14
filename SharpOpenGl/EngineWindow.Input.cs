@@ -127,6 +127,8 @@ public partial class EngineWindow
             Keys.Up => UIKey.Up,
             Keys.Down => UIKey.Down,
             Keys.Enter => UIKey.Enter,
+            Keys.Escape => UIKey.Escape,
+            Keys.Backspace => UIKey.Backspace,
             _ => null,
         };
 
@@ -146,9 +148,46 @@ public partial class EngineWindow
     private void ProcessMouseDownRight()
     {
         CancelSelectionDrag();
-        CancelActiveCommandModes();
 
         var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
+
+        // Issue commands immediately when units are selected — avoids mouse-up latency.
+        if (_sceneManager.State == GameState.Playing && _world != null &&
+            (HasSelectedUnits() || HasSelectedRepairers()))
+        {
+            CancelActiveCommandModes();
+
+            Entity? repairTarget = HasSelectedRepairers()
+                ? FindRepairTargetAtScreen(screenPoint)
+                : null;
+            Entity? attackTarget = repairTarget == null && HasSelectedUnits()
+                ? ResolveAttackTargetAt(screenPoint, preferHover: true)
+                : null;
+
+            if (repairTarget.HasValue)
+            {
+                HandleRepairCommand(repairTarget.Value);
+                return;
+            }
+
+            if (attackTarget.HasValue)
+            {
+                HandleAttackCommand(attackTarget.Value);
+                return;
+            }
+
+            Vector3? worldPos = ScreenToWorldGround(screenPoint);
+            if (worldPos != null)
+            {
+                bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) ||
+                                 KeyboardState.IsKeyDown(Keys.RightShift);
+                HandleMoveCommand(worldPos.Value, appendWaypoint: shiftHeld);
+            }
+
+            return;
+        }
+
+        CancelActiveCommandModes();
         BeginCameraPanDrag(screenPoint);
     }
 

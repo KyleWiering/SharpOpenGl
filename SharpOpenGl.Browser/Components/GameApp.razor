@@ -5,9 +5,7 @@
 <div id="game-root">
     <canvas id="gl-canvas"></canvas>
     <canvas id="ui-canvas"
-            @onmousedown="OnMouseDown"
-            @ontouchstart="OnTouchStart"
-            @ontouchstart:preventDefault="true"></canvas>
+            @onmousedown="OnMouseDown"></canvas>
 </div>
 
 @code {
@@ -42,13 +40,6 @@
 
     private void OnMouseDown(MouseEventArgs e) =>
         _host?.HandlePointer((int)e.OffsetX, (int)e.OffsetY, true);
-
-    private void OnTouchStart(TouchEventArgs e)
-    {
-        if (e.Touches.Length == 0) return;
-        var t = e.Touches[0];
-        _host?.HandlePointer((int)t.ClientX, (int)t.ClientY, true);
-    }
 
     public ValueTask DisposeAsync()
     {

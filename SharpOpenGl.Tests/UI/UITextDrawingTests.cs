@@ -53,4 +53,21 @@ public class UITextDrawingTests
     {
         Assert.Equal(468f, UITextDrawing.ContentWrapWidth(500f, 16f));
     }
+
+    [Fact]
+    public void WrapText_breaks_long_unbroken_token_without_horizontal_overflow()
+    {
+        string token = "aetherian_superheavy_dreadnought_production_identifier" + new string('x', 48);
+        const float maxWidth = 140f;
+        const float fontSize = 20f;
+
+        var lines = UITextDrawing.WrapText(token, maxWidth, fontSize);
+
+        Assert.True(lines.Count > 1);
+        Assert.All(lines, line =>
+        {
+            float width = UIFontMetrics.MeasureTextWidth(line, fontSize);
+            Assert.True(width <= maxWidth + UITextDrawing.WidthTolerance, line);
+        });
+    }
 }

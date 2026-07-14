@@ -46,9 +46,10 @@ public static class RaceShipMeshes
             // Widen lateral envelope + trim AABB length — streamlined loft, not narrow pagoda stacks.
             if (hullKey is "fighter" or "fighter_basic")
             {
-                // hullLength 1.25 / hullWidth 0.97 — narrow beam + forward +Z bow elongation
-                wid *= 1.36f;
-                len *= 0.78f;
+                // wo-06-11 loop 23: aspect 0.66→~0.78 — widen beam, trim AABB length/height stack
+                wid *= 1.34f;
+                len *= 0.76f;
+                hgt *= 0.96f;
             }
             else if (hullKey is "hero" or "hero_default")
             {
@@ -85,24 +86,24 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "gunship" or "gunship_heavy")
             {
-                // Broader gun-forward beam than corvette.
-                wid *= 1.38f;
-                len *= 0.76f;
-                hgt *= 0.96f;
+                // wo-06-11 loop 23: aspect 0.92→~0.78 — narrow plan beam, modest +Z elongation
+                wid *= 1.04f;
+                len *= 1.02f;
+                hgt *= 0.94f;
             }
             else if (hullKey is "bomber" or "bomber_heavy")
             {
-                // Wide belly ordnance — lower profile than gunship.
-                wid *= 1.32f;
-                len *= 0.82f;
-                hgt *= 0.90f;
+                // wo-mesh-r2-01: narrow plan beam, +Z prow elongation, dorsal mass lift.
+                wid *= 1.18f;
+                len *= 0.92f;
+                hgt *= 0.94f;
             }
             else if (hullKey is "destroyer" or "destroyer_assault")
             {
-                // Gun-forward prow + forward superstructure — elongate bow envelope.
-                wid *= 1.40f;
-                len *= 0.70f;
-                hgt *= 0.94f;
+                // wo-06-11 loop 23: aspect 0.42→~0.78 — aggressive beam widen, shorten AABB length
+                wid *= 1.54f;
+                len *= 0.66f;
+                hgt *= 0.88f;
             }
             else if (hullKey is "cruiser" or "cruiser_heavy")
             {
@@ -132,13 +133,15 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "transport_cargo")
             {
-                wid *= 1.30f;
-                len *= 0.76f;
+                // wo-mesh-r2-01: elongate +Z cargo spine, trim lateral AABB beam for aspect ~1.53.
+                wid *= 1.06f;
+                len *= 0.94f;
             }
             else if (hullKey is "freighter_bulk")
             {
-                wid *= 1.28f;
-                len *= 0.76f;
+                // wo-mesh-01-02: aspect 1.36→~0.78 — elongate +Z cargo spine, trim lateral AABB beam.
+                wid *= 1.10f;
+                len *= 0.92f;
             }
             else if (hullKey is "support_repair")
             {
@@ -152,10 +155,24 @@ public static class RaceShipMeshes
             // Aspect = mesh AABB width/length; target ~0.41 (hullWidth/hullLength = 0.52/1.28).
             // Widen lateral envelope and trim stern Z — never narrow+elongate (+Z hurts aspect).
             // Loop-12 gap-close FINAL 4: tri trim + proportions envelope fit + aspect recovery.
-            if (hullKey is "destroyer_assault")
+            if (hullKey is "fighter" or "fighter_basic")
             {
-                wid *= 1.04f;
-                len *= 0.94f;
+                // wo-mesh-r2-02: recover aspect ~0.41 — trim lateral span, anchor bow +Z.
+                wid *= 0.90f;
+                len *= 0.90f;
+            }
+            else if (hullKey is "gunship" or "gunship_heavy")
+            {
+                // wo-06-02: broad dorsal superstructure — widest priority-hull plan
+                wid *= 1.14f;
+                len *= 0.88f;
+                hgt *= 1.06f;
+            }
+            else if (hullKey is "destroyer_assault")
+            {
+                // wo-06-02: elongated capital assault — mid-length mass, broader beam
+                wid *= 1.10f;
+                len *= 0.90f;
             }
             else if (hullKey is "drone_swarm")
             {
@@ -206,8 +223,9 @@ public static class RaceShipMeshes
             // Vesper lesson adapted for truss: widen lateral solar/truss beam, trim AABB length, anchor bow +Z.
             if (hullKey is "fighter" or "fighter_basic")
             {
-                wid *= 1.32f;
-                len *= 0.76f;
+                // wo-06-02: compact truss fighter — narrow solar span, forward prow
+                wid *= 1.26f;
+                len *= 0.72f;
             }
             else if (hullKey is "scout" or "scout_light")
             {
@@ -249,8 +267,10 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "gunship" or "gunship_heavy")
             {
-                wid *= 1.04f;
-                len *= 0.82f;
+                // wo-06-02: gun-deck truss — widest plan + dorsal superstructure
+                wid *= 1.16f;
+                len *= 0.78f;
+                hgt *= 1.08f;
             }
             else if (hullKey is "bomber" or "bomber_heavy")
             {
@@ -259,8 +279,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "destroyer" or "destroyer_assault")
             {
+                // wo-06-09 loop 8: aspect 1.09→~1.35 — elongate +Z prow, modest beam widen
                 wid *= 1.48f;
-                len *= 0.62f;
+                len *= 0.64f;
                 hgt *= 0.94f;
             }
             else if (hullKey is "cruiser" or "cruiser_heavy")
@@ -314,9 +335,9 @@ public static class RaceShipMeshes
             // Korath/vesper playbook: widen lateral membrane span, trim AABB length, anchor bow +Z.
             if (hullKey is "fighter" or "fighter_basic")
             {
-                // Loop-12 gap-close: preserve loop-10 envelope, nudge aspect 1.34→~1.32.
-                wid *= 1.74f;
-                len *= 0.74f;
+                // wo-06-02: compact bio-loft — narrow membrane span, forward bow lean
+                wid *= 1.66f;
+                len *= 0.70f;
             }
             else if (hullKey is "scout" or "scout_light")
             {
@@ -351,8 +372,10 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "gunship" or "gunship_heavy")
             {
-                wid *= 1.08f;
-                len *= 0.84f;
+                // wo-06-02: bulky dorsal turret pod — widest organic plan footprint
+                wid *= 1.20f;
+                len *= 0.80f;
+                hgt *= 1.06f;
             }
             else if (hullKey is "bomber" or "bomber_heavy")
             {
@@ -361,10 +384,10 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "destroyer" or "destroyer_assault")
             {
-                // Loop-10 gap-close: aspect 1.14→~1.32 — widen lateral membrane, tri trim.
-                wid *= 1.96f;
-                len *= 0.52f;
-                hgt *= 0.94f;
+                // wo-06-09 loop 15: aspect 1.61→~1.32 — widen beam, trim +Z over-elongation
+                wid *= 2.14f;
+                len *= 0.54f;
+                hgt *= 0.96f;
             }
             else if (hullKey is "cruiser" or "cruiser_heavy")
             {
@@ -431,8 +454,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "fighter" or "fighter_basic")
             {
-                wid *= 1.68f;
-                len *= 0.80f;
+                // wo-06-03: compact forward-lean chitin — narrowest priority-hull beam, shortest envelope
+                wid *= 1.62f;
+                len *= 0.76f;
             }
             else if (hullKey is "hero" or "hero_default")
             {
@@ -452,9 +476,10 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "gunship" or "gunship_heavy")
             {
-                wid *= 1.12f;
-                len *= 0.94f;
-                hgt *= 0.92f;
+                // wo-06-03: widest hive plan + dorsal weapon-deck mass
+                wid *= 1.32f;
+                len *= 0.86f;
+                hgt *= 1.02f;
             }
             else if (hullKey is "bomber" or "bomber_heavy")
             {
@@ -463,8 +488,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "destroyer" or "destroyer_assault")
             {
-                wid *= 1.72f;
-                len *= 0.68f;
+                // wo-06-03: elongated assault spine — broader mid-beam, +Z prow envelope
+                wid *= 1.78f;
+                len *= 0.64f;
                 hgt *= 0.88f;
             }
             else if (hullKey is "cruiser" or "cruiser_heavy")
@@ -533,8 +559,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "fighter" or "fighter_basic")
             {
-                wid *= 1.50f;
-                len *= 0.78f;
+                // wo-06-03: compact solar crown — narrowest priority-hull beam, forward bow
+                wid *= 1.44f;
+                len *= 0.76f;
             }
             else if (hullKey is "hero" or "hero_default")
             {
@@ -554,9 +581,10 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "gunship" or "gunship_heavy")
             {
-                wid *= 0.90f;
-                len *= 1.02f;
-                hgt *= 0.94f;
+                // wo-06-03: broad solar crown + chin weapon — widest priority-hull plan
+                wid *= 1.06f;
+                len *= 0.94f;
+                hgt *= 1.06f;
             }
             else if (hullKey is "bomber" or "bomber_heavy")
             {
@@ -565,8 +593,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "destroyer" or "destroyer_assault")
             {
-                wid *= 1.48f;
-                len *= 0.72f;
+                // wo-06-03: elongated assault spine — mid-length mass, broader beam
+                wid *= 1.56f;
+                len *= 0.68f;
                 hgt *= 0.86f;
             }
             else if (hullKey is "cruiser" or "cruiser_heavy")
@@ -640,8 +669,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "fighter" or "fighter_basic")
             {
-                wid *= 2.55f;
-                len *= 0.60f;
+                // wo-06-03: compact gem prism — narrow wingspan, forward facet bow
+                wid *= 2.48f;
+                len *= 0.58f;
             }
             else if (hullKey is "hero" or "hero_default")
             {
@@ -661,8 +691,10 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "gunship" or "gunship_heavy")
             {
-                wid *= 1.72f;
-                len *= 0.72f;
+                // wo-06-03: widest facet turret deck + chin weapon mass
+                wid *= 1.88f;
+                len *= 0.66f;
+                hgt *= 1.02f;
             }
             else if (hullKey is "bomber" or "bomber_heavy")
             {
@@ -671,8 +703,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "destroyer" or "destroyer_assault")
             {
-                wid *= 2.22f;
-                len *= 0.56f;
+                // wo-06-03: elongated assault facet spine — broader mid-beam
+                wid *= 2.32f;
+                len *= 0.52f;
                 hgt *= 0.88f;
             }
             else if (hullKey is "cruiser" or "cruiser_heavy")
@@ -725,8 +758,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "fighter" or "fighter_basic")
             {
-                wid *= 2.22f;
-                len *= 0.62f;
+                // wo-06-03: compact carapace — narrow lateral spines, forward bow
+                wid *= 2.12f;
+                len *= 0.64f;
             }
             else if (hullKey is "hero" or "hero_default")
             {
@@ -746,8 +780,10 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "gunship" or "gunship_heavy")
             {
-                wid *= 1.06f;
-                len *= 0.92f;
+                // wo-06-03: bulky dorsal spine turret + widest plan footprint
+                wid *= 1.22f;
+                len *= 0.86f;
+                hgt *= 1.04f;
             }
             else if (hullKey is "bomber" or "bomber_heavy")
             {
@@ -756,8 +792,9 @@ public static class RaceShipMeshes
             }
             else if (hullKey is "destroyer" or "destroyer_assault")
             {
-                wid *= 2.05f;
-                len *= 0.58f;
+                // wo-06-03: elongated assault spine ridge — mid-length mass, broader beam
+                wid *= 2.12f;
+                len *= 0.54f;
                 hgt *= 0.90f;
             }
             else if (hullKey is "cruiser" or "cruiser_heavy")
@@ -867,7 +904,7 @@ public static class RaceShipMeshes
                 writer.ApplyVasudanReferenceCraftRelight(hgt, hullKey, len, wid);
             if (hullKey is "hero_default")
                 RaceSurfaceDetail.AppendVasudanTier2GapScorerAccentBands(writer, hullKey, len, wid, hgt);
-            if (hullKey is "corvette" or "frigate" or "gunship" or "bomber")
+            if (hullKey is "corvette" or "frigate" or "gunship" or "gunship_heavy" or "bomber")
                 writer.ApplyVasudanMediumCombatRelight(hgt, hullKey, len, wid);
             if (hullKey is "miner_basic" or "miner_eva" or "miner_tractor"
                 or "transport_cargo" or "freighter_bulk" or "support_repair")
@@ -876,6 +913,8 @@ public static class RaceShipMeshes
                 RaceSurfaceDetail.AppendVasudanTier2GapScorerAccentBands(writer, hullKey, len, wid, hgt);
             if (hullKey is "freighter_bulk")
                 RaceSurfaceDetail.AppendVasudanFreighterBulkScorerAccentBands(writer, len, wid, hgt);
+            if (hullKey is "transport_cargo")
+                RaceSurfaceDetail.AppendVasudanTransportCargoScorerAccentBands(writer, len, wid, hgt);
             if (hullKey is "destroyer" or "destroyer_assault" or "cruiser" or "cruiser_heavy"
                 or "carrier" or "carrier_command" or "dreadnought")
                 writer.ApplyVasudanCapitalMaterialsBoost(hgt);
@@ -918,6 +957,7 @@ public static class RaceShipMeshes
             bool isBomber = hullKey is "bomber" or "bomber_heavy";
             bool isGunship = hullKey is "gunship" or "gunship_heavy";
             float bakeContrast = isCapital ? 1.58f : isUtility ? 1.56f
+                : hullKey is "destroyer_assault" ? 1.60f
                 : isDestroyer || isBomber || isGunship ? 1.56f : isMediumCombat ? 1.52f : 1.50f;
             writer.ApplyBakedLighting(bakeLight, bakeContrast);
             if (isCapital)
@@ -988,6 +1028,7 @@ public static class RaceShipMeshes
             bool isMediumCombat = hullKey is "corvette_fast" or "frigate_strike" or "gunship_heavy" or "bomber_heavy"
                 or "destroyer_assault";
             float bakeContrast = isCapital ? 1.58f
+                : hullKey is "destroyer_assault" ? 1.60f
                 : (isMediumCombat || hullKey is "destroyer" or "destroyer_assault") ? 1.56f
                 : isUtility ? 1.44f : 1.50f;
             writer.ApplyBakedLighting(bakeLight, bakeContrast);
@@ -1272,11 +1313,16 @@ public static class RaceShipMeshes
         {
             bool isUtility = hullKey is "miner_basic" or "miner_eva" or "miner_tractor"
                 or "transport_cargo" or "freighter_bulk" or "support_repair";
-            bool isCapital = hullKey is "destroyer" or "destroyer_assault"
+            bool isCapital = hullKey is "destroyer"
                 or "cruiser" or "cruiser_heavy" or "carrier" or "carrier_command" or "dreadnought";
-            bool isMediumCombat = hullKey is "corvette_fast" or "frigate_strike" or "gunship_heavy" or "bomber_heavy";
+            bool isMediumCombat = hullKey is "corvette_fast" or "frigate_strike" or "gunship_heavy" or "bomber_heavy"
+                or "destroyer_assault";
             var bakeLight = isUtility ? new Vector3(0.40f, 0.88f, 0.38f) : new Vector3(0.38f, 0.90f, 0.42f);
-            float bakeContrast = isCapital ? 1.58f : isUtility ? 1.52f : isMediumCombat ? 1.54f : 1.50f;
+            float bakeContrast = hullKey is "destroyer_assault" ? 1.70f
+                : hullKey is "gunship_heavy" ? 1.64f
+                : hullKey is "fighter_basic" ? 1.56f
+                : isCapital ? 1.58f : isUtility ? 1.52f
+                : isMediumCombat ? 1.54f : 1.50f;
             writer.ApplyBakedLighting(bakeLight, bakeContrast);
             writer.ApplyRetroBakeFlatFaceUniformize();
             if (isCapital)
@@ -1287,16 +1333,17 @@ public static class RaceShipMeshes
                 RaceSurfaceDetail.AppendRetroScorerAccentBands(writer, hullKey, len, wid, hgt);
                 writer.ApplyRetroAccentLumSnap(len, wid, hgt, hullKey);
                 writer.ApplyRetroAccentPaletteSnap(ToVector3(race.Palette.Accent));
-                RaceSurfaceDetail.AppendRetroIdentityAccentPatches(writer, hullKey, len, wid, hgt, ToVector3(race.Palette.Accent));
             }
             else if (isUtility)
             {
                 writer.ApplyRetroUtilityComponentLumSnap(len, wid, hgt, hullKey);
                 writer.ApplyRetroUtilityRelight(hgt, hullKey, len, wid);
-                RaceSurfaceDetail.AppendRetroScorerAccentBands(writer, hullKey, len, wid, hgt);
-                writer.ApplyRetroAccentLumSnap(len, wid, hgt, hullKey);
-                writer.ApplyRetroAccentPaletteSnap(ToVector3(race.Palette.Accent));
-                RaceSurfaceDetail.AppendRetroIdentityAccentPatches(writer, hullKey, len, wid, hgt, ToVector3(race.Palette.Accent));
+                if (hullKey is not "freighter_bulk" and not "transport_cargo")
+                {
+                    RaceSurfaceDetail.AppendRetroScorerAccentBands(writer, hullKey, len, wid, hgt);
+                    writer.ApplyRetroAccentLumSnap(len, wid, hgt, hullKey);
+                    writer.ApplyRetroAccentPaletteSnap(ToVector3(race.Palette.Accent));
+                }
             }
             else if (hullKey is "fighter" or "fighter_basic" or "hero" or "hero_default"
                 or "scout" or "scout_light" or "interceptor" or "interceptor_mk2"
@@ -1316,19 +1363,29 @@ public static class RaceShipMeshes
             {
                 writer.ApplyRetroGameplayComponentLumSnap(len, wid, hgt, hullKey);
                 writer.ApplyRetroMediumCombatRelight(hgt, hullKey, len, wid);
-                RaceSurfaceDetail.AppendRetroScorerAccentBands(writer, hullKey, len, wid, hgt);
-                writer.ApplyRetroAccentLumSnap(len, wid, hgt, hullKey);
-                writer.ApplyRetroAccentPaletteSnap(ToVector3(race.Palette.Accent));
+                if (hullKey is not "bomber_heavy")
+                {
+                    RaceSurfaceDetail.AppendRetroScorerAccentBands(writer, hullKey, len, wid, hgt);
+                    writer.ApplyRetroAccentLumSnap(len, wid, hgt, hullKey);
+                    writer.ApplyRetroAccentPaletteSnap(ToVector3(race.Palette.Accent));
+                }
             }
 
-            RaceSurfaceDetail.AppendRetroEnvelopeAnchorBands(writer, hullKey, len, wid, hgt);
-            writer.ApplyRetroBakeFlatFaceUniformize();
-            writer.ApplyRetroSurfaceAccentBoost(len, wid, hgt, hullKey);
+            if (hullKey is not "freighter_bulk" and not "transport_cargo" and not "bomber_heavy" and not "cruiser_heavy")
+            {
+                RaceSurfaceDetail.AppendRetroEnvelopeAnchorBands(writer, hullKey, len, wid, hgt);
+                writer.ApplyRetroSurfaceAccentBoost(len, wid, hgt, hullKey);
+            }
             RaceSurfaceDetail.AppendRetroIdentityAccentPatches(writer, hullKey, len, wid, hgt, ToVector3(race.Palette.Accent));
+            writer.ApplyRetroBakeFlatFaceUniformize();
             writer.ApplyRetroFlatPanelLuminanceSmooth();
-            if (hullKey is "fighter_basic" or "cruiser_heavy" or "dreadnought"
+            if (hullKey is "fighter_basic" or "destroyer_assault" or "cruiser_heavy" or "dreadnought"
                 or "freighter_bulk" or "transport_cargo" or "gunship_heavy" or "bomber_heavy")
+            {
                 writer.ApplyRetroGameplayComponentLumSnap(len, wid, hgt, hullKey);
+                writer.ApplyRetroBakeFlatFaceUniformize();
+                writer.ApplyRetroFlatPanelLuminanceSmooth();
+            }
         }
         else
             writer.ApplyBakedLighting(new Vector3(0.35f, 0.9f, 0.25f));
@@ -1442,7 +1499,7 @@ public static class RaceShipMeshes
             or "scout" or "scout_light"
             or "interceptor" or "interceptor_mk2"
             or "drone" or "drone_swarm"
-            or "corvette" or "frigate" or "gunship" or "bomber"
+            or "corvette" or "corvette_fast" or "frigate" or "frigate_strike" or "gunship" or "gunship_heavy" or "bomber" or "bomber_heavy"
             or "destroyer" or "destroyer_assault"
             or "cruiser" or "cruiser_heavy"
             or "carrier" or "carrier_command"
