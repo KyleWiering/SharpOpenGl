@@ -71,12 +71,22 @@ public sealed class ResourceBar : Widget
                 renderer.DrawRect(new Vector2(x, y + FontSize + 4f),
                     new Vector2(fillW, BarHeight), color);
 
-            // Label: "Energy: 450 / 1000  (+12/s)"
             string income = res.IncomePerSecond >= 0
                 ? $"+{res.IncomePerSecond:0.#}/s"
                 : $"{res.IncomePerSecond:0.#}/s";
-            string label = $"{res.Type}: {res.Current:0} / {res.Max:0}  {income}";
-            renderer.DrawText(label, new Vector2(x, y), FontSize, color);
+            string label = $"{ShortResourceName(res.Type)} {res.Current:0}/{res.Max:0} {income}";
+            float fittedSize = UIFontMetrics.FitFontSize(label, FontSize, slotW, 10f);
+            label = UITextDrawing.TruncateWithEllipsis(label, slotW, fittedSize);
+            renderer.DrawText(label, new Vector2(x, y), fittedSize, color);
         }
     }
+
+    private static string ShortResourceName(ResourceType type) => type switch
+    {
+        ResourceType.Energy => "E",
+        ResourceType.Minerals => "M",
+        ResourceType.Data => "D",
+        ResourceType.Crew => "C",
+        _ => type.ToString()[..1],
+    };
 }

@@ -1,0 +1,47 @@
+{
+  "project_slug": "superior-menu-skills",
+  "target": "<target-id>",
+  "score_number": 1,
+  "scored_at": "2026-07-14T00:00:00Z",
+  "scorer": "worker",
+  "mode": "checklist",
+  "discoverability": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "hitTarget": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "labelClarity": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "stateFeedback": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "hudDensity": {
+    "score": 0,
+    "max": 20,
+    "notes": ""
+  },
+  "deductions": [
+    {
+      "issue": "",
+      "points": 0,
+      "category": ""
+    }
+  ],
+  "overallScore": 0,
+  "passThreshold": 80,
+  "passed": false,
+  "topBlockers": [],
+  "testsRun": "dotnet test SharpOpenGl.Tests --filter FullyQualifiedName~HudTextFit|ShipControlBar|BuildMapPanel|GameplayHUD|Minimap|UnitInfo",
+  "testsPassed": null,
+  "nextActions": []
+}

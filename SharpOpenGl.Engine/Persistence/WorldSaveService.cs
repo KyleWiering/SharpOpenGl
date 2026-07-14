@@ -96,6 +96,14 @@ public static class WorldSaveService
             if (tagByEntity.TryGetValue(entity, out string? tag))
                 record.Tag = tag;
 
+            UnderConstructionComponent? underConstruction =
+                world.GetComponent<UnderConstructionComponent>(entity);
+            if (underConstruction != null)
+            {
+                record.ConstructionBuildProgress = underConstruction.BuildProgress;
+                record.ConstructionTotalBuildTime = underConstruction.TotalBuildTime;
+            }
+
             records.Add(record);
         }
 

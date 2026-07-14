@@ -17,4 +17,7 @@ public enum CommandType
 
     /// <summary>Activates an ability on a source entity, optionally targeting another entity or position.</summary>
     UseAbility,
+
+    /// <summary>Orders repair-capable units to restore a friendly hull.</summary>
+    Repair,
 }

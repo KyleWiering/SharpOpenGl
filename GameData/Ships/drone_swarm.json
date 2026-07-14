@@ -13,5 +13,12 @@
     "sightRadius": 4
   },
   "cost": { "energy": 20, "minerals": 25, "data": 5, "crew": 1 },
-  "buildTime": 6
+  "buildTime": 6,
+  "articulation": {
+    "parts": [
+      { "id": "launcher_pod", "partType": "TurretYaw", "localPivot": [0, 0.1, -0.35], "yawMin": -90, "yawMax": 90, "meshKey": "articulated/launcher_pod/drone_swarm" },
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.02, 0.15], "yawMin": -30, "yawMax": 30, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/drone_swarm" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.08, 0.12], "pitchMin": -5, "pitchMax": 20, "meshKey": "articulated/turret_pitch/drone_swarm" }
+    ]
+  }
 }

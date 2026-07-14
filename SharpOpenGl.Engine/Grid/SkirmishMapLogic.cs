@@ -5,13 +5,24 @@ public static class SkirmishMapLogic
 {
     public const int GridExtent = MapCoordinates.DefaultGridExtent;
 
-    public static readonly string[] DefaultStarterBuildingIds = ["command_center", "shipyard_small"];
+    public static readonly string[] DefaultStarterBuildingIds = ["command_center"];
 
     public static readonly (int X, int Y)[] DefaultStarterOffsets =
     [
         (4, 6),
-        (12, 6),
     ];
+
+    /// <summary>Campaign sandbox floor — human skirmish starting energy.</summary>
+    public const float SkirmishStartingEnergy = 4500f;
+
+    /// <summary>Campaign sandbox floor — human skirmish starting minerals.</summary>
+    public const float SkirmishStartingMinerals = 5500f;
+
+    /// <summary>Campaign sandbox floor — human skirmish starting data.</summary>
+    public const float SkirmishStartingData = 700f;
+
+    /// <summary>Campaign sandbox floor — human skirmish starting crew.</summary>
+    public const float SkirmishStartingCrew = 55f;
 
     /// <summary>Ordered spawn points for active factions (player 1..N).</summary>
     public static IReadOnlyList<MapSpawnPoint> ResolveActiveSpawns(MapDefinition map, int activePlayerCount)
@@ -122,14 +133,9 @@ public static class SkirmishMapLogic
 
             bool hasCommandCenter = placements.Any(p =>
                 p.BuildingId.Equals("command_center", StringComparison.OrdinalIgnoreCase));
-            bool hasShipyard = placements.Any(p =>
-                p.BuildingId.Contains("shipyard", StringComparison.OrdinalIgnoreCase));
 
             if (!hasCommandCenter)
                 errors.Add($"{label}: starterBuildings must include command_center.");
-
-            if (!hasShipyard)
-                errors.Add($"{label}: starterBuildings must include a shipyard.");
         }
 
         return errors;

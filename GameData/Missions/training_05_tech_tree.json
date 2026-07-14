@@ -1,0 +1,178 @@
+{
+  "id": "training_05_tech_tree",
+  "displayName": "Training: Full Tech Tree",
+  "description": "Sandbox construction drill: place Command Center with your builder, then complete every structure in the full 16-building tech tree. Unlimited resources; no hostiles.",
+  "map": "sector_alpha",
+  "planetName": "Tech Tree Range",
+  "starMapPosition": [0.22, 0.20],
+  "planetColor": "#5AD4A8",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, Tech Tree Range is a full-tree construction certification. You start with a single Restoration Tender and no free base. Place Command Center first, then follow the tech tree — economy foundations, defense perimeter, production shipyards, support infrastructure, and both capstones. Resources are unlimited; there are no hostiles. If your Restoration Tender is destroyed, the certification fails. Complete all sixteen construct objectives to pass.",
+    "objectivesPreview": [
+      "1. Command Center — place your base HQ",
+      "2. Economy: Power Reactor, Resource Refinery, Supply Depot, Fabrication Hub",
+      "3. Defense: Defense Turret, Sensor Array, Shield Emitter, Missile Battery",
+      "4. Production: Small Shipyard, Medium Shipyard, Large Shipyard",
+      "5. Support: Repair Bay, Comms Relay",
+      "6. Capstones: Orbital Uplink, Fortress Core"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [12, 12],
+    "startingUnits": ["support_repair"],
+    "startingBuildings": [],
+    "spawnDefaultBase": false,
+    "unlimitedResources": true,
+    "startingResources": { "energy": 8000, "minerals": 10000, "data": 1200, "crew": 80 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "build_command_center",
+        "type": "construct",
+        "target": "command_center:1",
+        "description": "Build Command Center"
+      },
+      {
+        "id": "build_shipyard_small",
+        "type": "construct",
+        "target": "shipyard_small:1",
+        "description": "Build Small Shipyard"
+      },
+      {
+        "id": "build_shipyard_medium",
+        "type": "construct",
+        "target": "shipyard_medium:1",
+        "description": "Build Medium Shipyard"
+      },
+      {
+        "id": "build_shipyard_large",
+        "type": "construct",
+        "target": "shipyard_large:1",
+        "description": "Build Large Shipyard"
+      },
+      {
+        "id": "build_power_reactor",
+        "type": "construct",
+        "target": "power_reactor:1",
+        "description": "Build Power Reactor"
+      },
+      {
+        "id": "build_resource_refinery",
+        "type": "construct",
+        "target": "resource_refinery:1",
+        "description": "Build Resource Refinery"
+      },
+      {
+        "id": "build_supply_depot",
+        "type": "construct",
+        "target": "supply_depot:1",
+        "description": "Build Supply Depot"
+      },
+      {
+        "id": "build_fabrication_hub",
+        "type": "construct",
+        "target": "fabrication_hub:1",
+        "description": "Build Fabrication Hub"
+      },
+      {
+        "id": "build_sensor_array",
+        "type": "construct",
+        "target": "sensor_array:1",
+        "description": "Build Sensor Array"
+      },
+      {
+        "id": "build_defense_turret",
+        "type": "construct",
+        "target": "defense_turret:1",
+        "description": "Build Defense Turret"
+      },
+      {
+        "id": "build_shield_emitter",
+        "type": "construct",
+        "target": "shield_emitter:1",
+        "description": "Build Shield Emitter"
+      },
+      {
+        "id": "build_missile_battery",
+        "type": "construct",
+        "target": "missile_battery:1",
+        "description": "Build Missile Battery"
+      },
+      {
+        "id": "build_repair_bay",
+        "type": "construct",
+        "target": "repair_bay:1",
+        "description": "Build Repair Bay"
+      },
+      {
+        "id": "build_comms_relay",
+        "type": "construct",
+        "target": "comms_relay:1",
+        "description": "Build Comms Relay"
+      },
+      {
+        "id": "build_orbital_uplink",
+        "type": "construct",
+        "target": "orbital_uplink:1",
+        "description": "Build Orbital Uplink"
+      },
+      {
+        "id": "build_fortress_core",
+        "type": "construct",
+        "target": "fortress_core:1",
+        "description": "Build Fortress Core"
+      }
+    ],
+    "secondary": []
+  },
+  "triggers": [],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "unit_destroyed", "target": "player_support" },
+  "rewards": {
+    "resources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+    "xp": 50,
+    "unlocks": []
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [12, 12], "height": 220 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "support_repair" },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "command_center", "position": [16, 14] },
+    { "type": "wait_objective", "objectiveId": "build_command_center" },
+    { "type": "place_building", "buildingId": "power_reactor", "position": [18, 20] },
+    { "type": "wait_objective", "objectiveId": "build_power_reactor" },
+    { "type": "place_building", "buildingId": "resource_refinery", "position": [24, 20] },
+    { "type": "wait_objective", "objectiveId": "build_resource_refinery" },
+    { "type": "place_building", "buildingId": "supply_depot", "position": [30, 20] },
+    { "type": "wait_objective", "objectiveId": "build_supply_depot" },
+    { "type": "place_building", "buildingId": "defense_turret", "position": [35, 20] },
+    { "type": "wait_objective", "objectiveId": "build_defense_turret" },
+    { "type": "place_building", "buildingId": "sensor_array", "position": [18, 28] },
+    { "type": "wait_objective", "objectiveId": "build_sensor_array" },
+    { "type": "place_building", "buildingId": "fabrication_hub", "position": [24, 28] },
+    { "type": "wait_objective", "objectiveId": "build_fabrication_hub" },
+    { "type": "place_building", "buildingId": "shipyard_small", "position": [31, 28] },
+    { "type": "wait_objective", "objectiveId": "build_shipyard_small" },
+    { "type": "place_building", "buildingId": "shield_emitter", "position": [18, 38] },
+    { "type": "wait_objective", "objectiveId": "build_shield_emitter" },
+    { "type": "place_building", "buildingId": "missile_battery", "position": [24, 38] },
+    { "type": "wait_objective", "objectiveId": "build_missile_battery" },
+    { "type": "place_building", "buildingId": "shipyard_medium", "position": [30, 38] },
+    { "type": "wait_objective", "objectiveId": "build_shipyard_medium" },
+    { "type": "place_building", "buildingId": "repair_bay", "position": [18, 50] },
+    { "type": "wait_objective", "objectiveId": "build_repair_bay" },
+    { "type": "place_building", "buildingId": "comms_relay", "position": [25, 50] },
+    { "type": "wait_objective", "objectiveId": "build_comms_relay" },
+    { "type": "place_building", "buildingId": "shipyard_large", "position": [32, 50] },
+    { "type": "wait_objective", "objectiveId": "build_shipyard_large" },
+    { "type": "place_building", "buildingId": "orbital_uplink", "position": [18, 65] },
+    { "type": "wait_objective", "objectiveId": "build_orbital_uplink" },
+    { "type": "place_building", "buildingId": "fortress_core", "position": [26, 65] },
+    { "type": "wait_objective", "objectiveId": "build_fortress_core" },
+    { "type": "camera_pan", "position": [28, 42], "height": 280 },
+    { "type": "wait", "seconds": 2 }
+  ]
+}

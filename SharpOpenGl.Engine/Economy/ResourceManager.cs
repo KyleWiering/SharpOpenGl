@@ -14,6 +14,12 @@ public sealed class ResourceManager
 
     public ResourceManager(EventBus? bus = null) => _bus = bus;
 
+    /// <summary>
+    /// When true, <see cref="TrySpend"/> / <see cref="TrySpendCost"/> always succeed
+    /// without reducing resource pools (mission <c>unlimitedResources</c> start flag).
+    /// </summary>
+    public bool UnlimitedResources { get; set; }
+
     // ── Player registration ──────────────────────────────────────────────────
 
     /// <summary>
@@ -41,10 +47,12 @@ public sealed class ResourceManager
     /// <summary>
     /// Try to spend <paramref name="amount"/> of <paramref name="type"/> for a player.
     /// Returns <c>true</c> and fires a change event on success.
+    /// When <see cref="UnlimitedResources"/> is set, always succeeds without deducting.
     /// </summary>
     public bool TrySpend(int playerId, ResourceType type, float amount)
     {
         if (!_players.TryGetValue(playerId, out PlayerResources? pr)) return false;
+        if (UnlimitedResources) return true;
         if (!pr.TrySpend(type, amount)) return false;
         Publish(playerId, type, pr.GetAmount(type));
         return true;
@@ -69,10 +77,13 @@ public sealed class ResourceManager
     /// Atomically spend all four resource costs.  All costs must be affordable
     /// simultaneously; if any single type is insufficient the call returns
     /// <c>false</c> and no resources are changed.
+    /// When <see cref="UnlimitedResources"/> is set, always succeeds without deducting.
     /// </summary>
     public bool TrySpendCost(int playerId, int energy, int minerals, int data, int crew)
     {
         if (!_players.TryGetValue(playerId, out PlayerResources? pr)) return false;
+
+        if (UnlimitedResources) return true;
 
         // Check all before deducting any.
         if (pr.GetAmount(ResourceType.Energy)   < energy)   return false;

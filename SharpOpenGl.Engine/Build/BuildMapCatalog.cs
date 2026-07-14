@@ -18,9 +18,13 @@ public sealed class BuildMapEntryView
     public int MineralsCost { get; init; }
     public int DataCost { get; init; }
     public int CrewCost { get; init; }
+    public float BuildTime { get; init; }
     public IReadOnlyList<string> Prerequisites { get; init; } = [];
+    public string? LockReason { get; init; }
+    public string? AffordReason { get; init; }
     public bool IsUnlocked { get; set; }
     public bool CanAfford { get; set; }
+    public BuildIconDescriptor Icon { get; init; }
     public bool IsSelectable => IsUnlocked && CanAfford;
 }
 
@@ -125,9 +129,15 @@ public sealed class BuildMapCatalog
                     MineralsCost = def.Cost?.Minerals ?? 0,
                     DataCost = def.Cost?.Data ?? 0,
                     CrewCost = crew,
-                    Prerequisites = entry.Prerequisites,
+                    BuildTime = def.BuildTime,
+                    Prerequisites = FormatPrerequisiteNames(entry.Prerequisites),
+                    LockReason = unlocked ? null : FormatLockReason(entry.Prerequisites, builtTypes),
+                    AffordReason = unlocked && !afford
+                        ? FormatAffordReason(def, player, supply, playerId)
+                        : null,
                     IsUnlocked = unlocked,
                     CanAfford = afford,
+                    Icon = BuildIconCatalog.Get(entry.Id),
                 });
             }
 
@@ -152,4 +162,70 @@ public sealed class BuildMapCatalog
 
         return [];
     }
+
+    private IReadOnlyList<string> FormatPrerequisiteNames(IReadOnlyList<string> prerequisiteIds)
+    {
+        if (prerequisiteIds.Count == 0)
+            return [];
+
+        var names = new List<string>(prerequisiteIds.Count);
+        foreach (string id in prerequisiteIds)
+            names.Add(ResolveDisplayName(id));
+        return names;
+    }
+
+    private string? FormatLockReason(IReadOnlyList<string> prerequisiteIds, IReadOnlySet<string> builtTypes)
+    {
+        var missing = new List<string>();
+        foreach (string required in prerequisiteIds)
+        {
+            if (!builtTypes.Contains(required))
+                missing.Add(ResolveDisplayName(required));
+        }
+
+        if (missing.Count == 0)
+            return null;
+
+        return $"Requires: {string.Join(", ", missing)}";
+    }
+
+    private static string? FormatAffordReason(
+        EntityDefinition def,
+        PlayerResources? player,
+        SupplySystem? supply,
+        int playerId)
+    {
+        var shortages = new List<string>();
+        int energy = def.Cost?.Energy ?? 0;
+        int minerals = def.Cost?.Minerals ?? 0;
+        int data = def.Cost?.Data ?? 0;
+        int crew = def.Cost?.Crew ?? 0;
+
+        if (player != null)
+        {
+            if (energy > 0 && player.GetAmount(ResourceType.Energy) < energy)
+                shortages.Add("energy");
+            if (minerals > 0 && player.GetAmount(ResourceType.Minerals) < minerals)
+                shortages.Add("minerals");
+            if (data > 0 && player.GetAmount(ResourceType.Data) < data)
+                shortages.Add("data");
+            if (crew > 0 && player.GetAmount(ResourceType.Crew) < crew)
+                shortages.Add("crew");
+        }
+        else if (energy > 0 || minerals > 0 || data > 0 || crew > 0)
+        {
+            shortages.Add("resources");
+        }
+
+        if (!HasSupplyHeadroom(supply, playerId, crew))
+            shortages.Add("supply");
+
+        if (shortages.Count == 0)
+            return null;
+
+        return $"Insufficient: {string.Join(", ", shortages)}";
+    }
+
+    private string ResolveDisplayName(string id) =>
+        _definitions.TryGetValue(id, out var def) ? def.DisplayName : id;
 }

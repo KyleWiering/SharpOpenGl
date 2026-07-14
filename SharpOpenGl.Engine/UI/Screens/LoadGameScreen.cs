@@ -10,7 +10,7 @@ namespace SharpOpenGl.Engine.UI.Screens;
 public sealed class LoadGameScreen : UIScreen
 {
     private readonly SaveManager _saveManager;
-    private readonly Panel _listPanel;
+    private readonly ScrollPanel _listPanel;
     private readonly Label _emptyLabel;
     private readonly List<Button> _entryButtons = new();
     private IReadOnlyList<SaveSlotInfo> _entries = [];
@@ -46,7 +46,7 @@ public sealed class LoadGameScreen : UIScreen
             TextColor = MenuTheme.TitleColor,
         });
 
-        _listPanel = new Panel
+        _listPanel = new ScrollPanel
         {
             Name = "SaveList",
             Anchor = Anchor.Center,
@@ -113,10 +113,12 @@ public sealed class LoadGameScreen : UIScreen
         if (_entries.Count == 0)
             return;
 
-        float btnW = 700f;
-        float btnH = 56f;
-        float gap = 10f;
-        float startY = 24f;
+        const float btnW = 700f;
+        const float btnH = 56f;
+        const float gap = 10f;
+        const float startY = 24f;
+        const float labelFontSize = 17f;
+        float labelMaxWidth = UITextDrawing.ContentWrapWidth(btnW, 12f);
 
         for (int i = 0; i < _entries.Count; i++)
         {
@@ -124,17 +126,20 @@ public sealed class LoadGameScreen : UIScreen
             var btn = new Button
             {
                 Name = $"Entry{i}",
-                Label = FormatEntryLabel(entry),
-                Anchor = Anchor.TopCenter,
-                Position = new Vector2(-btnW / 2f, startY + i * (btnH + gap)),
+                Label = UITextDrawing.TruncateWithEllipsis(
+                    FormatEntryLabel(entry), labelMaxWidth, labelFontSize),
+                Anchor = Anchor.TopLeft,
+                Position = new Vector2(30f, startY + i * (btnH + gap)),
                 Size = new Vector2(btnW, btnH),
-                FontSize = 17f,
+                FontSize = labelFontSize,
             };
             string slot = entry.SlotName;
             btn.Clicked += () => LoadRequested?.Invoke(slot);
             _listPanel.AddChild(btn);
             _entryButtons.Add(btn);
         }
+
+        _listPanel.RecalculateContentHeight(_listPanel.Size);
     }
 
     /// <summary>Number of populated save entries currently shown.</summary>

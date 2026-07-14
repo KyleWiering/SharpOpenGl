@@ -1,0 +1,48 @@
+{
+  "id": "fortress_core",
+  "displayName": "Fortress Core",
+  "category": "base",
+  "mesh": "meshes/shipyard_large.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 4000, "shields": 120, "armor": 110 },
+    "building": {
+      "buildingType": "fortress_core",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [4, 4],
+      "rotates": false
+    },
+    "sightRadius": 14,
+    "weapons": [
+      { "slot": 0, "type": "missile", "damage": 120, "range": 650, "fireRate": 0.3 },
+      { "slot": 1, "type": "missile", "damage": 120, "range": 650, "fireRate": 0.3 }
+    ]
+  },
+  "cost": { "energy": 300, "minerals": 500, "data": 60, "crew": 5 },
+  "buildTime": 95,
+  "articulation": {
+    "parts": [
+      {
+        "id": "pod_left",
+        "partType": "TurretYaw",
+        "localPivot": [-2.45, 3.85, 1.40],
+        "yawMin": -120,
+        "yawMax": 120,
+        "idleSweep": false,
+        "slewRate": 45,
+        "meshKey": "station_part:fortress_pod"
+      },
+      {
+        "id": "pod_right",
+        "partType": "TurretYaw",
+        "localPivot": [2.45, 3.85, 1.40],
+        "yawMin": -120,
+        "yawMax": 120,
+        "idleSweep": false,
+        "slewRate": 45,
+        "meshKey": "station_part:fortress_pod"
+      }
+    ]
+  }
+}

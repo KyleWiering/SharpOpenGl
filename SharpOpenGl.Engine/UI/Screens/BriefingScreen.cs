@@ -11,8 +11,12 @@ namespace SharpOpenGl.Engine.UI.Screens;
 /// </summary>
 public sealed class BriefingScreen : UIScreen
 {
+    private const float Margin = 80f;
+    private const float PanelPadding = 16f;
+    private static readonly float ContentWidth = UIScaler.ReferenceSize.X - Margin * 2f;
+
     private readonly Panel  _briefingPanel;
-    private readonly Panel  _objectivesPanel;
+    private readonly ScrollPanel _objectivesPanel;
     private readonly Button _startButton;
     private readonly Button _backButton;
 
@@ -32,17 +36,17 @@ public sealed class BriefingScreen : UIScreen
         {
             Name     = "BriefingText",
             Anchor   = Anchor.TopLeft,
-            Position = new Vector2(80f, 120f),
-            Size     = new Vector2(1760f, 500f),
+            Position = new Vector2(Margin, 120f),
+            Size     = new Vector2(ContentWidth, 500f),
         };
         AddWidget(_briefingPanel);
 
-        _objectivesPanel = new Panel
+        _objectivesPanel = new ScrollPanel
         {
             Name     = "ObjectivesPreview",
             Anchor   = Anchor.TopLeft,
-            Position = new Vector2(80f, 660f),
-            Size     = new Vector2(1760f, 280f),
+            Position = new Vector2(Margin, 660f),
+            Size     = new Vector2(ContentWidth, 280f),
         };
         AddWidget(_objectivesPanel);
 
@@ -79,14 +83,18 @@ public sealed class BriefingScreen : UIScreen
         while (_briefingPanel.Children.Count > 0)
             _briefingPanel.RemoveChild(_briefingPanel.Children[0]);
 
+        float wrapWidth = UITextDrawing.ContentWrapWidth(ContentWidth, PanelPadding);
+
         _briefingPanel.AddChild(new Label
         {
             Name      = "MissionTitle",
             Text      = definition.DisplayName,
             Anchor    = Anchor.TopLeft,
-            Position  = new Vector2(16f, 12f),
-            Size      = new Vector2(1728f, 52f),
+            Position  = new Vector2(PanelPadding, 12f),
+            Size      = new Vector2(ContentWidth - PanelPadding * 2f, 52f),
             FontSize  = 32f,
+            WrapWidth = wrapWidth,
+            MaxLines  = 2,
             TextColor = new Vector4(0.55f, 0.85f, 1f, 1f),
         });
 
@@ -96,10 +104,10 @@ public sealed class BriefingScreen : UIScreen
             Name      = "BriefingBody",
             Text      = briefingText,
             Anchor    = Anchor.TopLeft,
-            Position  = new Vector2(16f, 72f),
-            Size      = new Vector2(1728f, 410f),
+            Position  = new Vector2(PanelPadding, 72f),
+            Size      = new Vector2(ContentWidth - PanelPadding * 2f, 410f),
             FontSize  = 20f,
-            WrapWidth = 1700f,
+            WrapWidth = wrapWidth,
             TextColor = new Vector4(0.92f, 0.93f, 0.98f, 1f),
         });
 
@@ -111,13 +119,14 @@ public sealed class BriefingScreen : UIScreen
             Name      = "ObjectivesHeader",
             Text      = "OBJECTIVES",
             Anchor    = Anchor.TopLeft,
-            Position  = new Vector2(16f, 8f),
+            Position  = new Vector2(PanelPadding, 8f),
             Size      = new Vector2(400f, 32f),
             FontSize  = 20f,
             TextColor = new Vector4(0.7f, 0.8f, 1f, 1f),
         });
 
         var previews = definition.Briefing?.ObjectivesPreview ?? [];
+        float objectiveY = 44f;
         for (int i = 0; i < previews.Length; i++)
         {
             _objectivesPanel.AddChild(new Label
@@ -125,12 +134,16 @@ public sealed class BriefingScreen : UIScreen
                 Name      = $"Objective_{i}",
                 Text      = $"• {previews[i]}",
                 Anchor    = Anchor.TopLeft,
-                Position  = new Vector2(16f, 44f + i * 40f),
-                Size      = new Vector2(1728f, 36f),
+                Position  = new Vector2(PanelPadding, objectiveY),
+                Size      = new Vector2(ContentWidth - PanelPadding * 2f, 72f),
                 FontSize  = 18f,
-                WrapWidth = 1700f,
+                WrapWidth = wrapWidth,
+                MaxLines  = 3,
                 TextColor = new Vector4(0.88f, 0.9f, 0.95f, 1f),
             });
+            objectiveY += 72f;
         }
+
+        _objectivesPanel.RecalculateContentHeight(_objectivesPanel.Size);
     }
 }

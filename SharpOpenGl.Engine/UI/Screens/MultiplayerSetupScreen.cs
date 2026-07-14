@@ -12,6 +12,13 @@ public sealed class MultiplayerSetupScreen : UIScreen
 {
     public const int SlotCount = MultiplayerSetupLogic.MaxSlots;
 
+    private const float MapLabelWidth = 640f;
+    private const float MapLabelPadding = 10f;
+    private const float ValidationLabelWidth = 900f;
+    private const float ValidationLabelPadding = 10f;
+    private const float RaceLabelWidth = 300f;
+    private const float RaceLabelPadding = 10f;
+
     /// <inheritdoc/>
     public override string ScreenName => "MultiplayerSetup";
 
@@ -87,8 +94,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Text = "Map",
             Anchor = Anchor.TopCenter,
             Position = new Vector2(-40f, 138f),
-            Size = new Vector2(640f, 32f),
+            Size = new Vector2(MapLabelWidth, 32f),
             FontSize = 18f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(MapLabelWidth, MapLabelPadding),
+            MaxLines = 1,
             TextColor = MenuTheme.BodyTextColor,
         };
         AddWidget(_mapLabel);
@@ -127,8 +136,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Text = string.Empty,
             Anchor = Anchor.TopCenter,
             Position = new Vector2(0f, 598f),
-            Size = new Vector2(900f, 28f),
+            Size = new Vector2(ValidationLabelWidth, 40f),
             FontSize = 16f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(ValidationLabelWidth, ValidationLabelPadding),
+            MaxLines = 2,
             TextColor = new Vector4(1f, 0.55f, 0.35f, 1f),
         };
         AddWidget(_validationLabel);
@@ -261,8 +272,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Text = "Race",
             Anchor = Anchor.TopCenter,
             Position = new Vector2(x + 300f, y + 10f),
-            Size = new Vector2(300f, 32f),
+            Size = new Vector2(RaceLabelWidth, 32f),
             FontSize = 18f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(RaceLabelWidth, RaceLabelPadding),
+            MaxLines = 1,
             TextColor = MenuTheme.BodyTextColor,
         };
         AddWidget(widgets.RaceLabel);
@@ -315,7 +328,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
         };
 
         widgets.RaceLabel.Text = active
-            ? FormatRaceName(GetSlotRaceId(slotIndex))
+            ? UITextDrawing.TruncateWithEllipsis(
+                FormatRaceName(GetSlotRaceId(slotIndex)),
+                UITextDrawing.ContentWrapWidth(RaceLabelWidth, RaceLabelPadding),
+                18f)
             : "—";
 
         widgets.RaceLabel.Visible = true;
@@ -335,7 +351,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
         }
 
         var map = _skirmishMaps[_mapIndex];
-        _mapLabel.Text = $"Map: {map.DisplayName} ({map.PlayerCount} players)";
+        _mapLabel.Text = UITextDrawing.TruncateWithEllipsis(
+            $"Map: {map.DisplayName} ({map.PlayerCount} players)",
+            UITextDrawing.ContentWrapWidth(MapLabelWidth, MapLabelPadding),
+            18f);
     }
 
     private void RefreshStartState()

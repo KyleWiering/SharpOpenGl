@@ -19,6 +19,9 @@ public sealed class Label : Widget
     /// <summary>When greater than zero, text wraps to this width in logical pixels.</summary>
     public float WrapWidth { get; set; }
 
+    /// <summary>Maximum number of lines to render. Zero means unlimited.</summary>
+    public int MaxLines { get; set; }
+
     /// <summary>Internal padding from the widget edge.</summary>
     public float Padding { get; set; } = 4f;
 
@@ -27,13 +30,15 @@ public sealed class Label : Widget
     {
         if (string.IsNullOrEmpty(Text)) return;
 
-        float wrap = WrapWidth > 0f ? WrapWidth : size.X - Padding * 2f;
-        UITextDrawing.DrawTextBlock(
-            renderer,
-            Text,
-            position + new Vector2(Padding, Padding),
-            FontSize,
-            TextColor,
-            wrap);
+        float wrap = WrapWidth > 0f ? WrapWidth : UITextDrawing.ContentWrapWidth(size.X, Padding);
+        Vector2 textPos = position + new Vector2(Padding, Padding);
+
+        if (MaxLines > 0)
+        {
+            UITextDrawing.DrawTextBlock(renderer, Text, textPos, FontSize, TextColor, wrap, MaxLines);
+            return;
+        }
+
+        UITextDrawing.DrawTextBlock(renderer, Text, textPos, FontSize, TextColor, wrap);
     }
 }

@@ -1,0 +1,53 @@
+{
+  "project_slug": "superior-menu-skills",
+  "skill": "menu-continuity",
+  "target": "<flow-id>",
+  "score_number": 1,
+  "scored_at": "2026-07-14T00:00:00Z",
+  "scorer": "worker",
+  "mode": "checklist",
+  "categories": {
+    "navConsistency": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "themeCohesion": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "flowLogic": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "backCancelPatterns": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "screenTransitions": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    }
+  },
+  "deductions": [
+    {
+      "issue": "",
+      "points": 0,
+      "category": ""
+    }
+  ],
+  "overallScore": 0,
+  "passThreshold": 80,
+  "categoryFloor": 16,
+  "passed": false,
+  "topBlockers": [],
+  "testsRun": "dotnet test SharpOpenGl.Tests --filter FullyQualifiedName~UIManager|MissionSelect|SaveLoad|MultiplayerSetup|Briefing",
+  "testsPassed": null,
+  "nextActions": [],
+  "flowEdgesWalked": [],
+  "screenshots": []
+}

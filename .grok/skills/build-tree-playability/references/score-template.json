@@ -1,0 +1,55 @@
+{
+  "project_slug": "build-tree-ux",
+  "section_id": "<section-id>",
+  "loop": 1,
+  "scored_at": "2026-07-13T00:00:00Z",
+  "scorer": "manager",
+  "mode": "checklist",
+  "target": null,
+  "categories": {
+    "discoverability": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "buildFlow": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "visualClarity": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "legibility": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "treeDepth": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "skirmishParity": {
+      "score": null,
+      "max": 20,
+      "notes": "Supplemental — null if not evaluated this loop; does not affect overallScore"
+    }
+  },
+  "deductions": [
+    {
+      "issue": "",
+      "points": 0,
+      "category": ""
+    }
+  ],
+  "overallScore": 0,
+  "passThreshold": 80,
+  "passed": false,
+  "topBlockers": [],
+  "testsRun": "dotnet test SharpOpenGl.Tests --filter FullyQualifiedName~Build",
+  "testsPassed": null,
+  "nextActions": []
+}

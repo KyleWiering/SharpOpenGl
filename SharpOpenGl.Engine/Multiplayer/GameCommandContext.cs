@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Build;
 using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
@@ -23,6 +24,9 @@ public sealed class GameCommandContext
 
     /// <summary>Optional squad helper for multi-unit move routes.</summary>
     public Action<World, IReadOnlyList<Entity>, Vector3, bool>? AssignSquadMove { get; init; }
+
+    /// <summary>Optional build-map catalog for prerequisite checks during demo placement.</summary>
+    public BuildMapCatalog? BuildMapCatalog { get; init; }
 
     /// <summary>Optional structure placement helper for demo scripts.</summary>
     public Func<string, Vector3, bool>? PlaceBuilding { get; init; }

@@ -167,6 +167,69 @@ public class MiningVisualTests
         Assert.True(cComp.CarryAmount > 0f);
     }
 
+    [Theory]
+    [InlineData(HarvestMode.Drones)]
+    [InlineData(HarvestMode.Eva)]
+    [InlineData(HarvestMode.TractorBeam)]
+    public void Collecting_attaches_mining_node_visual_to_assigned_node(HarvestMode mode)
+    {
+        var (world, _, _) = MakeSetup();
+        Entity node = MakeNode(world, new Vector3(5f, 0f, 5f));
+        Entity collector = MakeCollector(world, mode, node, new Vector3(0f, 0f, 0f));
+
+        world.Update(0f);
+
+        Assert.True(world.HasComponent<MiningNodeVisualComponent>(node));
+        var nodeVisual = world.GetComponent<MiningNodeVisualComponent>(node)!;
+        Assert.Equal(1, nodeVisual.ActiveCollectorCount);
+        Assert.Equal(mode, nodeVisual.DominantHarvestMode);
+    }
+
+    [Fact]
+    public void Node_visual_removed_when_last_collector_leaves()
+    {
+        var (world, _, _) = MakeSetup();
+        Entity node = MakeNode(world, Vector3.Zero);
+        Entity collectorA = MakeCollector(world, HarvestMode.Drones, node, new Vector3(4f, 0f, 0f));
+        Entity collectorB = MakeCollector(world, HarvestMode.Eva, node, new Vector3(-4f, 0f, 0f));
+
+        world.Update(0f);
+        Assert.True(world.HasComponent<MiningNodeVisualComponent>(node));
+
+        var aComp = world.GetComponent<ResourceCollectorComponent>(collectorA)!;
+        aComp.State = CollectorState.Idle;
+        aComp.AssignedNode = Entity.Null;
+        world.Update(0f);
+        Assert.True(world.HasComponent<MiningNodeVisualComponent>(node));
+
+        var bComp = world.GetComponent<ResourceCollectorComponent>(collectorB)!;
+        bComp.State = CollectorState.Idle;
+        bComp.AssignedNode = Entity.Null;
+        world.Update(0f);
+        Assert.False(world.HasComponent<MiningNodeVisualComponent>(node));
+        Assert.False(world.HasComponent<ParticleEmitterComponent>(node));
+    }
+
+    [Fact]
+    public void Tractor_node_pulse_syncs_with_pulse_interval()
+    {
+        var (world, _, _) = MakeSetup();
+        world.AddSystem(new ParticleSystem());
+        Entity node = MakeNode(world, Vector3.Zero, amount: 500f);
+        Entity collector = MakeCollector(world, HarvestMode.TractorBeam, node, Vector3.Zero,
+            harvestRate: 20f, capacity: 200f);
+
+        world.Update(MiningVisualSystem.TractorPulseInterval * 0.5f);
+        var nodeVisual = world.GetComponent<MiningNodeVisualComponent>(node)!;
+        Assert.Equal(0f, nodeVisual.LastPulseTime);
+
+        world.Update(MiningVisualSystem.TractorPulseInterval);
+        nodeVisual = world.GetComponent<MiningNodeVisualComponent>(node)!;
+        Assert.Equal(1f, nodeVisual.LastPulseTime);
+        Assert.True(nodeVisual.PulsePhase < 0.1f);
+        Assert.True(world.HasComponent<ParticleEmitterComponent>(node));
+    }
+
     [Fact]
     public void Collecting_respects_harvest_range_per_mode()
     {

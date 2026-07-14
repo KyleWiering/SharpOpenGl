@@ -1,0 +1,46 @@
+{
+  "id": "orbital_uplink",
+  "displayName": "Orbital Uplink",
+  "category": "base",
+  "mesh": "meshes/shipyard_medium.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 3000, "shields": 80, "armor": 85 },
+    "building": {
+      "buildingType": "orbital_uplink",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 3],
+      "rotates": false
+    },
+    "sightRadius": 12
+  },
+  "cost": { "energy": 250, "minerals": 400, "data": 80, "crew": 4 },
+  "buildTime": 75,
+  "articulation": {
+    "parts": [
+      {
+        "id": "uplink_yaw",
+        "partType": "SensorDish",
+        "localPivot": [0, 5.6, 0.56],
+        "yawMin": -90,
+        "yawMax": 90,
+        "idleSweep": true,
+        "idleSweepSpeed": 15,
+        "slewRate": 90
+      },
+      {
+        "id": "uplink_pitch",
+        "partType": "TurretPitch",
+        "ownerPartId": "uplink_yaw",
+        "localPivot": [0, 0.35, 0.28],
+        "pitchMin": -25,
+        "pitchMax": 25,
+        "idleSweep": true,
+        "idleSweepSpeed": 8,
+        "slewRate": 45,
+        "meshKey": "station_part:uplink_dish"
+      }
+    ]
+  }
+}

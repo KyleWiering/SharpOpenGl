@@ -6,6 +6,7 @@ using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Missions;
+using SharpOpenGl.Engine.Persistence;
 using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Engine.Scenes;
 using SharpOpenGl.Engine.UI;
@@ -35,11 +36,19 @@ public sealed class BrowserGameHost : IDisposable
     private readonly AssetManager _assetManager;
     private readonly MissionLoader _missionLoader;
     private readonly MissionController _missionController;
+    private readonly CampaignProgressManager _campaignProgress = new();
+
+    private readonly CombatFogGate _combatFogGate = new();
 
     private World? _world;
     private ResourceManager? _resourceManager;
     private MovementSystem? _movementSystem;
+    private ArticulationSystem? _articulationSystem;
+    private ObjectiveSystem? _objectiveSystem;
     private string? _pendingMissionId;
+    private bool _missionEventsHooked;
+    private bool _missionResultOverlayShown;
+    private bool _victoryRewardsApplied;
     private int _viewportWidth = 1024;
     private int _viewportHeight = 768;
     private bool _initialized;
@@ -77,9 +86,22 @@ public sealed class BrowserGameHost : IDisposable
 
         _uiManager.Resize(new Vector2(width, height));
         _explosionVfx.Bind(_eventBus);
+        EnsureMissionEventHooks();
         _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
         _initialized = true;
     }
+
+    private void EnsureMissionEventHooks()
+    {
+        if (_missionEventsHooked) return;
+        _missionEventsHooked = true;
+
+        _eventBus.Subscribe<MissionVictoryEvent>(OnMissionVictory);
+        _eventBus.Subscribe<MissionDefeatEvent>(OnMissionDefeat);
+    }
+
+    private bool IsMissionResultOverlayActive() =>
+        _uiManager.Current is MissionVictoryScreen;
 
     public void Resize(int width, int height)
     {
@@ -95,7 +117,12 @@ public sealed class BrowserGameHost : IDisposable
         if (!_initialized) return;
 
         _sceneManager.Update(deltaTime);
-        _world?.Update(deltaTime);
+
+        if (_sceneManager.State == GameState.Playing && _world != null && _articulationSystem != null)
+            _articulationSystem.CameraPosition = GetGameplayCameraPosition();
+
+        if (_sceneManager.State == GameState.Playing && _world != null && !IsMissionResultOverlayActive())
+            _world.Update(deltaTime);
 
         if (_sceneManager.State == GameState.Playing && _world != null)
         {
@@ -117,9 +144,18 @@ public sealed class BrowserGameHost : IDisposable
         return _uiManager.HandlePointerTapped(new Vector2(x, y), 0, new Vector2(_viewportWidth, _viewportHeight));
     }
 
+    /// <summary>Forward pointer movement for hover/tooltip tracking on the UI canvas.</summary>
+    public void HandlePointerMove(int x, int y, bool isDown = false)
+    {
+        _uiManager.HandlePointerMove(
+            new Vector2(x, y),
+            isDown,
+            new Vector2(_viewportWidth, _viewportHeight));
+    }
+
     public void HandleKey(string key)
     {
-        if (_sceneManager.State != GameState.Playing) return;
+        if (_sceneManager.State != GameState.Playing || IsMissionResultOverlayActive()) return;
 
         float pan = 1f;
         var cam = _gameplayRenderer.Camera;
@@ -148,7 +184,7 @@ public sealed class BrowserGameHost : IDisposable
     internal void ShowMissionSelect()
     {
         var missionSelect = new MissionSelectScreen();
-        missionSelect.SetMissions(LoadMissionEntries());
+        missionSelect.SetMissions(LoadMissionEntries(), _campaignProgress.CompletedMissionIds);
         missionSelect.MissionStartRequested += ShowMissionBriefing;
         missionSelect.BackRequested += () => _uiManager.Pop();
         _uiManager.Push(missionSelect);
@@ -220,16 +256,112 @@ public sealed class BrowserGameHost : IDisposable
         ];
     }
 
+    private void OnMissionVictory(MissionVictoryEvent evt)
+    {
+        if (_missionResultOverlayShown) return;
+        if (_sceneManager.State != GameState.Playing) return;
+        if (_missionController.CurrentMission == null) return;
+        if (!evt.MissionId.Equals(_missionController.CurrentMission.Definition.Id, StringComparison.Ordinal))
+            return;
+
+        if (!_victoryRewardsApplied)
+        {
+            _missionController.DistributeRewards(1);
+            _victoryRewardsApplied = true;
+        }
+
+        _campaignProgress.MarkCompleted(evt.MissionId);
+        ShowMissionResultOverlay(isVictory: true);
+    }
+
+    private void OnMissionDefeat(MissionDefeatEvent evt)
+    {
+        if (_missionResultOverlayShown) return;
+        if (_sceneManager.State != GameState.Playing) return;
+        if (_missionController.CurrentMission == null) return;
+        if (!evt.MissionId.Equals(_missionController.CurrentMission.Definition.Id, StringComparison.Ordinal))
+            return;
+
+        ShowMissionResultOverlay(isVictory: false, defeatReason: evt.Reason);
+    }
+
+    private void ShowMissionResultOverlay(bool isVictory, string? defeatReason = null)
+    {
+        if (_missionResultOverlayShown || _missionController.CurrentMission == null)
+            return;
+
+        _missionResultOverlayShown = true;
+
+        var screen = new MissionVictoryScreen();
+        screen.SetMissionResult(_missionController.CurrentMission, isVictory, defeatReason);
+        screen.ReturnToMenuRequested += OnMissionResultReturnToMenu;
+        screen.ReplayMissionRequested += OnMissionResultReplay;
+        _uiManager.Push(screen);
+    }
+
+    private void OnMissionResultReturnToMenu()
+    {
+        if (_uiManager.Current is MissionVictoryScreen)
+            _uiManager.Pop();
+
+        _missionResultOverlayShown = false;
+        _victoryRewardsApplied = false;
+        _missionController.Unload();
+        _world?.Dispose();
+        _world = null;
+        _objectiveSystem = null;
+        _uiManager.Clear();
+        _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
+    }
+
+    private void OnMissionResultReplay()
+    {
+        if (_missionController.CurrentMission == null) return;
+
+        string missionId = _missionController.CurrentMission.Definition.Id;
+        if (_uiManager.Current is MissionVictoryScreen)
+            _uiManager.Pop();
+
+        _missionResultOverlayShown = false;
+        _victoryRewardsApplied = false;
+        _missionController.ReplayMission();
+
+        var definition = _missionLoader.Load(missionId);
+        if (definition == null)
+        {
+            StartGameplay(missionId);
+            return;
+        }
+
+        var briefing = new BriefingScreen();
+        briefing.SetMission(definition);
+        briefing.StartRequested += () =>
+        {
+            _uiManager.Pop();
+            StartGameplay(missionId);
+        };
+        briefing.BackRequested += OnMissionResultReturnToMenu;
+        _uiManager.Push(briefing);
+    }
+
     private void InitializeWorld(string? missionId)
     {
         _world?.Dispose();
+        _objectiveSystem = null;
+        _missionResultOverlayShown = false;
+        _victoryRewardsApplied = false;
 
         _world = new World();
         _movementSystem = new MovementSystem();
-        _world.AddSystem(new StanceSystem());
-        _world.AddSystem(new CombatSystem(_eventBus));
+        _world.AddSystem(new StanceSystem(_combatFogGate));
+        _world.AddSystem(new CombatSystem(_eventBus, _combatFogGate));
         _world.AddSystem(new ProjectileSystem(_eventBus));
         _world.AddSystem(_movementSystem);
+        _world.AddSystem(new UtilityPartMeshResolveSystem());
+        _world.AddSystem(new UtilityArticulationAimSystem());
+        _world.AddSystem(new SpecialHullArticulationAimSystem { FogGate = _combatFogGate });
+        _articulationSystem = new ArticulationSystem(_combatFogGate);
+        _world.AddSystem(_articulationSystem);
 
         _resourceManager = new ResourceManager(_eventBus);
         var playerRes = _resourceManager.AddPlayer(1);
@@ -248,6 +380,14 @@ public sealed class BrowserGameHost : IDisposable
             SpawnSandboxFleet();
 
         _missionController.BeginGameplay();
+
+        if (_missionController.CurrentMission != null)
+        {
+            var state = _missionController.CurrentMission;
+            state.Phase = MissionPhase.InProgress;
+            _objectiveSystem = new ObjectiveSystem(state, _eventBus, _resourceManager) { PlayerId = 1 };
+            _world.AddSystem(_objectiveSystem);
+        }
     }
 
     private void SpawnSandboxFleet()
@@ -302,6 +442,9 @@ public sealed class BrowserGameHost : IDisposable
         Vector3 spawn = new((start?.PlayerSpawn?[0] ?? 3) * 10f, 0f, (start?.PlayerSpawn?[1] ?? 3) * 10f);
         _gameplayRenderer.Camera.Target = spawn;
 
+        if (_resourceManager != null)
+            _resourceManager.UnlimitedResources = start?.UnlimitedResources == true;
+
         if (start?.StartingResources != null)
         {
             var res = _resourceManager!.GetPlayer(1);
@@ -344,14 +487,16 @@ public sealed class BrowserGameHost : IDisposable
         {
             "tutorial_01", "example_scenario", "mission_02",
             "mission_03", "mission_04", "mission_05",
+            "mission_build_tree",
         };
 
+        var completed = _campaignProgress.CompletedMissionIds;
         var entries = new List<MissionEntry>();
         foreach (string id in known)
         {
             var definition = _missionLoader.Load(id);
             if (definition != null)
-                entries.Add(ToMissionEntry(definition));
+                entries.Add(ToMissionEntry(definition, completed));
         }
 
         if (entries.Count == 0)
@@ -370,8 +515,18 @@ public sealed class BrowserGameHost : IDisposable
         return entries;
     }
 
-    private static MissionEntry ToMissionEntry(MissionDefinition definition) =>
-        MissionEntryMapper.FromDefinition(definition);
+    private static MissionEntry ToMissionEntry(
+        MissionDefinition definition,
+        IReadOnlySet<string>? completedMissionIds = null) =>
+        MissionEntryMapper.FromDefinition(definition, completedMissionIds);
+
+    private Vector3 GetGameplayCameraPosition()
+    {
+        var cam = _gameplayRenderer.Camera;
+        float tiltRad = MathHelper.DegreesToRadians(cam.TiltAngle);
+        float offsetZ = cam.Height * MathF.Tan(tiltRad);
+        return cam.Target + new Vector3(0f, cam.Height, offsetZ);
+    }
 
     private async Task PreloadAssetsAsync()
     {
@@ -379,6 +534,7 @@ public sealed class BrowserGameHost : IDisposable
         [
             "Missions/tutorial_01", "Missions/example_scenario", "Missions/mission_02",
             "Missions/mission_03", "Missions/mission_04", "Missions/mission_05",
+            "Missions/mission_build_tree",
             "Ships/hero_default", "Ships/fighter_basic", "Config/balance",
         ];
         await _assetSource.PreloadAsync(keys, GameDataRoot);

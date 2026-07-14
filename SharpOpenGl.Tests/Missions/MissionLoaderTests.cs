@@ -105,6 +105,62 @@ public class MissionLoaderTests
         Assert.Contains("hero_default", mission.StartConditions.StartingUnits);
         Assert.NotNull(mission.StartConditions.StartingResources);
         Assert.Equal(500f, mission.StartConditions.StartingResources.Energy);
+        // New optional fields: default base spawn + empty starting buildings for existing missions.
+        Assert.True(mission.StartConditions.SpawnDefaultBase);
+        Assert.Empty(mission.StartConditions.StartingBuildings);
+    }
+
+    [Fact]
+    public void StartConditions_deserializes_startingBuildings_and_spawnDefaultBase()
+    {
+        const string json = """
+            {
+              "id": "training_stub",
+              "displayName": "Training Stub",
+              "map": "sector_alpha",
+              "startConditions": {
+                "playerSpawn": [12, 12],
+                "startingUnits": ["support_repair", "miner_basic"],
+                "startingBuildings": ["command_center"],
+                "spawnDefaultBase": false,
+                "startingResources": { "energy": 1000, "minerals": 1000, "data": 200, "crew": 50 }
+              },
+              "objectives": { "primary": [], "secondary": [] },
+              "triggers": []
+            }
+            """;
+
+        var options = new System.Text.Json.JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+        var mission = System.Text.Json.JsonSerializer.Deserialize<MissionDefinition>(json, options);
+        Assert.NotNull(mission);
+        Assert.NotNull(mission!.StartConditions);
+        Assert.False(mission.StartConditions.SpawnDefaultBase);
+        Assert.Equal(new[] { "command_center" }, mission.StartConditions.StartingBuildings);
+        Assert.Equal(new[] { "support_repair", "miner_basic" }, mission.StartConditions.StartingUnits);
+        Assert.Equal(new[] { 12, 12 }, mission.StartConditions.PlayerSpawn);
+
+        Assert.True(StartConditionsSpawnLogic.HasExplicitStartingBuildings(mission.StartConditions));
+        Assert.False(StartConditionsSpawnLogic.ShouldSpawnDefaultBase(mission.StartConditions));
+    }
+
+    [Fact]
+    public void StartConditionsSpawnLogic_preserves_legacy_default_base()
+    {
+        Assert.True(StartConditionsSpawnLogic.ShouldSpawnDefaultBase(null));
+        Assert.True(StartConditionsSpawnLogic.ShouldSpawnDefaultBase(new StartConditionsDefinition()));
+        Assert.False(StartConditionsSpawnLogic.ShouldSpawnDefaultBase(
+            new StartConditionsDefinition { SpawnDefaultBase = false }));
+        Assert.False(StartConditionsSpawnLogic.ShouldSpawnDefaultBase(
+            new StartConditionsDefinition
+            {
+                SpawnDefaultBase = true,
+                StartingBuildings = ["command_center"],
+            }));
     }
 
     [Fact]
@@ -186,6 +242,155 @@ public class MissionLoaderTests
 
         Assert.Equal("Asteria Belt", mission.PlanetName);
         Assert.Equal("tutorial_01", mission.PrerequisiteMissionId);
+    }
+
+    [Fact]
+    public void Load_mission_abandoned_salvage_succeeds()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_abandoned_salvage");
+
+        Assert.NotNull(mission);
+        Assert.Equal("mission_abandoned_salvage", mission.Id);
+        Assert.Equal("Salvage Run", mission.DisplayName);
+    }
+
+    [Fact]
+    public void Load_mission_abandoned_salvage_has_star_map_and_defeat_unit_destroyed()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_abandoned_salvage")!;
+
+        Assert.Equal("Driftfield Salvage", mission.PlanetName);
+        Assert.Equal(new[] { 0.52f, 0.38f }, mission.StarMapPosition);
+        Assert.Equal("#7AB8D4", mission.PlanetColor);
+        Assert.Equal("mission_02", mission.PrerequisiteMissionId);
+
+        Assert.NotNull(mission.Defeat);
+        Assert.Equal("unit_destroyed", mission.Defeat.Type);
+        Assert.Equal("player_support", mission.Defeat.Target);
+    }
+
+    [Fact]
+    public void Load_mission_abandoned_salvage_has_star_map_briefing_and_objectives()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_abandoned_salvage")!;
+
+        Assert.Equal("Driftfield Salvage", mission.PlanetName);
+        Assert.Equal(new[] { 0.52f, 0.38f }, mission.StarMapPosition);
+        Assert.Equal("#7AB8D4", mission.PlanetColor);
+        Assert.Equal("mission_02", mission.PrerequisiteMissionId);
+
+        Assert.NotNull(mission.Briefing);
+        Assert.Contains("abandoned interceptors", mission.Briefing.Text);
+        Assert.Equal(4, mission.Briefing.ObjectivesPreview.Length);
+
+        Assert.NotNull(mission.Objectives);
+        Assert.Equal(4, mission.Objectives.Primary.Length);
+        Assert.Equal(2, mission.Objectives.Primary.Count(o => o.Type == "repair_target"));
+        Assert.Equal("derelict_1", mission.Objectives.Primary[1].Target);
+        Assert.Equal("derelict_2", mission.Objectives.Primary[3].Target);
+    }
+
+    [Fact]
+    public void Load_mission_abandoned_salvage_has_demo_safe_spawns_and_defeat()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_abandoned_salvage")!;
+
+        Assert.Equal(new[] { 8, 12 }, mission.StartConditions!.PlayerSpawn);
+        Assert.Contains("support_repair", mission.StartConditions.StartingUnits);
+
+        var spawnTrigger = mission.Triggers.First(t => t.Id == "spawn_derelicts");
+        var derelictSpawns = spawnTrigger.Actions
+            .Where(a => a.Type == "spawn_units")
+            .ToArray();
+        Assert.Equal(2, derelictSpawns.Length);
+        Assert.Equal(new[] { 28, 18 }, derelictSpawns[0].Position);
+        Assert.Equal("derelict_1", derelictSpawns[0].Tag);
+        Assert.Equal(new[] { 44, 30 }, derelictSpawns[1].Position);
+        Assert.Equal("derelict_2", derelictSpawns[1].Tag);
+
+        Assert.NotNull(mission.Defeat);
+        Assert.Equal("unit_destroyed", mission.Defeat.Type);
+
+        var repairSteps = mission.DemoScript
+            .Where(s => s.Type == "repair_target")
+            .ToArray();
+        Assert.Equal(2, repairSteps.Length);
+        Assert.Equal("derelict_1", repairSteps[0].TargetTag);
+        Assert.Equal("derelict_2", repairSteps[1].TargetTag);
+    }
+
+    [Fact]
+    public void LoadAll_includes_mission_abandoned_salvage()
+    {
+        var loader = CreateLoader();
+        string missionsPath = Path.Combine(GetTestDataPath(), "Missions");
+        var missions = loader.LoadAll(missionsPath);
+
+        Assert.Contains(missions, m => m.Id == "mission_abandoned_salvage");
+    }
+
+    // ── mission_build_tree ───────────────────────────────────────────────────
+
+    [Fact]
+    public void Load_mission_build_tree_succeeds()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_build_tree");
+
+        Assert.NotNull(mission);
+        Assert.Equal("mission_build_tree", mission.Id);
+        Assert.Equal("Foundation Protocol", mission.DisplayName);
+        Assert.Equal("sector_alpha", mission.Map);
+    }
+
+    [Fact]
+    public void Load_mission_build_tree_has_star_map_and_null_prerequisite()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_build_tree")!;
+
+        Assert.Equal("Architect's Proving Ground", mission.PlanetName);
+        Assert.Equal(new[] { 0.68f, 0.72f }, mission.StarMapPosition);
+        Assert.Null(mission.PrerequisiteMissionId);
+    }
+
+    [Fact]
+    public void Load_mission_build_tree_starts_with_support_repair()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_build_tree")!;
+
+        Assert.Contains("support_repair", mission.StartConditions!.StartingUnits);
+        Assert.NotNull(mission.StartConditions.StartingResources);
+        Assert.True(mission.StartConditions.StartingResources.Energy > 0);
+        Assert.True(mission.StartConditions.StartingResources.Minerals > 0);
+        Assert.True(mission.StartConditions.StartingResources.Data > 0);
+        Assert.True(mission.StartConditions.StartingResources.Crew > 0);
+    }
+
+    [Fact]
+    public void LoadAll_includes_mission_build_tree()
+    {
+        var loader = CreateLoader();
+        string missionsPath = Path.Combine(GetTestDataPath(), "Missions");
+        var missions = loader.LoadAll(missionsPath);
+
+        Assert.Contains(missions, m => m.Id == "mission_build_tree");
+    }
+
+    [Fact]
+    public void Load_mission_build_tree_defeat_unit_destroyed()
+    {
+        var loader = CreateLoader();
+        var mission = loader.Load("mission_build_tree")!;
+
+        Assert.NotNull(mission.Defeat);
+        Assert.Equal("unit_destroyed", mission.Defeat.Type);
+        Assert.Equal("player_support", mission.Defeat.Target);
     }
 
     // ── LoadAll ──────────────────────────────────────────────────────────────

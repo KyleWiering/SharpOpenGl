@@ -90,7 +90,11 @@ public sealed class ResourceSystem : GameSystem
             return;
         }
 
-        if (!IsWithinHarvestRange(world, entity, collector.AssignedNode, collector)) return;
+        if (!IsWithinHarvestRange(world, entity, collector.AssignedNode, collector))
+        {
+            EnsureCollectorPathTarget(world, entity, collector.AssignedNode);
+            return;
+        }
 
         collector.State = CollectorState.Collecting;
         collector.CarryType = node.ResourceType;
@@ -182,7 +186,11 @@ public sealed class ResourceSystem : GameSystem
             return;
         }
 
-        if (!IsWithinRadius(world, entity, collector.DepositTarget)) return;
+        if (!IsWithinRadius(world, entity, collector.DepositTarget))
+        {
+            EnsureCollectorPathTarget(world, entity, collector.DepositTarget);
+            return;
+        }
 
         collector.State = CollectorState.Depositing;
     }
@@ -215,6 +223,17 @@ public sealed class ResourceSystem : GameSystem
 
         collector.State = CollectorState.Idle;
         collector.AssignedNode = Entity.Null;
+    }
+
+    private static void EnsureCollectorPathTarget(World world, Entity entity, Entity target)
+    {
+        if (!world.IsAlive(target)) return;
+
+        var movement = world.GetComponent<MovementComponent>(entity);
+        var targetTransform = world.GetComponent<TransformComponent>(target);
+        if (movement == null || targetTransform == null) return;
+
+        movement.PathTarget = targetTransform.Position;
     }
 
     private static bool IsWithinHarvestRange(

@@ -56,18 +56,22 @@ public sealed class BrowserGameplayRenderer
             var transform = world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
-            if (render.MeshId < 0 && !string.IsNullOrEmpty(render.MeshKey)
-                && _meshes.TryResolveProjectileMesh(render.MeshKey, out int meshId, out int vertCount))
+            if (render.MeshId < 0 && !string.IsNullOrEmpty(render.MeshKey))
             {
-                render.MeshId = meshId;
-                render.VertexCount = vertCount;
+                if (_meshes.TryResolveProjectileMesh(render.MeshKey, out int meshId, out int vertCount)
+                    || _meshes.TryGetArticulatedPart(render.MeshKey, out meshId, out vertCount))
+                {
+                    render.MeshId = meshId;
+                    render.VertexCount = vertCount;
+                }
             }
 
             if (render.MeshId < 0) continue;
 
             bool isProjectile = world.HasComponent<ProjectileComponent>(entity);
+            bool isArticulatedPart = ArticulationDrawHelper.IsArticulatedPartChild(world, entity);
 
-            if (!isProjectile)
+            if (!isProjectile && !isArticulatedPart)
             {
                 var movement = world.GetComponent<MovementComponent>(entity);
                 if (movement != null && movement.Velocity.LengthSquared > 1f)
@@ -84,9 +88,11 @@ public sealed class BrowserGameplayRenderer
 
             var projectile = world.GetComponent<ProjectileComponent>(entity);
             var visual = world.GetComponent<ProjectileVisualComponent>(entity);
-            Matrix4 model = isProjectile
-                ? BuildProjectileModel(transform, projectile, visual)
-                : transform.GetModelMatrix();
+            Matrix4 model;
+            if (!ArticulationDrawHelper.TryGetArticulatedModelMatrix(world, entity, transform, out model))
+                model = isProjectile
+                    ? BuildProjectileModel(transform, projectile, visual)
+                    : transform.GetModelMatrix();
 
             int raceTex = render.RaceTextureIndex;
             int compTex = -1;

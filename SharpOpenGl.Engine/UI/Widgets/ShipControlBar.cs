@@ -21,6 +21,8 @@ public sealed class ShipControlBar : Widget
     private readonly Button _attackMoveButton;
     private readonly Button _stanceButton;
     private readonly Button _formationButton;
+    private readonly Button _buildButton;
+    private readonly Button _harvestButton;
 
     /// <summary>Currently active command mode, or null if none.</summary>
     public string? ActiveCommand { get; private set; }
@@ -41,13 +43,15 @@ public sealed class ShipControlBar : Widget
         Size = new Vector2(406f, 288f);
         Position = new Vector2(-12f, -12f);
 
-        _moveButton = CreateButton("Move", 0, 0);
-        _stopButton = CreateButton("Stop", 1, 0);
-        _patrolButton = CreateButton("Patrol", 2, 0);
-        _attackButton = CreateButton("Attack", 0, 1);
-        _attackMoveButton = CreateButton("A-Move", 1, 1);
-        _stanceButton = CreateButton("Stance", 2, 1);
-        _formationButton = CreateButton("Line", 0, 2);
+        _moveButton = CreateCommandButton("Move", "Move (M)", 0, 0);
+        _stopButton = CreateCommandButton("Stop", "Stop (S)", 1, 0);
+        _patrolButton = CreateCommandButton("Ptrl", "Patrol (P)", 2, 0);
+        _attackButton = CreateCommandButton("Atk", "Attack (T)", 0, 1);
+        _attackMoveButton = CreateCommandButton("A-Mv", "Attack Move (A)", 1, 1);
+        _stanceButton = CreateCommandButton("Stnc", "Cycle Stance", 2, 1);
+        _formationButton = CreateCommandButton("Line", "Formation: Line", 0, 2);
+        _buildButton = CreateCommandButton("Build", "Build (B)", 1, 2);
+        _harvestButton = CreateCommandButton("Hvst", "Harvest (H)", 2, 2);
 
         _moveButton.Clicked += () => SetActiveCommand("move");
         _stopButton.Clicked += () => SetActiveCommand("stop");
@@ -56,6 +60,8 @@ public sealed class ShipControlBar : Widget
         _attackMoveButton.Clicked += () => SetActiveCommand("attack_move");
         _stanceButton.Clicked += () => StanceToggled?.Invoke();
         _formationButton.Clicked += () => FormationCycled?.Invoke();
+        _buildButton.Clicked += () => SetActiveCommand("build");
+        _harvestButton.Clicked += () => SetActiveCommand("harvest");
 
         AddChild(_moveButton);
         AddChild(_stopButton);
@@ -64,12 +70,16 @@ public sealed class ShipControlBar : Widget
         AddChild(_attackMoveButton);
         AddChild(_stanceButton);
         AddChild(_formationButton);
+        AddChild(_buildButton);
+        AddChild(_harvestButton);
     }
 
     /// <summary>Update button visibility based on ship capabilities.</summary>
     public void UpdateForShip(
         bool hasWeapons,
         bool hasMovement,
+        bool hasResourceCollector,
+        bool hasStructureBuilder,
         Stance? stance,
         FormationType? formation,
         bool showFormation)
@@ -81,22 +91,36 @@ public sealed class ShipControlBar : Widget
         _attackMoveButton.Visible = hasWeapons && hasMovement;
         _stanceButton.Visible = hasWeapons;
         _formationButton.Visible = showFormation;
+        _buildButton.Visible = hasStructureBuilder;
+        _harvestButton.Visible = hasResourceCollector;
 
         if (stance.HasValue)
         {
-            _stanceButton.Label = stance.Value switch
+            (_stanceButton.Label, _stanceButton.TooltipHint) = stance.Value switch
             {
-                Stance.Neutral => "[P]",
-                Stance.Defensive => "[D]",
-                Stance.Aggressive => "[A]",
-                _ => "[?]"
+                Stance.Neutral => ("[P]", "Stance: Passive"),
+                Stance.Defensive => ("[D]", "Stance: Defensive"),
+                Stance.Aggressive => ("[A]", "Stance: Aggressive"),
+                _ => ("[?]", "Cycle Stance"),
             };
+        }
+        else
+        {
+            _stanceButton.Label = "Stnc";
+            _stanceButton.TooltipHint = "Cycle Stance";
         }
 
         if (formation.HasValue)
-            _formationButton.Label = FormationLayout.GetLabel(formation.Value);
+        {
+            string formationLabel = FormationLayout.GetLabel(formation.Value);
+            _formationButton.Label = formationLabel;
+            _formationButton.TooltipHint = $"Formation: {formationLabel}";
+        }
         else if (showFormation)
+        {
             _formationButton.Label = "Line";
+            _formationButton.TooltipHint = "Formation: Line";
+        }
     }
 
     /// <summary>Handle keyboard shortcuts for commands.</summary>
@@ -109,6 +133,14 @@ public sealed class ShipControlBar : Widget
             case 'p': SetActiveCommand("patrol"); return true;
             case 't': SetActiveCommand("attack"); return true;
             case 'a': SetActiveCommand("attack_move"); return true;
+            case 'h':
+                if (!_harvestButton.Visible) return false;
+                SetActiveCommand("harvest");
+                return true;
+            case 'b':
+                if (!_buildButton.Visible) return false;
+                SetActiveCommand("build");
+                return true;
             case 'g': FormationCycled?.Invoke(); return true;
             default: return false;
         }
@@ -141,6 +173,8 @@ public sealed class ShipControlBar : Widget
         Highlight(_patrolButton, command == "patrol");
         Highlight(_attackButton, command == "attack");
         Highlight(_attackMoveButton, command == "attack_move");
+        Highlight(_buildButton, command == "build");
+        Highlight(_harvestButton, command == "harvest");
     }
 
     private static void Highlight(Button button, bool active)
@@ -150,17 +184,18 @@ public sealed class ShipControlBar : Widget
             : new Vector4(0.2f, 0.2f, 0.3f, 1f);
     }
 
-    private static Button CreateButton(string label, int col, int row)
+    private static Button CreateCommandButton(string label, string tooltip, int col, int row)
     {
         float x = PanelPadding + col * (ButtonWidth + ButtonGap);
         float y = PanelPadding + row * (ButtonHeight + ButtonGap);
         return new Button
         {
             Label = label,
+            TooltipHint = tooltip,
             Anchor = Anchor.TopLeft,
             Position = new Vector2(x, y),
             Size = new Vector2(ButtonWidth, ButtonHeight),
-            FontSize = 22f,
+            FontSize = 20f,
         };
     }
 }

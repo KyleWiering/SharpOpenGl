@@ -149,7 +149,7 @@ Sub-agent verification batches:
 |----------|------:|--------|
 | Ships (race × hull) | 152 | 8 races × 19 `FleetGalleryLayout.AllShipIds` |
 | Ship designs (full catalog) | 500 | `ShipDesignCatalog.TotalDesigns` |
-| Stations (race × base) | 80 | 8 races × 10 `FleetGalleryLayout.AllBaseIds` |
+| Stations (race × base) | 128 | 8 races × 16 `FleetGalleryLayout.AllBaseIds` |
 | Environment | 5 | planets + scenery types |
 | Projectiles | 7 | weapon visual types |
 | Effects | 7 | HUD / mining / selection |

@@ -185,4 +185,57 @@ public class ResourceManagerTests
         Assert.Equal(1, received!.PlayerId);
         Assert.Equal(70f, received.NewAmount);
     }
+
+    // ── Unlimited resources ──────────────────────────────────────────────────
+
+    [Fact]
+    public void UnlimitedResources_TrySpendCost_always_succeeds_without_deducting()
+    {
+        var rm = new ResourceManager { UnlimitedResources = true };
+        var pr = rm.AddPlayer(1);
+        pr.SetStartingAmount(ResourceType.Energy, 50f);
+        pr.SetStartingAmount(ResourceType.Minerals, 50f);
+        pr.SetStartingAmount(ResourceType.Data, 10f);
+        pr.SetStartingAmount(ResourceType.Crew, 5f);
+
+        for (int i = 0; i < 20; i++)
+        {
+            Assert.True(rm.TrySpendCost(1, energy: 40, minerals: 40, data: 5, crew: 2));
+        }
+
+        // Pools unchanged — can still afford further builds.
+        Assert.Equal(50f, pr.GetAmount(ResourceType.Energy));
+        Assert.Equal(50f, pr.GetAmount(ResourceType.Minerals));
+        Assert.Equal(10f, pr.GetAmount(ResourceType.Data));
+        Assert.Equal(5f, pr.GetAmount(ResourceType.Crew));
+        Assert.True(rm.TrySpendCost(1, energy: 40, minerals: 40, data: 5, crew: 2));
+    }
+
+    [Fact]
+    public void UnlimitedResources_disabled_still_deducts_normally()
+    {
+        var rm = new ResourceManager { UnlimitedResources = false };
+        var pr = rm.AddPlayer(1);
+        pr.SetStartingAmount(ResourceType.Energy, 100f);
+        pr.SetStartingAmount(ResourceType.Minerals, 100f);
+        pr.SetStartingAmount(ResourceType.Data, 100f);
+        pr.SetStartingAmount(ResourceType.Crew, 10f);
+
+        Assert.True(rm.TrySpendCost(1, energy: 20, minerals: 30, data: 10, crew: 2));
+        Assert.Equal(80f, pr.GetAmount(ResourceType.Energy));
+        Assert.Equal(70f, pr.GetAmount(ResourceType.Minerals));
+        Assert.Equal(90f, pr.GetAmount(ResourceType.Data));
+        Assert.Equal(8f, pr.GetAmount(ResourceType.Crew));
+    }
+
+    [Fact]
+    public void UnlimitedResources_TrySpend_succeeds_when_pool_would_be_insufficient()
+    {
+        var rm = new ResourceManager { UnlimitedResources = true };
+        var pr = rm.AddPlayer(1);
+        pr.SetStartingAmount(ResourceType.Minerals, 5f);
+
+        Assert.True(rm.TrySpend(1, ResourceType.Minerals, 999f));
+        Assert.Equal(5f, pr.GetAmount(ResourceType.Minerals));
+    }
 }

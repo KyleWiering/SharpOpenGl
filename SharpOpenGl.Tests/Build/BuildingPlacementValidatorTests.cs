@@ -185,6 +185,41 @@ public class BuildingPlacementValidatorTests
     }
 
     [Fact]
+    public void Validate_rejects_partial_overlap_on_multi_cell_footprint()
+    {
+        var grid = new GridSystem(20, 20, 10f, new Vector2(-100f, -100f));
+        var world = new World();
+        var commandCenter = world.CreateEntity();
+        world.AddComponent(commandCenter, new BuildingComponent
+        {
+            BuildingType = "command_center",
+            PlayerId = 1,
+            Footprint = [2, 2],
+        });
+
+        BuildingFootprint.Occupy(grid, commandCenter, new Vector3(0f, 0f, 0f), [2, 2]);
+
+        var resources = CreateFundedResources();
+        var catalog = CreateCatalog();
+        var def = new EntityDefinition
+        {
+            Id = "repair_bay",
+            Components = new ComponentsDefinition
+            {
+                Building = new BuildingDefinition { Footprint = [3, 3] },
+            },
+            Cost = new CostDefinition(),
+        };
+
+        var result = BuildingPlacementValidator.Validate(
+            grid, world, 1, def, new Vector3(10f, 0f, 0f),
+            catalog, resources, supply: null);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(PlacementFailureReason.CellOccupied, result.Reason);
+    }
+
+    [Fact]
     public void Occupy_marks_all_footprint_cells()
     {
         var grid = new GridSystem(20, 20, 10f, new Vector2(-100f, -100f));

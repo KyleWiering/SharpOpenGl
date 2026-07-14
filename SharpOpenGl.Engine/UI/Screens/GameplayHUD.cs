@@ -36,7 +36,7 @@ public sealed class GameplayHUD : UIScreen
             Name = "ResourceBar",
             Anchor = Anchor.TopLeft,
             Position = Vector2.Zero,
-            Size = new Vector2(1920f, 48f),
+            Size = new Vector2(UIScaler.ReferenceSize.X, 48f),
             FontSize = 18f,
         };
         AddWidget(ResourceBar);
@@ -95,6 +95,7 @@ public sealed class GameplayHUD : UIScreen
         {
             Name = "BuildMapButton",
             Label = "B",
+            TooltipHint = "Build Structures (B)",
             Anchor = Anchor.TopRight,
             Position = new Vector2(-136f, 8f),
             Size = new Vector2(56f, 40f),
@@ -113,6 +114,7 @@ public sealed class GameplayHUD : UIScreen
         {
             Name = "PauseButton",
             Label = "II",
+            TooltipHint = "Pause (P)",
             Anchor = Anchor.TopRight,
             Position = new Vector2(-72f, 8f),
             Size = new Vector2(56f, 40f),
@@ -120,6 +122,22 @@ public sealed class GameplayHUD : UIScreen
         };
         pauseBtn.Clicked += () => PauseRequested?.Invoke();
         AddWidget(pauseBtn);
+    }
+
+    /// <inheritdoc/>
+    public override bool HandleScroll(Vector2 screenPoint, float deltaY, Vector2 viewportSize)
+    {
+        if (!Visible) return false;
+
+        if (BuildMapPanel.Visible &&
+            BuildMapPanel.HandleScroll(screenPoint, deltaY, Vector2.Zero, viewportSize))
+            return true;
+
+        if (BuildPanel.Visible &&
+            BuildPanel.HandleScroll(screenPoint, deltaY, Vector2.Zero, viewportSize))
+            return true;
+
+        return base.HandleScroll(screenPoint, deltaY, viewportSize);
     }
 
     /// <summary>
@@ -162,13 +180,18 @@ public sealed class GameplayHUD : UIScreen
     public void BindShipControlBar(
         bool hasWeapons,
         bool hasMovement,
+        bool hasResourceCollector,
+        bool hasStructureBuilder,
         Stance? stance,
         bool anySelected,
         FormationType? formation,
         bool showFormation)
     {
-        ShipControlBar.Visible = anySelected && (hasWeapons || hasMovement);
+        ShipControlBar.Visible = anySelected &&
+            (hasWeapons || hasMovement || hasResourceCollector || hasStructureBuilder);
         if (ShipControlBar.Visible)
-            ShipControlBar.UpdateForShip(hasWeapons, hasMovement, stance, formation, showFormation);
+            ShipControlBar.UpdateForShip(
+                hasWeapons, hasMovement, hasResourceCollector, hasStructureBuilder,
+                stance, formation, showFormation);
     }
 }

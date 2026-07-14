@@ -165,7 +165,8 @@ float teamInsigniaMask(vec2 uv, vec3 localPos) {
 vec3 applyTeamInsignia(vec3 baseColor, vec2 uv, vec3 localPos, vec3 teamTint, int raceTextureIndex) {
     float mask = teamInsigniaMask(uv, localPos);
     vec3 mark = teamTint * (0.85 + 0.15 * raceSoftNoise(uv * 2.0));
-    float insigniaMix = raceTextureIndex == 2 ? 0.12 : 0.75;
+    float insigniaMixByRace[8] = float[8](0.20, 0.18, 0.12, 0.16, 0.18, 0.20, 0.15, 0.14);
+    float insigniaMix = insigniaMixByRace[clamp(raceTextureIndex, 0, 7)];
     return mix(baseColor, mark, mask * insigniaMix);
 }
 

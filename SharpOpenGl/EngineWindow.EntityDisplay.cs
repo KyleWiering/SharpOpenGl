@@ -157,10 +157,13 @@ public partial class EngineWindow
 
         if (_world.HasComponent<BuildingComponent>(entity))
         {
+            string subtitle = GameplayEntityDisplay.TryGetConstructionFraction(_world, entity, out float fraction)
+                ? $"Under construction — {(int)MathF.Round(fraction * 100f)}%"
+                : "Structure";
             return new UnitInfo
             {
                 Name = name,
-                Subtitle = "Structure",
+                Subtitle = subtitle,
                 DisplayKind = EntityDisplayKind.Scenery,
             };
         }

@@ -1,0 +1,69 @@
+{
+  "id": "training_01_interceptor",
+  "displayName": "Training: Interceptor Duel",
+  "description": "1v1 interceptor combat — destroy the hostile red interceptor. No bases, no economy.",
+  "map": "sector_alpha",
+  "planetName": "Interceptor Range",
+  "starMapPosition": [0.08, 0.18],
+  "planetColor": "#E85D4A",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, welcome to Interceptor Range. You pilot a single Mk2 interceptor in open space — no stations, no base support. A hostile red interceptor will enter the sector shortly. Engage and destroy it to complete this training exercise. If your interceptor is destroyed, the exercise fails.",
+    "objectivesPreview": [
+      "Destroy the hostile interceptor",
+      "Do not lose your interceptor — losing your ship ends the mission",
+      "No base support — combat only"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [5, 5],
+    "startingUnits": ["interceptor_mk2"],
+    "startingBuildings": [],
+    "spawnDefaultBase": false,
+    "startingResources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "destroy_enemy_interceptor",
+        "type": "destroy_target",
+        "target": "enemy_interceptor_1",
+        "description": "Destroy the hostile interceptor"
+      }
+    ],
+    "secondary": []
+  },
+  "triggers": [
+    {
+      "id": "spawn_red_interceptor",
+      "condition": { "type": "timer", "seconds": 2 },
+      "actions": [
+        {
+          "type": "spawn_units",
+          "units": ["interceptor_mk2"],
+          "position": [45, 45],
+          "tag": "enemy_interceptor_1",
+          "faction": 2
+        }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "unit_destroyed", "target": "player_interceptor" },
+  "rewards": {
+    "resources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+    "xp": 50,
+    "unlocks": []
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [5, 5], "height": 180 },
+    { "type": "wait", "seconds": 2.5 },
+    { "type": "select_units", "filter": "interceptor_mk2" },
+    { "type": "wait", "seconds": 0.5 },
+    { "type": "attack_move", "position": [45, 45] },
+    { "type": "wait", "seconds": 4 },
+    { "type": "attack_target", "targetTag": "enemy_interceptor_1" },
+    { "type": "wait_objective", "objectiveId": "destroy_enemy_interceptor" }
+  ]
+}

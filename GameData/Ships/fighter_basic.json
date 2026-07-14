@@ -16,5 +16,12 @@
     }
   },
   "cost": { "energy": 50, "minerals": 75, "data": 0, "crew": 1 },
-  "buildTime": 15
+  "buildTime": 15,
+  "articulation": {
+    "parts": [
+      { "id": "wing_flap_left", "partType": "EngineGimbal", "localPivot": [-0.42, 0.05, -0.15], "pitchMin": -5, "pitchMax": 25, "meshKey": "articulated/wing_flap/fighter_basic/left" },
+      { "id": "wing_flap_right", "partType": "EngineGimbal", "localPivot": [0.42, 0.05, -0.15], "pitchMin": -5, "pitchMax": 25, "meshKey": "articulated/wing_flap/fighter_basic/right" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "localPivot": [0, 0.05, 0.45], "pitchMin": -5, "pitchMax": 30, "meshKey": "articulated/turret_pitch/fighter_basic" }
+    ]
+  }
 }

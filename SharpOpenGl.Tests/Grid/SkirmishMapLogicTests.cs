@@ -1,4 +1,6 @@
+using System.Text.Json;
 using SharpOpenGl.Engine.Assets;
+using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Grid;
 using Xunit;
 
@@ -22,7 +24,7 @@ public class SkirmishMapLogicTests
     }
 
     [Fact]
-    public void Each_spawn_has_baseArea_and_command_center_plus_shipyard()
+    public void Each_spawn_has_baseArea_and_command_center()
     {
         string mapsPath = Path.Combine(GetGameDataPath(), "Maps");
         var catalog = new SkirmishMapCatalog(new AssetManager(GetGameDataPath()));
@@ -39,8 +41,6 @@ public class SkirmishMapLogicTests
                 Assert.NotEmpty(placements);
                 Assert.Contains(placements, p =>
                     p.BuildingId.Equals("command_center", StringComparison.OrdinalIgnoreCase));
-                Assert.Contains(placements, p =>
-                    p.BuildingId.Contains("shipyard", StringComparison.OrdinalIgnoreCase));
             }
         }
     }
@@ -70,6 +70,40 @@ public class SkirmishMapLogicTests
             Assert.InRange(gridX, minX, maxX);
             Assert.InRange(gridY, minY, maxY);
         }
+    }
+
+    [Fact]
+    public void Skirmish_human_spawn_includes_support_repair_definition()
+    {
+        string path = Path.Combine(GetGameDataPath(), "Ships", "support_repair.json");
+        Assert.True(File.Exists(path), "support_repair ship definition required for skirmish builder spawn.");
+
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true,
+            ReadCommentHandling = JsonCommentHandling.Skip,
+            AllowTrailingCommas = true,
+        };
+        var def = JsonSerializer.Deserialize<EntityDefinition>(File.ReadAllText(path), options);
+        Assert.NotNull(def);
+        Assert.Equal("support_repair", def!.Id);
+
+        var builder = def.Components?.StructureBuilder;
+        Assert.NotNull(builder);
+        Assert.True(builder!.PlacementRange > 0);
+
+        var buildableIds = builder.BuildableIds ?? [];
+        Assert.Contains("power_reactor", buildableIds);
+        Assert.Contains("resource_refinery", buildableIds);
+        Assert.Contains("supply_depot", buildableIds);
+        Assert.Contains("sensor_array", buildableIds);
+        Assert.Contains("defense_turret", buildableIds);
+        Assert.DoesNotContain("shipyard_small", buildableIds);
+
+        Assert.Equal(4500f, SkirmishMapLogic.SkirmishStartingEnergy);
+        Assert.Equal(5500f, SkirmishMapLogic.SkirmishStartingMinerals);
+        Assert.Equal(700f, SkirmishMapLogic.SkirmishStartingData);
+        Assert.Equal(55f, SkirmishMapLogic.SkirmishStartingCrew);
     }
 
     [Fact]

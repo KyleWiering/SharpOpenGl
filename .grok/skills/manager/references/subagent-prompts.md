@@ -1,35 +1,79 @@
-# Manager subagent prompt templates
+# Spawn prompts — Manager → Worker / Verifier
+
+Manager uses these when **direct spawn mode** is available (root session).
+When Manager is a child, return `DELEGATION_READY workers` — CEO copies these prompts as proxy.
 
 Replace `{project-slug}`, `{section-id}`, `{NN}`, `{order-id}`, `{REPO}`.
 
-## worker-{order-id}
+## Manager → worker-{order-id}
 
 ```
-You are the Worker subagent for work order "{order-id}".
+You are the Worker for order "{order-id}".
 
-Read and follow: {REPO}/.grok/skills/worker/SKILL.md
+Read: {REPO}/.grok/skills/worker/SKILL.md
+Work order: {REPO}/.grok/org/{project-slug}/work-orders/{order-id}.md
 
-Your input:
-- Work order: {REPO}/.grok/org/{project-slug}/work-orders/{order-id}.md
-- Section: {REPO}/.grok/org/{project-slug}/sections/{section-id}.md
-
-Execute the work order. Update the work order MD with your report.
-Do NOT spawn subagents.
-
-Return: status, files changed, summary, blockers.
+Execute, update ticket, return status summary.
 ```
 
-## verifier-iteration-{NN}
+## Manager → verifier-iteration-{NN}
 
 ```
-You are the Verifier subagent for iteration {NN}, section "{section-id}".
+You are the Verifier for section "{section-id}" iteration {NN}.
 
 Read:
 - {REPO}/.grok/org/{project-slug}/iterations/{section-id}/iteration-{NN}.md
-- {REPO}/.grok/org/{project-slug}/sections/{section-id}.md
+- {REPO}/.grok/org/{project-slug}/delegations/verifiers-queue.json
 
-Run the verifier command from the iteration file (build-test, mesh-scorer, or reviewer).
-Update iteration-{NN}.md with Results and Remaining gaps.
+Run verifier command. Update iteration Results and Remaining gaps.
+Return: pass/fail, summary, top 3 gaps.
+```
 
-Return: pass/fail, test output summary, top 3 gaps for next iteration.
+For mesh-scorer verifier, use capture commands from mesh-improvement-loop SKILL.
+
+## CEO proxy variants
+
+Prefix worker/verifier prompts with:
+
+```
+Spawned by: CEO proxying for Manager (section "{section-id}").
+```
+
+## CEO → director (MODE=plan) — reference only
+
+CEO spawns Director; Director does not use this file for that wave.
+
+```
+You are the Director subagent for "{project-slug}" in MODE=plan.
+
+Read: {REPO}/.grok/skills/director/SKILL.md
+Directive: {REPO}/.grok/org/{project-slug}/directive.md
+MODE: plan
+
+Plan, section tickets, managers-queue.json.
+If child session: end with SIGNAL: DELEGATION_READY managers.
+If root: proceed to MODE=orchestrate and spawn Managers.
+```
+
+## CEO → manager (MODE=prepare) — proxy for Director
+
+```
+You are the Manager for section "{section-id}" in MODE=prepare.
+Spawned by: CEO proxying for Director.
+
+Read: {REPO}/.grok/skills/manager/SKILL.md
+Section: {REPO}/.grok/org/{project-slug}/sections/{section-id}.md
+Create iteration + work orders, fill workers-queue.json and verifiers-queue.json.
+Attempt Worker spawn; if blocked return SIGNAL: DELEGATION_READY workers.
+End with SIGNAL line.
+```
+
+## CEO → manager (MODE=checkpoint) — proxy for Director
+
+```
+You are the Manager for section "{section-id}" in MODE=checkpoint.
+Spawned by: CEO proxying for Director.
+
+Workers/verifier finished. Read work orders and iteration-{NN}.md.
+Update section ticket. End with SIGNAL line.
 ```

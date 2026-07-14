@@ -66,10 +66,9 @@ public partial class EngineWindow
         if (_uiManager.Current is not GameplayHUD hud) return;
 
         if (_placementBuildingId != null)
-        {
-            _placementBuildingId = null;
-            _placementPreviewValid = false;
-        }
+            CancelPlacementMode();
+
+        _builderPickEntity = null;
 
         hud.BuildMapPanel.Visible = !hud.BuildMapPanel.Visible;
         if (hud.BuildMapPanel.Visible)
@@ -85,19 +84,128 @@ public partial class EngineWindow
             _world, playerId: 1, _resourceManager, _supplySystem);
     }
 
+    private void BindBuilderBuildPanel(Entity builder)
+    {
+        if (_world == null || _resourceManager == null || _buildMapCatalog == null) return;
+        if (_uiManager.Current is not GameplayHUD hud) return;
+
+        var builderComp = _world.GetComponent<StructureBuilderComponent>(builder);
+        if (builderComp == null) return;
+
+        var views = _buildMapCatalog.BuildViews(_world, playerId: 1, _resourceManager, _supplySystem);
+        hud.BuildMapPanel.Categories = FilterBuildViews(views, builderComp.BuildableIds);
+    }
+
+    private static List<BuildMapCategoryView> FilterBuildViews(
+        List<BuildMapCategoryView> views,
+        IReadOnlyList<string> buildableIds)
+    {
+        var allowed = new HashSet<string>(buildableIds, StringComparer.OrdinalIgnoreCase);
+        var filtered = new List<BuildMapCategoryView>();
+
+        foreach (var category in views)
+        {
+            var buildings = category.Buildings
+                .Where(entry => allowed.Contains(entry.Id))
+                .ToList();
+            if (buildings.Count == 0)
+                continue;
+
+            filtered.Add(new BuildMapCategoryView
+            {
+                Id = category.Id,
+                DisplayName = category.DisplayName,
+                Buildings = buildings,
+            });
+        }
+
+        return filtered;
+    }
+
     private void OnBuildMapBuildingSelected(string defId)
     {
         if (_uiManager.Current is GameplayHUD hud)
             hud.BuildMapPanel.Visible = false;
 
-        _placementBuildingId = defId;
+        Entity? builder = _builderPickEntity;
+        _builderPickEntity = null;
+        BeginPlacementMode(defId, builder);
+    }
+
+    private void BeginPlacementMode(string buildingId, Entity? builderEntity = null)
+    {
+        _placementBuildingId = buildingId;
+        _placementBuilderEntity = builderEntity;
         _placementPreviewValid = false;
         _attackMoveMode = false;
         _attackMode = false;
         _patrolMode = false;
+        _moveCommandMode = false;
+        _harvestCommandMode = false;
 
-        if (_definitions.TryGetValue(defId, out var def))
+        if (_definitions.TryGetValue(buildingId, out var def))
             Console.WriteLine($"[Place] Click to place: {def.DisplayName} (right-click to cancel)");
+    }
+
+    private void CancelPlacementMode()
+    {
+        _placementBuildingId = null;
+        _placementBuilderEntity = null;
+        _placementPreviewValid = false;
+        _builderPickEntity = null;
+    }
+
+    private void EnterBuilderStructurePickMode()
+    {
+        if (_world == null || _buildMapCatalog == null) return;
+
+        var selected = GetSelectedPlayerEntities();
+        Entity? builder = null;
+        foreach (var entity in selected)
+        {
+            if (_world.HasComponent<StructureBuilderComponent>(entity))
+            {
+                builder = entity;
+                break;
+            }
+        }
+
+        if (!builder.HasValue) return;
+
+        _builderPickEntity = builder;
+        _attackMoveMode = false;
+        _attackMode = false;
+        _patrolMode = false;
+        _moveCommandMode = false;
+        _harvestCommandMode = false;
+
+        if (_uiManager.Current is GameplayHUD hud)
+        {
+            BindBuilderBuildPanel(builder.Value);
+            hud.BuildMapPanel.Visible = true;
+        }
+    }
+
+    private bool IsBuilderInPlacementRange(Entity builderEntity, Vector3 worldPos, out string reason)
+    {
+        reason = string.Empty;
+        if (_world == null)
+            return true;
+
+        var builderComp = _world.GetComponent<StructureBuilderComponent>(builderEntity);
+        var builderTransform = _world.GetComponent<TransformComponent>(builderEntity);
+        if (builderComp == null || builderTransform == null)
+            return true;
+
+        float range = builderComp.PlacementRange > 0f
+            ? builderComp.PlacementRange
+            : StructureBuilderComponent.DefaultPlacementRange;
+        float distance = Vector3.Distance(builderTransform.Position, worldPos);
+        if (distance <= range)
+            return true;
+
+        reason = $"Builder out of range ({range:0}m)";
+        return false;
     }
 
     private void UpdatePlacementPreview()
@@ -116,7 +224,12 @@ public partial class EngineWindow
         var result = BuildingPlacementValidator.Validate(
             _gridSystem, _world, playerId: 1, def, worldPos.Value,
             _buildMapCatalog, _resourceManager, _supplySystem);
-        _placementPreviewValid = result.IsValid;
+
+        bool inRange = true;
+        if (_placementBuilderEntity is Entity builderEntity)
+            inRange = IsBuilderInPlacementRange(builderEntity, worldPos.Value, out _);
+
+        _placementPreviewValid = result.IsValid && inRange;
     }
 
     private void RenderPlacementPreview()

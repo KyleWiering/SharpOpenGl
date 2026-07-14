@@ -1,6 +1,7 @@
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Rendering;
 using SharpOpenGl.Rendering;
 
 namespace SharpOpenGl;
@@ -9,12 +10,67 @@ public partial class EngineWindow
 {
     private int _tractorBeamLineVao;
     private int _tractorBeamLineVbo;
+    private const int MiningNodeParticleBufferFloats = 2048 * 6;
+    private readonly float[] _miningNodeParticleBuffer = new float[MiningNodeParticleBufferFloats];
 
     private void RenderMiningVfx()
     {
         if (_world == null) return;
 
         RenderTractorBeams();
+        RenderMiningNodeEffects();
+    }
+
+    private void RenderMiningNodeEffects()
+    {
+        if (_world == null || _particleVao == 0) return;
+
+        int totalPoints = 0;
+        int floatIndex = 0;
+        float pointSize = 6f;
+
+        foreach (var (entity, nodeVisual) in _world.Query<MiningNodeVisualComponent>())
+        {
+            var emitterComp = _world.GetComponent<ParticleEmitterComponent>(entity);
+            if (emitterComp == null) continue;
+
+            int written = emitterComp.Emitter.WriteColoredPoints(_miningNodeParticleBuffer, floatIndex);
+            if (written == 0 && nodeVisual.TractorCollectors <= 0) continue;
+
+            totalPoints += written;
+            floatIndex += written * 6;
+
+            // Tractor pulse: briefly enlarge node particles right after beam impact.
+            if (nodeVisual.TractorCollectors > 0 && nodeVisual.PulsePhase < 0.3f)
+            {
+                float flash = 1f - nodeVisual.PulsePhase / 0.3f;
+                pointSize = MathF.Max(pointSize, 6f + flash * 8f);
+            }
+
+            if (floatIndex >= _miningNodeParticleBuffer.Length)
+                break;
+        }
+
+        if (totalPoints == 0) return;
+
+        GL.Enable(EnableCap.Blend);
+        GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+        GL.BindBuffer(BufferTarget.ArrayBuffer, _particleVbo);
+        GL.BufferSubData(
+            BufferTarget.ArrayBuffer,
+            IntPtr.Zero,
+            floatIndex * sizeof(float),
+            _miningNodeParticleBuffer);
+
+        var identity = Matrix4.Identity;
+        GL.UniformMatrix4(_uniformModel, false, ref identity);
+        GL.Uniform4(_uniformColor, Vector4.Zero);
+        GL.Uniform1(_uniformPointSize, pointSize);
+
+        GL.BindVertexArray(_particleVao);
+        GL.DrawArrays(PrimitiveType.Points, 0, totalPoints);
+        GL.BindVertexArray(0);
+        GL.Disable(EnableCap.Blend);
     }
 
     private void RenderTractorBeams()

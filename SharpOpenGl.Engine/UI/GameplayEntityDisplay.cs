@@ -89,6 +89,45 @@ public static class GameplayEntityDisplay
         _ => SelectionFriendly,
     };
 
+    /// <summary>Dimmed selection ring while a structure is still under construction.</summary>
+    public static Vector4 SelectionRingColor(World world, Entity entity, EntityDisplayKind kind)
+    {
+        Vector4 baseColor = SelectionRingColor(kind);
+        if (!TryGetConstructionFraction(world, entity, out _))
+            return baseColor;
+
+        return baseColor with { W = baseColor.W * 0.55f };
+    }
+
+    /// <summary>Returns true when entity is building and outputs normalized 0–1 progress.</summary>
+    public static bool TryGetConstructionFraction(World world, Entity entity, out float fraction01)
+    {
+        var underConstruction = world.GetComponent<UnderConstructionComponent>(entity);
+        if (underConstruction == null || underConstruction.TotalBuildTime <= 0f)
+        {
+            fraction01 = 0f;
+            return false;
+        }
+
+        fraction01 = Math.Clamp(underConstruction.BuildProgress / underConstruction.TotalBuildTime, 0f, 1f);
+        return true;
+    }
+
+    /// <summary>Whole-percent construction progress for HUD labels.</summary>
+    public static int ConstructionPercent(World world, Entity entity) =>
+        TryGetConstructionFraction(world, entity, out float fraction)
+            ? (int)MathF.Round(fraction * 100f)
+            : 0;
+
+    /// <summary>Appends <c>(42%)</c> suffix when the entity is under construction.</summary>
+    public static string AppendConstructionSuffix(World world, Entity entity, string displayName)
+    {
+        if (!TryGetConstructionFraction(world, entity, out float fraction))
+            return displayName;
+
+        return $"{displayName} ({(int)MathF.Round(fraction * 100f)}%)";
+    }
+
     public static Vector4 WorldTintColor(EntityDisplayKind kind) => kind switch
     {
         EntityDisplayKind.Hostile => HostileColor,

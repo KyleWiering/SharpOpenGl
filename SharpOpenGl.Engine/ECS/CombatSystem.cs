@@ -43,8 +43,9 @@ public sealed class CombatSystem : GameSystem
 
     private static void TickWeaponCooldowns(World world, float deltaTime)
     {
-        foreach (var (_, wl) in world.Query<WeaponListComponent>())
+        foreach (var (entity, wl) in world.Query<WeaponListComponent>())
         {
+            if (world.HasComponent<UnderConstructionComponent>(entity)) continue;
             foreach (var w in wl.Weapons)
             {
                 if (w.Cooldown > 0f)
@@ -59,6 +60,8 @@ public sealed class CombatSystem : GameSystem
     {
         foreach (var (attacker, ct) in world.Query<CombatTargetComponent>())
         {
+            if (world.HasComponent<UnderConstructionComponent>(attacker)) continue;
+
             var disabled = world.GetComponent<DisabledComponent>(attacker);
             if (disabled is { IsActive: true }) continue;
 

@@ -5402,12 +5402,52 @@
       "relativePath": "Stations/aetherian/command_center.obj"
     },
     {
+      "key": "meshes/stations/aetherian/comms_relay.obj",
+      "category": "station",
+      "raceId": "aetherian",
+      "modelId": "comms_relay",
+      "displayName": "aetherian comms_relay",
+      "relativePath": "Stations/aetherian/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/aetherian/defense_turret.obj",
       "category": "station",
       "raceId": "aetherian",
       "modelId": "defense_turret",
       "displayName": "aetherian defense_turret",
       "relativePath": "Stations/aetherian/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/aetherian/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "aetherian",
+      "modelId": "fabrication_hub",
+      "displayName": "aetherian fabrication_hub",
+      "relativePath": "Stations/aetherian/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/aetherian/fortress_core.obj",
+      "category": "station",
+      "raceId": "aetherian",
+      "modelId": "fortress_core",
+      "displayName": "aetherian fortress_core",
+      "relativePath": "Stations/aetherian/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/aetherian/missile_battery.obj",
+      "category": "station",
+      "raceId": "aetherian",
+      "modelId": "missile_battery",
+      "displayName": "aetherian missile_battery",
+      "relativePath": "Stations/aetherian/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/aetherian/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "aetherian",
+      "modelId": "orbital_uplink",
+      "displayName": "aetherian orbital_uplink",
+      "relativePath": "Stations/aetherian/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/aetherian/power_reactor.obj",
@@ -5440,6 +5480,14 @@
       "modelId": "sensor_array",
       "displayName": "aetherian sensor_array",
       "relativePath": "Stations/aetherian/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/aetherian/shield_emitter.obj",
+      "category": "station",
+      "raceId": "aetherian",
+      "modelId": "shield_emitter",
+      "displayName": "aetherian shield_emitter",
+      "relativePath": "Stations/aetherian/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/aetherian/shipyard_large.obj",
@@ -5482,12 +5530,52 @@
       "relativePath": "Stations/cryo/command_center.obj"
     },
     {
+      "key": "meshes/stations/cryo/comms_relay.obj",
+      "category": "station",
+      "raceId": "cryo",
+      "modelId": "comms_relay",
+      "displayName": "cryo comms_relay",
+      "relativePath": "Stations/cryo/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/cryo/defense_turret.obj",
       "category": "station",
       "raceId": "cryo",
       "modelId": "defense_turret",
       "displayName": "cryo defense_turret",
       "relativePath": "Stations/cryo/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/cryo/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "cryo",
+      "modelId": "fabrication_hub",
+      "displayName": "cryo fabrication_hub",
+      "relativePath": "Stations/cryo/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/cryo/fortress_core.obj",
+      "category": "station",
+      "raceId": "cryo",
+      "modelId": "fortress_core",
+      "displayName": "cryo fortress_core",
+      "relativePath": "Stations/cryo/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/cryo/missile_battery.obj",
+      "category": "station",
+      "raceId": "cryo",
+      "modelId": "missile_battery",
+      "displayName": "cryo missile_battery",
+      "relativePath": "Stations/cryo/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/cryo/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "cryo",
+      "modelId": "orbital_uplink",
+      "displayName": "cryo orbital_uplink",
+      "relativePath": "Stations/cryo/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/cryo/power_reactor.obj",
@@ -5520,6 +5608,14 @@
       "modelId": "sensor_array",
       "displayName": "cryo sensor_array",
       "relativePath": "Stations/cryo/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/cryo/shield_emitter.obj",
+      "category": "station",
+      "raceId": "cryo",
+      "modelId": "shield_emitter",
+      "displayName": "cryo shield_emitter",
+      "relativePath": "Stations/cryo/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/cryo/shipyard_large.obj",
@@ -5562,12 +5658,52 @@
       "relativePath": "Stations/korath/command_center.obj"
     },
     {
+      "key": "meshes/stations/korath/comms_relay.obj",
+      "category": "station",
+      "raceId": "korath",
+      "modelId": "comms_relay",
+      "displayName": "korath comms_relay",
+      "relativePath": "Stations/korath/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/korath/defense_turret.obj",
       "category": "station",
       "raceId": "korath",
       "modelId": "defense_turret",
       "displayName": "korath defense_turret",
       "relativePath": "Stations/korath/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/korath/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "korath",
+      "modelId": "fabrication_hub",
+      "displayName": "korath fabrication_hub",
+      "relativePath": "Stations/korath/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/korath/fortress_core.obj",
+      "category": "station",
+      "raceId": "korath",
+      "modelId": "fortress_core",
+      "displayName": "korath fortress_core",
+      "relativePath": "Stations/korath/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/korath/missile_battery.obj",
+      "category": "station",
+      "raceId": "korath",
+      "modelId": "missile_battery",
+      "displayName": "korath missile_battery",
+      "relativePath": "Stations/korath/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/korath/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "korath",
+      "modelId": "orbital_uplink",
+      "displayName": "korath orbital_uplink",
+      "relativePath": "Stations/korath/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/korath/power_reactor.obj",
@@ -5600,6 +5736,14 @@
       "modelId": "sensor_array",
       "displayName": "korath sensor_array",
       "relativePath": "Stations/korath/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/korath/shield_emitter.obj",
+      "category": "station",
+      "raceId": "korath",
+      "modelId": "shield_emitter",
+      "displayName": "korath shield_emitter",
+      "relativePath": "Stations/korath/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/korath/shipyard_large.obj",
@@ -5642,12 +5786,52 @@
       "relativePath": "Stations/nexar/command_center.obj"
     },
     {
+      "key": "meshes/stations/nexar/comms_relay.obj",
+      "category": "station",
+      "raceId": "nexar",
+      "modelId": "comms_relay",
+      "displayName": "nexar comms_relay",
+      "relativePath": "Stations/nexar/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/nexar/defense_turret.obj",
       "category": "station",
       "raceId": "nexar",
       "modelId": "defense_turret",
       "displayName": "nexar defense_turret",
       "relativePath": "Stations/nexar/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/nexar/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "nexar",
+      "modelId": "fabrication_hub",
+      "displayName": "nexar fabrication_hub",
+      "relativePath": "Stations/nexar/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/nexar/fortress_core.obj",
+      "category": "station",
+      "raceId": "nexar",
+      "modelId": "fortress_core",
+      "displayName": "nexar fortress_core",
+      "relativePath": "Stations/nexar/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/nexar/missile_battery.obj",
+      "category": "station",
+      "raceId": "nexar",
+      "modelId": "missile_battery",
+      "displayName": "nexar missile_battery",
+      "relativePath": "Stations/nexar/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/nexar/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "nexar",
+      "modelId": "orbital_uplink",
+      "displayName": "nexar orbital_uplink",
+      "relativePath": "Stations/nexar/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/nexar/power_reactor.obj",
@@ -5680,6 +5864,14 @@
       "modelId": "sensor_array",
       "displayName": "nexar sensor_array",
       "relativePath": "Stations/nexar/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/nexar/shield_emitter.obj",
+      "category": "station",
+      "raceId": "nexar",
+      "modelId": "shield_emitter",
+      "displayName": "nexar shield_emitter",
+      "relativePath": "Stations/nexar/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/nexar/shipyard_large.obj",
@@ -5722,12 +5914,52 @@
       "relativePath": "Stations/solari/command_center.obj"
     },
     {
+      "key": "meshes/stations/solari/comms_relay.obj",
+      "category": "station",
+      "raceId": "solari",
+      "modelId": "comms_relay",
+      "displayName": "solari comms_relay",
+      "relativePath": "Stations/solari/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/solari/defense_turret.obj",
       "category": "station",
       "raceId": "solari",
       "modelId": "defense_turret",
       "displayName": "solari defense_turret",
       "relativePath": "Stations/solari/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/solari/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "solari",
+      "modelId": "fabrication_hub",
+      "displayName": "solari fabrication_hub",
+      "relativePath": "Stations/solari/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/solari/fortress_core.obj",
+      "category": "station",
+      "raceId": "solari",
+      "modelId": "fortress_core",
+      "displayName": "solari fortress_core",
+      "relativePath": "Stations/solari/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/solari/missile_battery.obj",
+      "category": "station",
+      "raceId": "solari",
+      "modelId": "missile_battery",
+      "displayName": "solari missile_battery",
+      "relativePath": "Stations/solari/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/solari/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "solari",
+      "modelId": "orbital_uplink",
+      "displayName": "solari orbital_uplink",
+      "relativePath": "Stations/solari/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/solari/power_reactor.obj",
@@ -5760,6 +5992,14 @@
       "modelId": "sensor_array",
       "displayName": "solari sensor_array",
       "relativePath": "Stations/solari/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/solari/shield_emitter.obj",
+      "category": "station",
+      "raceId": "solari",
+      "modelId": "shield_emitter",
+      "displayName": "solari shield_emitter",
+      "relativePath": "Stations/solari/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/solari/shipyard_large.obj",
@@ -5802,12 +6042,52 @@
       "relativePath": "Stations/terran/command_center.obj"
     },
     {
+      "key": "meshes/stations/terran/comms_relay.obj",
+      "category": "station",
+      "raceId": "terran",
+      "modelId": "comms_relay",
+      "displayName": "terran comms_relay",
+      "relativePath": "Stations/terran/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/terran/defense_turret.obj",
       "category": "station",
       "raceId": "terran",
       "modelId": "defense_turret",
       "displayName": "terran defense_turret",
       "relativePath": "Stations/terran/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/terran/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "terran",
+      "modelId": "fabrication_hub",
+      "displayName": "terran fabrication_hub",
+      "relativePath": "Stations/terran/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/terran/fortress_core.obj",
+      "category": "station",
+      "raceId": "terran",
+      "modelId": "fortress_core",
+      "displayName": "terran fortress_core",
+      "relativePath": "Stations/terran/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/terran/missile_battery.obj",
+      "category": "station",
+      "raceId": "terran",
+      "modelId": "missile_battery",
+      "displayName": "terran missile_battery",
+      "relativePath": "Stations/terran/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/terran/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "terran",
+      "modelId": "orbital_uplink",
+      "displayName": "terran orbital_uplink",
+      "relativePath": "Stations/terran/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/terran/power_reactor.obj",
@@ -5840,6 +6120,14 @@
       "modelId": "sensor_array",
       "displayName": "terran sensor_array",
       "relativePath": "Stations/terran/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/terran/shield_emitter.obj",
+      "category": "station",
+      "raceId": "terran",
+      "modelId": "shield_emitter",
+      "displayName": "terran shield_emitter",
+      "relativePath": "Stations/terran/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/terran/shipyard_large.obj",
@@ -5882,12 +6170,52 @@
       "relativePath": "Stations/vesper/command_center.obj"
     },
     {
+      "key": "meshes/stations/vesper/comms_relay.obj",
+      "category": "station",
+      "raceId": "vesper",
+      "modelId": "comms_relay",
+      "displayName": "vesper comms_relay",
+      "relativePath": "Stations/vesper/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/vesper/defense_turret.obj",
       "category": "station",
       "raceId": "vesper",
       "modelId": "defense_turret",
       "displayName": "vesper defense_turret",
       "relativePath": "Stations/vesper/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/vesper/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "vesper",
+      "modelId": "fabrication_hub",
+      "displayName": "vesper fabrication_hub",
+      "relativePath": "Stations/vesper/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/vesper/fortress_core.obj",
+      "category": "station",
+      "raceId": "vesper",
+      "modelId": "fortress_core",
+      "displayName": "vesper fortress_core",
+      "relativePath": "Stations/vesper/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/vesper/missile_battery.obj",
+      "category": "station",
+      "raceId": "vesper",
+      "modelId": "missile_battery",
+      "displayName": "vesper missile_battery",
+      "relativePath": "Stations/vesper/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/vesper/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "vesper",
+      "modelId": "orbital_uplink",
+      "displayName": "vesper orbital_uplink",
+      "relativePath": "Stations/vesper/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/vesper/power_reactor.obj",
@@ -5920,6 +6248,14 @@
       "modelId": "sensor_array",
       "displayName": "vesper sensor_array",
       "relativePath": "Stations/vesper/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/vesper/shield_emitter.obj",
+      "category": "station",
+      "raceId": "vesper",
+      "modelId": "shield_emitter",
+      "displayName": "vesper shield_emitter",
+      "relativePath": "Stations/vesper/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/vesper/shipyard_large.obj",
@@ -5962,12 +6298,52 @@
       "relativePath": "Stations/voidborn/command_center.obj"
     },
     {
+      "key": "meshes/stations/voidborn/comms_relay.obj",
+      "category": "station",
+      "raceId": "voidborn",
+      "modelId": "comms_relay",
+      "displayName": "voidborn comms_relay",
+      "relativePath": "Stations/voidborn/comms_relay.obj"
+    },
+    {
       "key": "meshes/stations/voidborn/defense_turret.obj",
       "category": "station",
       "raceId": "voidborn",
       "modelId": "defense_turret",
       "displayName": "voidborn defense_turret",
       "relativePath": "Stations/voidborn/defense_turret.obj"
+    },
+    {
+      "key": "meshes/stations/voidborn/fabrication_hub.obj",
+      "category": "station",
+      "raceId": "voidborn",
+      "modelId": "fabrication_hub",
+      "displayName": "voidborn fabrication_hub",
+      "relativePath": "Stations/voidborn/fabrication_hub.obj"
+    },
+    {
+      "key": "meshes/stations/voidborn/fortress_core.obj",
+      "category": "station",
+      "raceId": "voidborn",
+      "modelId": "fortress_core",
+      "displayName": "voidborn fortress_core",
+      "relativePath": "Stations/voidborn/fortress_core.obj"
+    },
+    {
+      "key": "meshes/stations/voidborn/missile_battery.obj",
+      "category": "station",
+      "raceId": "voidborn",
+      "modelId": "missile_battery",
+      "displayName": "voidborn missile_battery",
+      "relativePath": "Stations/voidborn/missile_battery.obj"
+    },
+    {
+      "key": "meshes/stations/voidborn/orbital_uplink.obj",
+      "category": "station",
+      "raceId": "voidborn",
+      "modelId": "orbital_uplink",
+      "displayName": "voidborn orbital_uplink",
+      "relativePath": "Stations/voidborn/orbital_uplink.obj"
     },
     {
       "key": "meshes/stations/voidborn/power_reactor.obj",
@@ -6000,6 +6376,14 @@
       "modelId": "sensor_array",
       "displayName": "voidborn sensor_array",
       "relativePath": "Stations/voidborn/sensor_array.obj"
+    },
+    {
+      "key": "meshes/stations/voidborn/shield_emitter.obj",
+      "category": "station",
+      "raceId": "voidborn",
+      "modelId": "shield_emitter",
+      "displayName": "voidborn shield_emitter",
+      "relativePath": "Stations/voidborn/shield_emitter.obj"
     },
     {
       "key": "meshes/stations/voidborn/shipyard_large.obj",

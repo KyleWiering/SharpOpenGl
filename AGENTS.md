@@ -42,6 +42,7 @@
 | Multiplayer | `docs/MULTIPLAYER.md`, `MultiplayerSetupScreen` |
 | CI / deploy | `.github/workflows/` |
 | Model migration | `docs/MODEL_MIGRATION_PLAN.md`, `ModelMigrationExporter.cs` |
+| Articulation tests | `ArticulationMathTests`, `ArticulationSchemaTests`, `SpecialHullArticulationTests`, `FleetGalleryArticulationTests`, `BrowserArticulationTests`, `ShipTurretArticulationTests`, `UtilityArticulationTests`, `ArticulationIntegrationTests`; `StationArticulationTests` | pivot math, per-type spawn/aim, gallery/browser smoke |
 | Agent / docs maintenance | This section + `.cursor/rules/ai-documentation.mdc` |
 
 ### Command cheat sheet

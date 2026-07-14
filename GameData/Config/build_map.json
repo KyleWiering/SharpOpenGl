@@ -1,30 +1,34 @@
 {
-  "_comment": "Build map categories, prerequisites, and unlock rules.",
+  "_comment": "Tiered build tree: production (CC + shipyard chain) → economy → defense → support → capstone. 16 structures, prerequisite chains gate cross-branch unlocks.",
   "categories": [
     {
       "id": "production",
       "displayName": "Production",
       "buildings": [
         { "id": "command_center", "prerequisites": [] },
-        { "id": "shipyard_small", "prerequisites": ["command_center"] },
-        { "id": "shipyard_medium", "prerequisites": ["command_center", "shipyard_small"] },
-        { "id": "shipyard_large", "prerequisites": ["command_center", "shipyard_medium"] }
-      ]
-    },
-    {
-      "id": "defense",
-      "displayName": "Defense",
-      "buildings": [
-        { "id": "defense_turret", "prerequisites": ["command_center"] },
-        { "id": "sensor_array", "prerequisites": ["command_center"] }
+        { "id": "shipyard_small", "prerequisites": ["command_center", "power_reactor"] },
+        { "id": "shipyard_medium", "prerequisites": ["command_center", "shipyard_small", "resource_refinery"] },
+        { "id": "shipyard_large", "prerequisites": ["command_center", "shipyard_medium", "power_reactor"] }
       ]
     },
     {
       "id": "economy",
       "displayName": "Economy",
       "buildings": [
+        { "id": "power_reactor", "prerequisites": ["command_center"] },
         { "id": "resource_refinery", "prerequisites": ["command_center"] },
-        { "id": "power_reactor", "prerequisites": ["command_center"] }
+        { "id": "supply_depot", "prerequisites": ["command_center"] },
+        { "id": "fabrication_hub", "prerequisites": ["command_center", "resource_refinery", "power_reactor"] }
+      ]
+    },
+    {
+      "id": "defense",
+      "displayName": "Defense",
+      "buildings": [
+        { "id": "sensor_array", "prerequisites": ["command_center", "power_reactor"] },
+        { "id": "defense_turret", "prerequisites": ["command_center"] },
+        { "id": "shield_emitter", "prerequisites": ["command_center", "power_reactor", "sensor_array"] },
+        { "id": "missile_battery", "prerequisites": ["command_center", "defense_turret", "sensor_array"] }
       ]
     },
     {
@@ -32,7 +36,15 @@
       "displayName": "Support",
       "buildings": [
         { "id": "repair_bay", "prerequisites": ["command_center", "shipyard_small"] },
-        { "id": "supply_depot", "prerequisites": ["command_center"] }
+        { "id": "comms_relay", "prerequisites": ["command_center", "sensor_array"] }
+      ]
+    },
+    {
+      "id": "capstone",
+      "displayName": "Capstone",
+      "buildings": [
+        { "id": "orbital_uplink", "prerequisites": ["command_center", "shipyard_medium", "sensor_array", "comms_relay"] },
+        { "id": "fortress_core", "prerequisites": ["command_center", "shipyard_large", "shield_emitter", "missile_battery", "repair_bay"] }
       ]
     }
   ]

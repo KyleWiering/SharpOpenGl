@@ -14,5 +14,11 @@
     "sightRadius": 6
   },
   "cost": { "energy": 120, "minerals": 160, "data": 20, "crew": 3 },
-  "buildTime": 28
+  "buildTime": 28,
+  "articulation": {
+    "parts": [
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.4, 0.6], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "slewRate": 90, "meshKey": "articulated/turret_yaw/corvette_fast" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "slewRate": 90, "meshKey": "articulated/turret_pitch/corvette_fast" }
+    ]
+  }
 }

@@ -34,6 +34,7 @@ public sealed class BuildSystem : GameSystem
     {
         foreach (var (entity, building) in world.Query<BuildingComponent>())
         {
+            if (world.HasComponent<UnderConstructionComponent>(entity)) continue;
             if (building.BuildQueue.Count == 0) continue;
 
             building.BuildProgress += deltaTime * building.ProductionRate;

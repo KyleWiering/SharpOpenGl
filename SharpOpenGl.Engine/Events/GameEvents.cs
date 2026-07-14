@@ -44,6 +44,9 @@ public record ProjectileHitEvent(uint ProjectileId, uint TargetId, float Damage)
 /// <summary>Fired when a unit deals damage to another entity after armor/shield reduction.</summary>
 public record DamageDealtEvent(uint AttackerId, uint TargetId, float RawDamage, float FinalDamage);
 
+/// <summary>Fired each repair tick for optional VFX hooks.</summary>
+public record RepairTickEvent(uint RepairerId, uint TargetId);
+
 /// <summary>Fired when a hero ability is activated.</summary>
 public record AbilityActivatedEvent(uint CasterId, int Slot, string AbilityId);
 

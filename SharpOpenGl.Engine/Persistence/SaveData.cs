@@ -31,6 +31,12 @@ public sealed class EntitySaveRecord
 
     /// <summary>Combat stance for this entity (null if entity has no stance).</summary>
     public string? Stance { get; set; }
+
+    /// <summary>Elapsed construction seconds when saved mid-build (0 when not under construction).</summary>
+    public float ConstructionBuildProgress { get; set; }
+
+    /// <summary>Total construction seconds required when saved mid-build (0 when not under construction).</summary>
+    public float ConstructionTotalBuildTime { get; set; }
 }
 
 /// <summary>

@@ -38,6 +38,7 @@ public sealed class UnitInfoPanel : Widget
         float slotH = size.Y / count;
         float padding = 8f;
         float barH = 9f;
+        float contentW = size.X - padding * 2f;
 
         for (int i = 0; i < count; i++)
         {
@@ -50,8 +51,8 @@ public sealed class UnitInfoPanel : Widget
 
             Vector4 nameColor = GameplayEntityDisplay.LabelColor(unit.DisplayKind);
             float nameSize = UIFontMetrics.FitFontSize(unit.Name, FontSize + 2f, barW);
-            UITextDrawing.DrawTextBlock(renderer, unit.Name, new Vector2(barX, textY),
-                nameSize, nameColor, barW);
+            string name = UITextDrawing.TruncateWithEllipsis(unit.Name, barW, nameSize);
+            renderer.DrawText(name, new Vector2(barX, textY), nameSize, nameColor);
 
             float detailY = textY + nameSize * UITextDrawing.LineHeightFactor + 2f;
             if (!string.IsNullOrEmpty(unit.Subtitle))
@@ -68,9 +69,10 @@ public sealed class UnitInfoPanel : Widget
                     stats += $"   SH {unit.CurrentShields:0}/{unit.MaxShields:0}";
                 if (unit.Armor > 0f)
                     stats += $"   AR {unit.Armor:0}";
+                float statsSize = UIFontMetrics.FitFontSize(stats, FontSize - 2f, barW, 10f);
                 UITextDrawing.DrawTextBlock(renderer, stats, new Vector2(barX, detailY),
-                    FontSize - 2f, new Vector4(0.88f, 0.9f, 0.95f, 1f), barW);
-                barY = detailY + (FontSize - 2f) * UITextDrawing.LineHeightFactor + 4f;
+                    statsSize, new Vector4(0.88f, 0.9f, 0.95f, 1f), barW, maxLines: 1);
+                barY = detailY + statsSize * UITextDrawing.LineHeightFactor + 4f;
             }
 
             renderer.DrawRect(new Vector2(barX, barY), new Vector2(barW, barH), BarBgColor);
@@ -99,9 +101,10 @@ public sealed class UnitInfoPanel : Widget
                     string cargoLabel =
                         $"Harvest: {unit.HarvestMode}   Cargo {unit.CargoAmount:0}/{unit.CargoCapacity:0}";
                     float labelY = barY + 2f;
+                    float cargoSize = UIFontMetrics.FitFontSize(cargoLabel, FontSize - 3f, barW, 9f);
                     UITextDrawing.DrawTextBlock(renderer, cargoLabel, new Vector2(barX, labelY),
-                        FontSize - 3f, new Vector4(0.82f, 0.78f, 0.55f, 1f), barW);
-                    barY = labelY + (FontSize - 3f) * UITextDrawing.LineHeightFactor + 3f;
+                        cargoSize, new Vector4(0.82f, 0.78f, 0.55f, 1f), barW, maxLines: 1);
+                    barY = labelY + cargoSize * UITextDrawing.LineHeightFactor + 3f;
                 }
 
                 renderer.DrawRect(new Vector2(barX, barY), new Vector2(barW, barH), BarBgColor);
@@ -114,9 +117,11 @@ public sealed class UnitInfoPanel : Widget
         if (SelectedUnits.Count > MaxDisplayed)
         {
             string more = $"+ {SelectedUnits.Count - MaxDisplayed} more";
+            float moreSize = UIFontMetrics.FitFontSize(more, FontSize, contentW, 10f);
+            more = UITextDrawing.TruncateWithEllipsis(more, contentW, moreSize);
             renderer.DrawText(more,
-                new Vector2(position.X + padding, position.Y + size.Y - FontSize - padding),
-                FontSize, new Vector4(0.6f, 0.65f, 0.72f, 1f));
+                new Vector2(position.X + padding, position.Y + size.Y - moreSize - padding),
+                moreSize, new Vector4(0.6f, 0.65f, 0.72f, 1f));
         }
     }
 }

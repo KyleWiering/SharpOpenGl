@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.ECS;
 
 namespace SharpOpenGl.Engine.Grid;
 
@@ -88,11 +89,16 @@ public sealed class GridSystem
     };
 
     /// <summary>
-    /// Returns passable neighbours of <paramref name="cell"/> on <paramref name="layer"/>.
+    /// Returns passable, unoccupied neighbours of <paramref name="cell"/> on <paramref name="layer"/>.
+    /// Occupied building cells block unit movement the same as impassable terrain.
     /// </summary>
     /// <param name="cell">Source cell.</param>
     /// <param name="layer">Layer to search on.</param>
-    /// <param name="diagonal">Include diagonal neighbours when <c>true</c>.</param>
+    /// <param name="diagonal">
+    /// Include diagonal neighbours when <c>true</c>. Diagonal steps do not apply
+    /// corner-cutting checks; cardinal-only pathfinding (the default) avoids slipping
+    /// between adjacent occupied building cells.
+    /// </param>
     public IEnumerable<GridCell> GetNeighbours(GridCell cell, GridLayer layer = GridLayer.Surface,
                                                bool diagonal = false)
     {
@@ -100,7 +106,7 @@ public sealed class GridSystem
         foreach ((int dx, int dy) in dirs)
         {
             GridCell? n = GetCell(cell.X + dx, cell.Y + dy, layer);
-            if (n != null && n.IsPassable)
+            if (n != null && n.IsPassable && n.Occupant == Entity.Null)
                 yield return n;
         }
     }

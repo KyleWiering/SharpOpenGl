@@ -1,4 +1,6 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Build;
+using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Grid;
 using Xunit;
 
@@ -93,6 +95,40 @@ public class PathfindingTests
 
         GridCell start = grid.GetCell(0, 0)!;
         GridCell goal  = grid.GetCell(4, 4)!;
+        var path = Pathfinding.FindPath(grid, start, goal);
+        Assert.Empty(path);
+    }
+
+    [Fact]
+    public void FindPath_avoids_occupied_footprint_cells()
+    {
+        var grid = new GridSystem(9, 5, cellSize: 1f);
+        var world = new World();
+        var building = world.CreateEntity();
+        var buildingPos = grid.GridToWorld(4, 2);
+        BuildingFootprint.Occupy(grid, building, buildingPos, [2, 2]);
+
+        GridCell start = grid.GetCell(0, 2)!;
+        GridCell goal = grid.GetCell(8, 2)!;
+        var path = Pathfinding.FindPath(grid, start, goal);
+
+        Assert.NotEmpty(path);
+        Assert.Equal(goal, path[^1]);
+        foreach (GridCell cell in path)
+            Assert.Equal(Entity.Null, cell.Occupant);
+    }
+
+    [Fact]
+    public void FindPath_returns_empty_when_goal_inside_occupied_footprint()
+    {
+        var grid = new GridSystem(9, 5, cellSize: 1f);
+        var world = new World();
+        var building = world.CreateEntity();
+        var buildingPos = grid.GridToWorld(4, 2);
+        BuildingFootprint.Occupy(grid, building, buildingPos, [2, 2]);
+
+        GridCell start = grid.GetCell(0, 2)!;
+        GridCell goal = grid.GetCell(4, 2)!;
         var path = Pathfinding.FindPath(grid, start, goal);
         Assert.Empty(path);
     }

@@ -116,14 +116,17 @@ public sealed class MainMenuScreen : UIScreen
         };
         AddWidget(title);
 
+        const float subtitleWidth = 900f;
         var subtitle = new Label
         {
             Name = "Subtitle",
             Text = MenuTheme.GameSubtitle,
             Anchor = Anchor.TopCenter,
             Position = new Vector2(0f, 182f),
-            Size = new Vector2(900f, 40f),
+            Size = new Vector2(subtitleWidth, 40f),
             FontSize = 22f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(subtitleWidth, 4f),
+            MaxLines = 2,
             TextColor = MenuTheme.SubtitleColor,
         };
         AddWidget(subtitle);

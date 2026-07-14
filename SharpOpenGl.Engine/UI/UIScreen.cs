@@ -51,8 +51,35 @@ public abstract class UIScreen
             _roots[i].UpdatePointerState(screenPoint, isPointerDown, Vector2.Zero, viewportSize);
     }
 
+    /// <summary>Route a scroll-wheel delta to scrollable widgets on this screen.</summary>
+    public virtual bool HandleScroll(Vector2 screenPoint, float deltaY, Vector2 viewportSize)
+    {
+        if (!Visible) return false;
+        for (int i = _roots.Count - 1; i >= 0; i--)
+        {
+            if (_roots[i].HandleScroll(screenPoint, deltaY, Vector2.Zero, viewportSize))
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>Handle a navigation key pressed while this screen is active.</summary>
     public virtual bool HandleKey(UIKey key) => false;
+
+    /// <summary>Return tooltip content from the topmost hovered provider on this screen.</summary>
+    public TooltipContent? FindTooltipContent()
+    {
+        if (!Visible) return null;
+
+        for (int i = _roots.Count - 1; i >= 0; i--)
+        {
+            TooltipContent? content = FindTooltipContentInWidget(_roots[i]);
+            if (content != null)
+                return content;
+        }
+
+        return null;
+    }
 
     /// <summary>Return the topmost hovered button on this screen, if any.</summary>
     public Button? FindHoveredButton()
@@ -63,6 +90,27 @@ public abstract class UIScreen
         for (int i = _roots.Count - 1; i >= 0; i--)
             hovered = FindHoveredButtonInWidget(_roots[i]) ?? hovered;
         return hovered;
+    }
+
+    private static TooltipContent? FindTooltipContentInWidget(Widget widget)
+    {
+        if (!widget.Visible) return null;
+
+        for (int i = widget.Children.Count - 1; i >= 0; i--)
+        {
+            TooltipContent? childContent = FindTooltipContentInWidget(widget.Children[i]);
+            if (childContent != null)
+                return childContent;
+        }
+
+        if (widget is ITooltipProvider provider)
+        {
+            TooltipContent? content = provider.GetTooltipContent();
+            if (content != null)
+                return content;
+        }
+
+        return null;
     }
 
     private static Button? FindHoveredButtonInWidget(Widget widget)

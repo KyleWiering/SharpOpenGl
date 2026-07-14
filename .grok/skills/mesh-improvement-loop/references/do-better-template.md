@@ -1,64 +1,67 @@
-# Do Better — {race} / {hull}
+# Do Better — {category} / {race} / {model}
 
 **Loop:** 0 (not started)  
-**Race:** {race_display_name}  
-**Hull:** {hull}  
-**Last score:** — / 100
+**Category:** {category} (ship | station | object)  
+**Race:** {race_display_name} (— if object)  
+**Model:** {model}  
+**Last score:** — / 100 (RaceIdentity — / 10)
 
 ## Score history
 
-| Loop | Total | Screenshot | Notes |
-|------|-------|------------|-------|
-| — | — | — | Initial brief |
+| Loop | Total | RaceId | Screenshot | Notes |
+|------|-------|--------|------------|-------|
+| — | — | — | — | Initial brief |
 
 ## What works
 
-- (baseline strengths to preserve — fill after loop 1 score)
+- (baseline strengths — fill after loop 1)
 
-## Loop priorities (textures, shape, shadows, visual appeal)
+## Loop priorities
 
-Improve the procedural ship mesh and how it renders in mesh-preview:
-
-1. **Shape / silhouette** — readable fighter/capital profile; target aspect ~0.41 for fighters; strong nose and wing sweep.
-2. **Textures** — race plating via `race_visuals.json` + shader; component zones on engines (~lum 0.48) and weapons (~lum 0.36).
-3. **Shadows / lighting** — baked vertex contrast + `raceLighting` in shader; avoid flat grey hulls.
-4. **Visual appeal** — 2010s hard-surface: panel lines, accent bands, nacelles, canopy frame, teal/cyan engine glow.
+1. **Dorsal/plan form** — silhouette (ship), plan massing (station), or icon readability (object) at **oblique top-down RTS zoom**
+2. **No triangle patterns** — visible facet tris = incomplete mesh or bad texture wrap; use flush panels/boxes + uniform vertex lum per zone
+3. **Textures / materials** — race palette + component zones (ships/stations)
+4. **Race identity** — primary/secondary/accent bands from `race_visuals.json`
+5. **Shadows / lighting** — baked vertex contrast; avoid flat grey surfaces
+6. **Screenshot** — panel 1 (primary RTS angle) readable; all 3 oblique top-down panels balanced
 
 ## Remaining gaps
 
-- (populated by mesh-scorer after each loop from `ModelQualityScorer` categories)
+- (from `ModelQualityScorer` categories after each loop)
 
 ## Next loop focus
 
 - [ ] Establish baseline geometry and palette
-- [ ] Add surface accents (leading edges, spine band)
-- [ ] Tune engine/weapon material bands for component texture blends
-- [ ] Adjust mesh-preview framing if ship is clipped
+- [ ] Add surface accents appropriate to category (dorsal/deck, not belly-only)
+- [ ] Tune race material bands (ships/stations)
+- [ ] Verify 3-view oblique top-down mesh-preview at 2× pullback
+- [ ] Audit for triangle patterns (facet strips, fishbone, bad vertex wrap)
 
 ## User feedback (loop 5)
 
-_(Orchestrator fills after user review of `mesh-loop-05.png`.)_
+_(Orchestrator fills after user review.)_
 
 ## Screenshots
 
-- Compare captures in repo root: `mesh-loop-NN.png`
+- `mesh-loop-NN-{race}-{model}.png` — 3-panel oblique top-down preview (panel 1 = RTS primary, 55% weight)
 
 ## Workflow
 
 ```powershell
-dotnet run --project SharpOpenGl -- --mesh-preview --race {race} --hull {hull} --screenshot-path mesh-loop-NN.png
-dotnet run --project SharpOpenGl -- --score-mesh --race {race} --hull {hull} --screenshot-path mesh-loop-NN.png --output model-improvement/{race}/{hull}/scores/loop-NN.json
-dotnet test SharpOpenGl.Tests --filter "FullyQualifiedName~Export_and_score_{race}"
+dotnet run --project SharpOpenGl -- --mesh-preview --category {category} --model {model} [--race {race}] --screenshot-path mesh-loop-NN.png
+dotnet run --project SharpOpenGl -- --score-mesh --category {category} --model {model} [--race {race}] --screenshot-path mesh-loop-NN.png --output model-improvement/{race}/{model}/scores/loop-NN.json
+dotnet run --project SharpOpenGl -- --score-race --race {race} --output model-improvement/{race}/race-score.json
 ```
 
 ## Key files
 
-| Area | Path |
-|------|------|
-| Mesh routing | `SharpOpenGl.Engine/Rendering/RaceShipMeshes.cs` |
+| Category | Path |
+|----------|------|
+| Ship routing | `SharpOpenGl.Engine/Rendering/RaceShipMeshes.cs` |
+| Station routing | `SharpOpenGl.Engine/Rendering/RaceStationMeshes.cs` |
+| Objects | `SharpOpenGl.Engine/Rendering/ModelMeshSource.cs`, `ProceduralMeshes.cs` |
 | Surface accents | `SharpOpenGl.Engine/Rendering/RaceSurfaceDetail.cs` |
-| Material bands | `SharpOpenGl.Engine/Rendering/RaceMeshWriter.cs` |
 | Race palette | `GameData/Config/race_visuals.json` |
-| Race / component GLSL | `SharpOpenGl.Engine/Rendering/GameShaders.cs` |
 | Preview camera | `SharpOpenGl/EngineWindow.MeshPreview.cs` |
 | Scorer | `SharpOpenGl.Engine/Rendering/ModelQualityScorer.cs` |
+| Rubric | `.grok/skills/mesh-improvement-loop/references/evaluation-rubric.md` |

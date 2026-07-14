@@ -54,7 +54,8 @@ public sealed class MissionSelectScreen : UIScreen
 
     private readonly MenuStarfieldBackground _starfield;
     private readonly StarMapCanvas _starMap;
-    private readonly Panel _previewPanel;
+    private readonly ScrollPanel _previewPanel;
+    private const float PreviewPadding = 20f;
     private readonly Button _startButton;
     private readonly Button _backButton;
 
@@ -111,7 +112,7 @@ public sealed class MissionSelectScreen : UIScreen
         _starMap.PlanetActivated += OnPlanetActivated;
         AddWidget(_starMap);
 
-        _previewPanel = new Panel
+        _previewPanel = new ScrollPanel
         {
             Name = "MissionPreview",
             Anchor = Anchor.TopLeft,
@@ -192,6 +193,10 @@ public sealed class MissionSelectScreen : UIScreen
         }
     }
 
+    /// <summary>Whether a mission entry is locked after the last <see cref="SetMissions"/> call.</summary>
+    internal bool IsMissionLocked(string missionId) =>
+        _missions.FirstOrDefault(m => m.Id == missionId)?.IsLocked ?? true;
+
     /// <summary>Return star-map nodes used for rendering and hit-testing.</summary>
     internal IReadOnlyList<StarMapNode> GetStarMapNodes()
     {
@@ -239,6 +244,11 @@ public sealed class MissionSelectScreen : UIScreen
         while (_previewPanel.Children.Count > 0)
             _previewPanel.RemoveChild(_previewPanel.Children[0]);
 
+        float panelW = _previewPanel.Size.X;
+        float wrapWidth = UITextDrawing.ContentWrapWidth(panelW, PreviewPadding);
+        float contentW = panelW - PreviewPadding * 2f;
+        float y = PreviewPadding;
+
         if (_selected == null)
         {
             _previewPanel.AddChild(new Label
@@ -246,12 +256,13 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = "PreviewPlaceholder",
                 Text = "Select an unlocked system to view the mission briefing.",
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(20f, 20f),
-                Size = new Vector2(460f, 80f),
+                Position = new Vector2(PreviewPadding, y),
+                Size = new Vector2(contentW, 80f),
                 FontSize = 18f,
-                WrapWidth = 440f,
+                WrapWidth = wrapWidth,
                 TextColor = MenuTheme.MutedTextColor,
             });
+            _previewPanel.RecalculateContentHeight(_previewPanel.Size);
             return;
         }
 
@@ -264,11 +275,14 @@ public sealed class MissionSelectScreen : UIScreen
             Name = "PreviewTitle",
             Text = _selected.Title,
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(20f, 16f),
-            Size = new Vector2(460f, 44f),
+            Position = new Vector2(PreviewPadding, y),
+            Size = new Vector2(contentW, 52f),
             FontSize = 28f,
+            WrapWidth = wrapWidth,
+            MaxLines = 2,
             TextColor = new Vector4(0.55f, 0.85f, 1f, 1f),
         });
+        y += 56f;
 
         if (!string.IsNullOrEmpty(planetLine))
         {
@@ -277,11 +291,14 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = "PreviewPlanet",
                 Text = planetLine,
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(20f, 58f),
-                Size = new Vector2(460f, 28f),
+                Position = new Vector2(PreviewPadding, y),
+                Size = new Vector2(contentW, 28f),
                 FontSize = 16f,
+                WrapWidth = wrapWidth,
+                MaxLines = 1,
                 TextColor = MenuTheme.MutedTextColor,
             });
+            y += 30f;
         }
 
         string mapLine = string.IsNullOrWhiteSpace(_selected.MapId)
@@ -294,11 +311,14 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = "PreviewMap",
                 Text = mapLine,
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(20f, 88f),
-                Size = new Vector2(460f, 24f),
+                Position = new Vector2(PreviewPadding, y),
+                Size = new Vector2(contentW, 24f),
                 FontSize = 16f,
+                WrapWidth = wrapWidth,
+                MaxLines = 1,
                 TextColor = new Vector4(0.65f, 0.75f, 0.9f, 1f),
             });
+            y += 28f;
         }
 
         string body = !string.IsNullOrWhiteSpace(_selected.BriefingText)
@@ -309,23 +329,25 @@ public sealed class MissionSelectScreen : UIScreen
             Name = "PreviewBody",
             Text = body,
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(20f, 124f),
-            Size = new Vector2(460f, 360f),
+            Position = new Vector2(PreviewPadding, y),
+            Size = new Vector2(contentW, 360f),
             FontSize = 17f,
-            WrapWidth = 440f,
+            WrapWidth = wrapWidth,
             TextColor = MenuTheme.BodyTextColor,
         });
+        y += 368f;
 
         _previewPanel.AddChild(new Label
         {
             Name = "PreviewObjectivesHeader",
             Text = "OBJECTIVES",
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(20f, 500f),
-            Size = new Vector2(400f, 28f),
+            Position = new Vector2(PreviewPadding, y),
+            Size = new Vector2(contentW, 28f),
             FontSize = 18f,
             TextColor = new Vector4(0.7f, 0.8f, 1f, 1f),
         });
+        y += 32f;
 
         string[] objectives = _selected.ObjectivesPreview;
         for (int i = 0; i < objectives.Length; i++)
@@ -335,12 +357,14 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = $"PreviewObjective_{i}",
                 Text = $"• {objectives[i]}",
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(20f, 532f + i * 32f),
-                Size = new Vector2(460f, 30f),
+                Position = new Vector2(PreviewPadding, y),
+                Size = new Vector2(contentW, 64f),
                 FontSize = 16f,
-                WrapWidth = 440f,
+                WrapWidth = wrapWidth,
+                MaxLines = 3,
                 TextColor = new Vector4(0.88f, 0.9f, 0.95f, 1f),
             });
+            y += 68f;
         }
 
         if (_selected.IsCompleted)
@@ -350,12 +374,14 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = "PreviewCompleted",
                 Text = "✓ Mission completed",
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(20f, 640f),
-                Size = new Vector2(460f, 28f),
+                Position = new Vector2(PreviewPadding, y),
+                Size = new Vector2(contentW, 28f),
                 FontSize = 16f,
                 TextColor = new Vector4(1f, 0.85f, 0.3f, 1f),
             });
         }
+
+        _previewPanel.RecalculateContentHeight(_previewPanel.Size);
     }
 
     private void OnStartClicked()

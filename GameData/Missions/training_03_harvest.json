@@ -1,0 +1,69 @@
+{
+  "id": "training_03_harvest",
+  "displayName": "Training: Mining Ops",
+  "description": "Establish a refining platform and accumulate 1000 minerals with your HQ, builder, and miner.",
+  "map": "sector_alpha",
+  "planetName": "Mining Range",
+  "starMapPosition": [0.18, 0.20],
+  "planetColor": "#C4A35A",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, this exercise certifies basic mining operations. Your command center, Restoration Tender, and miner are already on station at [12,12]. First construct a Resource Refinery — it processes raw ore into minerals credited to your player reserve. Then order your miner to the primary minerals node near [45,20] on Sector Alpha and harvest until you hold 1000 minerals in reserve (starting minerals count toward the goal). No hostiles are expected — focus on economy.",
+    "objectivesPreview": [
+      "Build a Resource Refinery",
+      "Harvest 1000 minerals from sector nodes with your miner"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [12, 12],
+    "startingUnits": ["support_repair", "miner_basic"],
+    "startingBuildings": ["command_center"],
+    "spawnDefaultBase": false,
+    "startingResources": {
+      "energy": 400,
+      "minerals": 250,
+      "data": 50,
+      "crew": 10
+    }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "build_refinery",
+        "type": "construct",
+        "target": "resource_refinery:1",
+        "description": "Build a Resource Refinery"
+      },
+      {
+        "id": "collect_minerals",
+        "type": "collect",
+        "target": "Minerals:1000",
+        "description": "Accumulate 1000 minerals"
+      }
+    ],
+    "secondary": []
+  },
+  "triggers": [],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "base_destroyed" },
+  "rewards": {
+    "resources": { "energy": 100, "minerals": 0, "data": 25, "crew": 0 },
+    "xp": 150,
+    "unlocks": []
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [12, 12], "height": 220 },
+    { "type": "wait", "seconds": 1 },
+    { "type": "select_units", "filter": "support_repair" },
+    { "type": "wait", "seconds": 0.5 },
+    { "type": "place_building", "buildingId": "resource_refinery", "position": [24, 20] },
+    { "type": "wait_for_construction", "buildingId": "resource_refinery", "position": [24, 20] },
+    { "type": "wait_objective", "objectiveId": "build_refinery" },
+    { "type": "camera_pan", "position": [45, 20], "height": 200 },
+    { "type": "select_units", "filter": "miner_basic" },
+    { "type": "wait", "seconds": 0.5 },
+    { "type": "move_to", "position": [45, 20] },
+    { "type": "harvest", "seconds": 90 },
+    { "type": "wait_objective", "objectiveId": "collect_minerals" }
+  ]
+}

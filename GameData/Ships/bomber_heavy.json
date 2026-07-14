@@ -17,5 +17,13 @@
     }
   },
   "cost": { "energy": 150, "minerals": 200, "data": 25, "crew": 3 },
-  "buildTime": 35
+  "buildTime": 35,
+  "articulation": {
+    "parts": [
+      { "id": "bay_port", "partType": "BayDoor", "localPivot": [-0.35, 0.15, 0.25], "pitchMin": 0, "pitchMax": 90, "meshKey": "articulated/bay_door/bomber_heavy/port" },
+      { "id": "bay_starboard", "partType": "BayDoor", "localPivot": [0.35, 0.15, 0.25], "pitchMin": 0, "pitchMax": 90, "meshKey": "articulated/bay_door/bomber_heavy/starboard" },
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.32, -0.2], "yawMin": -100, "yawMax": 100, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/bomber_heavy" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -15, "pitchMax": 40, "meshKey": "articulated/turret_pitch/bomber_heavy" }
+    ]
+  }
 }

@@ -15,5 +15,11 @@
     "sightRadius": 5
   },
   "cost": { "energy": 220, "minerals": 300, "data": 40, "crew": 6 },
-  "buildTime": 42
+  "buildTime": 42,
+  "articulation": {
+    "parts": [
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.35, 0.9], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "slewRate": 90, "meshKey": "articulated/turret_yaw/gunship_heavy" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.2, 0.25], "pitchMin": -10, "pitchMax": 45, "slewRate": 90, "meshKey": "articulated/turret_pitch/gunship_heavy" }
+    ]
+  }
 }

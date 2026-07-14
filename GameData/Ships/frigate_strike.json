@@ -14,5 +14,11 @@
     "sightRadius": 6
   },
   "cost": { "energy": 180, "minerals": 240, "data": 35, "crew": 5 },
-  "buildTime": 38
+  "buildTime": 38,
+  "articulation": {
+    "parts": [
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.38, 0.5], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/frigate_strike" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/frigate_strike" }
+    ]
+  }
 }

@@ -55,12 +55,16 @@ public static class BuildingFootprint
         }
     }
 
-    /// <summary>Collect distinct building types owned by a player.</summary>
+    /// <summary>
+    /// Collect distinct <em>completed</em> building types owned by a player.
+    /// Structures still under construction are excluded — prereq checks require finished buildings.
+    /// </summary>
     public static HashSet<string> GetBuiltTypes(World world, int playerId)
     {
         var built = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (_, building) in world.Query<BuildingComponent>())
+        foreach (var (entity, building) in world.Query<BuildingComponent>())
         {
+            if (world.HasComponent<UnderConstructionComponent>(entity)) continue;
             if (building.PlayerId == playerId && !string.IsNullOrWhiteSpace(building.BuildingType))
                 built.Add(building.BuildingType);
         }

@@ -65,24 +65,21 @@ public partial class EngineWindow
         {
             if (_sceneManager.State == GameState.Playing && _world != null)
             {
-                _attackMoveMode = false;
-                _patrolMode = false;
-                _moveCommandMode = false;
-                _attackMode = false;
-                _placementBuildingId = null;
-                _placementPreviewValid = false;
-                if (_uiManager.Current is GameplayHUD cancelHud)
-                {
-                    cancelHud.ShipControlBar.ClearActiveCommand();
-                    cancelHud.BuildMapPanel.Visible = false;
-                }
+                CancelActiveCommandModes();
 
                 var releasePoint = new Vector2(MousePosition.X, MousePosition.Y);
-                Entity? attackTarget = HasSelectedUnits()
+                Entity? repairTarget = HasSelectedRepairers()
+                    ? FindRepairTargetAtScreen(releasePoint)
+                    : null;
+                Entity? attackTarget = repairTarget == null && HasSelectedUnits()
                     ? ResolveAttackTargetAt(releasePoint, preferHover: !_cameraPanDragMoved)
                     : null;
 
-                if (attackTarget.HasValue)
+                if (repairTarget.HasValue)
+                {
+                    HandleRepairCommand(repairTarget.Value);
+                }
+                else if (attackTarget.HasValue)
                 {
                     HandleAttackCommand(attackTarget.Value);
                 }
@@ -149,19 +146,24 @@ public partial class EngineWindow
     private void ProcessMouseDownRight()
     {
         CancelSelectionDrag();
+        CancelActiveCommandModes();
+
+        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
+        BeginCameraPanDrag(screenPoint);
+    }
+
+    private void CancelActiveCommandModes()
+    {
         _attackMoveMode = false;
         _patrolMode = false;
         _moveCommandMode = false;
         _attackMode = false;
-        _placementBuildingId = null;
-        _placementPreviewValid = false;
+        _harvestCommandMode = false;
+        CancelPlacementMode();
         if (_uiManager.Current is GameplayHUD cancelHud)
         {
             cancelHud.ShipControlBar.ClearActiveCommand();
             cancelHud.BuildMapPanel.Visible = false;
         }
-
-        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
-        BeginCameraPanDrag(screenPoint);
     }
 }

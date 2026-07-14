@@ -11,6 +11,14 @@ public static class ProceduralMeshes
     public const int Stride = 6;
 
     /// <summary>Build a race-specific ship hull (8 races × 17 hull classes).</summary>
+    /// <summary>Build an articulated ship sub-part mesh (turret yaw base or pitch barrel).</summary>
+    public static float[] BuildArticulatedShipPart(string partKey, Vector3 color)
+    {
+        if (ArticulatedShipPartMeshes.TryBuild(partKey, color, out float[] vertices))
+            return vertices;
+        return [];
+    }
+
     public static float[] BuildRaceShip(string raceId, string hullOrDefinitionId, Vector3 color, float sizeScale = 1f)
         => RaceShipMeshes.Build(raceId, hullOrDefinitionId, color, sizeScale);
 

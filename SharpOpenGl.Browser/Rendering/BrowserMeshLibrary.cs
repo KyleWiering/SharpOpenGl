@@ -41,6 +41,7 @@ public sealed class BrowserMeshLibrary
     private const int GridRows = 200;
     private const float GridCellSize = 10f;
     private readonly Dictionary<int, (int meshId, int vertexCount)> _gridByStep = new();
+    private readonly Dictionary<string, (int meshId, int vertexCount)> _articulatedParts = new(StringComparer.OrdinalIgnoreCase);
 
     public async Task InitializeAsync(WebGlRenderer renderer)
     {
@@ -108,6 +109,77 @@ public sealed class BrowserMeshLibrary
         float[] wave = ProceduralMeshes.BuildWaveRing(new Vector3(0.4f, 1f, 0.85f));
         Wave = await renderer.UploadMeshAsync(wave);
         WaveCount = ProceduralMeshes.VertexCount(wave);
+
+        var neutralTint = new Vector3(0.55f, 0.55f, 0.58f);
+        await PreloadShipArticulationKeysAsync(renderer, neutralTint);
+        await PreloadUtilityArticulationKeysAsync(renderer);
+        await PreloadStationArticulationKeysAsync(renderer);
+    }
+
+    private async Task PreloadShipArticulationKeysAsync(WebGlRenderer renderer, Vector3 neutralTint)
+    {
+        foreach (string partKey in ArticulatedShipPartMeshes.AllPartKeys())
+        {
+            if (!ArticulatedShipPartMeshes.TryBuild(partKey, neutralTint, out float[] partVerts) || partVerts.Length == 0)
+                continue;
+
+            int partMeshId = await renderer.UploadMeshAsync(partVerts);
+            _articulatedParts[partKey] = (partMeshId, ProceduralMeshes.VertexCount(partVerts));
+        }
+    }
+
+    private async Task PreloadUtilityArticulationKeysAsync(WebGlRenderer renderer)
+    {
+        foreach (string hullKey in UtilityPartMeshes.MinerHullKeys)
+        {
+            string meshKey = UtilityPartMeshes.MiningArmMeshKey(hullKey);
+            float[] armVerts = UtilityPartMeshes.BuildMiningArmMesh(hullKey);
+            int armMeshId = await renderer.UploadMeshAsync(armVerts);
+            _articulatedParts[meshKey] = (armMeshId, ProceduralMeshes.VertexCount(armVerts));
+        }
+
+        string repairKey = UtilityPartMeshes.RepairArmMeshKey("support_repair");
+        float[] repairVerts = UtilityPartMeshes.BuildRepairArmMesh("support_repair");
+        int repairMeshId = await renderer.UploadMeshAsync(repairVerts);
+        _articulatedParts[repairKey] = (repairMeshId, ProceduralMeshes.VertexCount(repairVerts));
+    }
+
+    private async Task PreloadStationArticulationKeysAsync(WebGlRenderer renderer)
+    {
+        string defaultRace = RaceShipMeshes.DefaultRace;
+        RaceVisualSchema.TryGetRace(defaultRace, out RaceVisualDefinition? race);
+        race ??= RaceVisualSchema.AllRaces.FirstOrDefault()
+            ?? new RaceVisualDefinition { Id = defaultRace };
+        float stationScale = 7f * (0.85f + race.Modifiers.Superstructure * 0.3f);
+
+        foreach (string partPrefix in ArticulatedStationPartMeshes.AllPartKeyPrefixes)
+        {
+            string meshKey = ArticulatedStationPartMeshes.ResolveMeshKey(partPrefix, defaultRace);
+            if (!ArticulatedStationPartMeshes.TryBuild(partPrefix, defaultRace, stationScale, out float[] partVerts))
+                continue;
+            if (partVerts.Length == 0) continue;
+
+            int partMeshId = await renderer.UploadMeshAsync(partVerts);
+            _articulatedParts[meshKey] = (partMeshId, ProceduralMeshes.VertexCount(partVerts));
+            _articulatedParts[partPrefix] = (partMeshId, ProceduralMeshes.VertexCount(partVerts));
+        }
+    }
+
+    public bool TryGetArticulatedPart(string meshKey, out int meshId, out int vertexCount)
+    {
+        if (_articulatedParts.TryGetValue(meshKey, out var entry))
+        {
+            meshId = entry.meshId;
+            vertexCount = entry.vertexCount;
+            return true;
+        }
+
+        meshId = 0;
+        vertexCount = 0;
+#if DEBUG
+        System.Diagnostics.Debug.WriteLine($"[BrowserMeshLibrary] Missing articulated mesh key: {meshKey}");
+#endif
+        return false;
     }
 
     public bool TryResolveProjectileMesh(string meshKey, out int meshId, out int vertexCount)

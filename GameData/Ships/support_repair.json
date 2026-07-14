@@ -10,6 +10,32 @@
     "weapons": [
       { "slot": 0, "type": "beam", "damage": 15, "range": 200, "fireRate": 1.5 }
     ],
+    "structureBuilder": {
+      "placementRange": 80,
+      "buildableIds": [
+        "command_center",
+        "shipyard_small",
+        "shipyard_medium",
+        "shipyard_large",
+        "power_reactor",
+        "resource_refinery",
+        "supply_depot",
+        "fabrication_hub",
+        "sensor_array",
+        "defense_turret",
+        "shield_emitter",
+        "missile_battery",
+        "repair_bay",
+        "comms_relay",
+        "orbital_uplink",
+        "fortress_core"
+      ]
+    },
+    "shipRepair": {
+      "repairRange": 60,
+      "repairRate": 15,
+      "repairableCategories": ["fighter", "gunship", "corvette"]
+    },
     "sightRadius": 5
   },
   "cost": { "energy": 160, "minerals": 180, "data": 60, "crew": 4 },

@@ -1,5 +1,7 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Build;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Multiplayer;
 
@@ -19,6 +21,9 @@ public sealed class MissionPlaythroughAgent
     private int _stepIndex;
     private float _stepTimer;
     private long _tick;
+    private bool _placeBuildingIssued;
+    private bool _harvestWired;
+    private int[]? _lastMoveGridPosition;
 
     public MissionPlaythroughAgent(
         MissionDefinition mission,
@@ -62,8 +67,45 @@ public sealed class MissionPlaythroughAgent
                     Advance();
                 break;
 
+            case "harvest":
+                if (!_harvestWired)
+                {
+                    WireHarvestForSelectedMiners(step);
+                    _harvestWired = true;
+                }
+
+                _stepTimer += deltaTime;
+                float harvestSeconds = step.Seconds > 0f
+                    ? step.Seconds
+                    : MiningVisualSystem.DroneShuttleDuration * 8f;
+                if (_stepTimer >= harvestSeconds)
+                    Advance();
+                break;
+
             case "wait_objective":
                 if (IsObjectiveComplete(step.ObjectiveId))
+                    Advance();
+                break;
+
+            case "place_building":
+                if (!_placeBuildingIssued)
+                {
+                    if (IssuePlaceBuilding(step))
+                    {
+                        _placeBuildingIssued = true;
+                        if (!RequiresConstructionWait(step))
+                            Advance();
+                    }
+                }
+                else if (IsPlacedStructureComplete(step))
+                {
+                    Advance();
+                }
+
+                break;
+
+            case "wait_for_construction":
+                if (IsPlacedStructureComplete(step))
                     Advance();
                 break;
 
@@ -83,6 +125,8 @@ public sealed class MissionPlaythroughAgent
                 break;
 
             case "move_to":
+                if (step.Position is { Length: >= 2 })
+                    _lastMoveGridPosition = [(int)step.Position[0], (int)step.Position[1]];
                 IssueMove(step, attackMove: false);
                 break;
 
@@ -102,8 +146,8 @@ public sealed class MissionPlaythroughAgent
                 IssueBuild(step);
                 break;
 
-            case "place_building":
-                IssuePlaceBuilding(step);
+            case "repair_target":
+                IssueRepair(step.TargetTag);
                 break;
         }
     }
@@ -184,6 +228,43 @@ public sealed class MissionPlaythroughAgent
         _executor.Execute(_context, cmd);
     }
 
+    private void IssueRepair(string? targetTag)
+    {
+        if (string.IsNullOrWhiteSpace(targetTag)) return;
+
+        var selected = GetSelectedEntities()
+            .Where(e => _context.World.HasComponent<ShipRepairComponent>(e))
+            .ToList();
+        if (selected.Count == 0) return;
+
+        if (!TryResolveRepairTarget(targetTag, out Entity target)) return;
+
+        var cmd = new RepairCommand
+        {
+            PlayerId = _context.PlayerId,
+            Tick = _tick++,
+            RepairerIds = selected.Select(e => e.Index).ToArray(),
+            TargetEntityId = target.Index,
+        };
+
+        _executor.Execute(_context, cmd);
+    }
+
+    private bool TryResolveRepairTarget(string targetTag, out Entity target)
+    {
+        target = Entity.Null;
+        var world = _context.World;
+        var state = _context.MissionState;
+
+        if (state?.EntityTags.TryGetValue(targetTag, out Entity tagged) == true && world.IsAlive(tagged))
+        {
+            target = tagged;
+            return true;
+        }
+
+        return false;
+    }
+
     private void IssueAttack(string? targetTag)
     {
         if (string.IsNullOrWhiteSpace(targetTag)) return;
@@ -242,13 +323,21 @@ public sealed class MissionPlaythroughAgent
         return false;
     }
 
-    private void IssuePlaceBuilding(DemoScriptStepDefinition step)
+    private bool IssuePlaceBuilding(DemoScriptStepDefinition step)
     {
         if (string.IsNullOrWhiteSpace(step.BuildingId) || step.Position is not { Length: >= 2 })
-            return;
+            return false;
+
+        if (_context.BuildMapCatalog != null)
+        {
+            var builtTypes = BuildingFootprint.GetBuiltTypes(_context.World, _context.PlayerId);
+            var prerequisites = _context.BuildMapCatalog.GetPrerequisites(step.BuildingId);
+            if (!BuildMapCatalog.IsUnlocked(prerequisites, builtTypes))
+                return false;
+        }
 
         Vector3 target = MapCoordinates.GridToWorld(step.Position[0], step.Position[1]);
-        _context.PlaceBuilding?.Invoke(step.BuildingId, target);
+        return _context.PlaceBuilding?.Invoke(step.BuildingId, target) ?? false;
     }
 
     private void IssueBuild(DemoScriptStepDefinition step)
@@ -343,9 +432,173 @@ public sealed class MissionPlaythroughAgent
         return building == null;
     }
 
+    private bool RequiresConstructionWait(DemoScriptStepDefinition step)
+    {
+        if (string.IsNullOrWhiteSpace(step.BuildingId))
+            return false;
+
+        var def = _context.DefinitionLoader?.Invoke(step.BuildingId);
+        return def is { BuildTime: > 0f };
+    }
+
+    private bool IsPlacedStructureComplete(DemoScriptStepDefinition step)
+    {
+        if (string.IsNullOrWhiteSpace(step.BuildingId))
+            return true;
+
+        var world = _context.World;
+        Entity? match = null;
+
+        if (step.Position is { Length: >= 2 })
+        {
+            Vector3 target = MapCoordinates.GridToWorld(step.Position[0], step.Position[1]);
+            foreach (var (entity, transform) in world.Query<TransformComponent>())
+            {
+                if (!world.HasComponent<BuildingComponent>(entity))
+                    continue;
+
+                var building = world.GetComponent<BuildingComponent>(entity);
+                if (building == null || building.PlayerId != _context.PlayerId)
+                    continue;
+
+                if (!building.BuildingType.Equals(step.BuildingId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                float dx = transform.Position.X - target.X;
+                float dz = transform.Position.Z - target.Z;
+                if (dx * dx + dz * dz > 25f)
+                    continue;
+
+                match = entity;
+                break;
+            }
+        }
+        else
+        {
+            foreach (var (entity, building) in world.Query<BuildingComponent>())
+            {
+                if (building.PlayerId != _context.PlayerId)
+                    continue;
+
+                if (!building.BuildingType.Equals(step.BuildingId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                match = entity;
+                break;
+            }
+        }
+
+        if (match == null)
+            return true;
+
+        var underConstruction = world.GetComponent<UnderConstructionComponent>(match.Value);
+        if (underConstruction == null)
+            return true;
+
+        return underConstruction.BuildProgress >= underConstruction.TotalBuildTime;
+    }
+
     private void Advance()
     {
         _stepIndex++;
         _stepTimer = 0f;
+        _placeBuildingIssued = false;
+        _harvestWired = false;
+    }
+
+    /// <summary>
+    /// Assigns selected miners to the resource node nearest the last <c>move_to</c>
+    /// grid cell (or optional harvest-step position) and sets deposit target to the
+    /// nearest player refinery, matching desktop harvest command behaviour.
+    /// </summary>
+    private void WireHarvestForSelectedMiners(DemoScriptStepDefinition step)
+    {
+        var world = _context.World;
+        int[]? grid = step.Position is { Length: >= 2 }
+            ? [(int)step.Position[0], (int)step.Position[1]]
+            : _lastMoveGridPosition;
+        if (grid == null) return;
+
+        Entity? node = FindResourceNodeNearGrid(world, grid[0], grid[1]);
+        if (!node.HasValue) return;
+
+        Entity? depositTarget = FindDepositTarget(world);
+        if (!depositTarget.HasValue) return;
+
+        foreach (var entity in GetSelectedEntities())
+        {
+            var collector = world.GetComponent<ResourceCollectorComponent>(entity);
+            if (collector == null) continue;
+
+            collector.AssignedNode = node.Value;
+            collector.State = CollectorState.MovingToNode;
+            collector.PlayerId = _context.PlayerId;
+            collector.DepositTarget = depositTarget.Value;
+
+            var nodeTransform = world.GetComponent<TransformComponent>(node.Value);
+            if (nodeTransform != null)
+            {
+                var movement = world.GetComponent<MovementComponent>(entity);
+                if (movement != null)
+                    movement.PathTarget = nodeTransform.Position;
+                else
+                    RouteCommands.AssignDestination(world, entity, nodeTransform.Position);
+            }
+        }
+    }
+
+    private static Entity? FindResourceNodeNearGrid(World world, int gridX, int gridY)
+    {
+        Vector3 probe = MapCoordinates.GridToWorld(gridX, gridY);
+        const float nodeRadius = 15f;
+        Entity? closest = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var (entity, node) in world.Query<ResourceNodeComponent>())
+        {
+            if (node.IsDepleted) continue;
+            var transform = world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = (transform.Position - probe).Length;
+            if (dist < nodeRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = entity;
+            }
+        }
+
+        return closest;
+    }
+
+    private Entity? FindDepositTarget(World world)
+    {
+        Entity? refinery = null;
+        Entity? nearestBuilding = null;
+        float nearestDist = float.MaxValue;
+
+        foreach (var (entity, building) in world.Query<BuildingComponent>())
+        {
+            if (building.PlayerId != _context.PlayerId) continue;
+            if (!world.IsAlive(entity)) continue;
+
+            if (string.Equals(building.BuildingType, "resource_refinery", StringComparison.OrdinalIgnoreCase))
+            {
+                refinery = entity;
+                break;
+            }
+
+            var transform = world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            float dist = transform.Position.LengthSquared;
+            if (dist < nearestDist)
+            {
+                nearestDist = dist;
+                nearestBuilding = entity;
+            }
+        }
+
+        return refinery ?? nearestBuilding;
     }
 }

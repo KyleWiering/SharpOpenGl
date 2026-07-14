@@ -15,5 +15,15 @@
   },
   "defaultStance": "aggressive",
   "cost": { "energy": 200, "minerals": 350, "data": 50, "crew": 8 },
-  "buildTime": 45
+  "buildTime": 45,
+  "articulation": {
+    "parts": [
+      { "id": "bow_yaw", "partType": "TurretYaw", "localPivot": [0, 0.55, 1.0], "yawMin": -140, "yawMax": 140, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/cruiser_heavy" },
+      { "id": "bow_pitch", "partType": "TurretPitch", "ownerPartId": "bow_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/cruiser_heavy" },
+      { "id": "port_yaw", "partType": "TurretYaw", "localPivot": [-0.55, 0.45, 0.2], "yawMin": -140, "yawMax": 140, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/cruiser_heavy" },
+      { "id": "port_pitch", "partType": "TurretPitch", "ownerPartId": "port_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/cruiser_heavy" },
+      { "id": "starboard_yaw", "partType": "TurretYaw", "localPivot": [0.55, 0.45, 0.2], "yawMin": -140, "yawMax": 140, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/cruiser_heavy" },
+      { "id": "starboard_pitch", "partType": "TurretPitch", "ownerPartId": "starboard_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/cruiser_heavy" }
+    ]
+  }
 }

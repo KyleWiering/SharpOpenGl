@@ -1,0 +1,35 @@
+{
+  "id": "fabrication_hub",
+  "displayName": "Fabrication Hub",
+  "category": "base",
+  "mesh": "meshes/resource_refinery.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 950, "shields": 0, "armor": 55 },
+    "building": {
+      "buildingType": "fabrication_hub",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 2],
+      "rotates": false
+    },
+    "sightRadius": 7
+  },
+  "cost": { "energy": 140, "minerals": 220, "data": 25, "crew": 3 },
+  "buildTime": 38,
+  "articulation": {
+    "parts": [
+      {
+        "id": "assembler_arm",
+        "partType": "Crane",
+        "localPivot": [0, 4.76, 0.56],
+        "yawMin": -50,
+        "yawMax": 50,
+        "idleSweep": true,
+        "idleSweepSpeed": 18,
+        "slewRate": 60,
+        "meshKey": "station_part:assembler_arm"
+      }
+    ]
+  }
+}

@@ -48,40 +48,36 @@
       "player": 1,
       "position": [35, 35],
       "layer": "surface",
-      "baseArea": [26, 26, 44, 44],
+      "baseArea": [14, 14, 56, 56],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 8] },
-        { "id": "shipyard_small", "offset": [12, 8] }
+        { "id": "command_center", "offset": [4, 8] }
       ]
     },
     {
       "player": 2,
       "position": [165, 35],
       "layer": "surface",
-      "baseArea": [156, 26, 174, 44],
+      "baseArea": [144, 14, 186, 56],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 8] },
-        { "id": "shipyard_small", "offset": [12, 8] }
+        { "id": "command_center", "offset": [4, 8] }
       ]
     },
     {
       "player": 3,
       "position": [35, 165],
       "layer": "surface",
-      "baseArea": [26, 156, 44, 174],
+      "baseArea": [14, 144, 56, 186],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 8] },
-        { "id": "shipyard_small", "offset": [12, 8] }
+        { "id": "command_center", "offset": [4, 8] }
       ]
     },
     {
       "player": 4,
       "position": [165, 165],
       "layer": "surface",
-      "baseArea": [156, 156, 174, 174],
+      "baseArea": [144, 144, 186, 186],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 8] },
-        { "id": "shipyard_small", "offset": [12, 8] }
+        { "id": "command_center", "offset": [4, 8] }
       ]
     }
   ],
@@ -102,9 +98,9 @@
     { "type": "minerals", "position": [160, 168], "amount": 4000 },
     { "type": "data",     "position": [172, 172], "amount": 2800 },
     { "type": "crew",     "position": [158, 158], "amount": 2200 },
-    { "type": "minerals", "position": [100, 100], "amount": 6500 },
-    { "type": "energy",   "position": [95, 105],  "amount": 5000 },
-    { "type": "data",     "position": [105, 95],  "amount": 4000 }
+    { "type": "minerals", "position": [100, 100], "amount": 7500 },
+    { "type": "energy",   "position": [95, 105],  "amount": 5500 },
+    { "type": "data",     "position": [105, 95],  "amount": 4500 }
   ],
   "mapFeatures": [
     {

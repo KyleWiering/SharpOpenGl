@@ -15,12 +15,36 @@ public class ShipControlBarTests
         bar.UpdateForShip(
             hasWeapons: true,
             hasMovement: true,
+            hasResourceCollector: false,
+            hasStructureBuilder: false,
             stance: Stance.Defensive,
             formation: FormationType.Line,
             showFormation: true);
 
-        foreach (var child in bar.Children)
-            Assert.True(child.Visible);
+        for (int i = 0; i < bar.Children.Count; i++)
+        {
+            var button = bar.Children[i];
+            bool expectVisible = button != bar.Children[7] && button != bar.Children[8];
+            Assert.Equal(expectVisible, button.Visible);
+        }
+    }
+
+    [Fact]
+    public void ControlBar_hides_build_when_not_structure_builder()
+    {
+        var bar = new ShipControlBar();
+        bar.UpdateForShip(
+            hasWeapons: true,
+            hasMovement: true,
+            hasResourceCollector: false,
+            hasStructureBuilder: false,
+            stance: Stance.Defensive,
+            formation: FormationType.Line,
+            showFormation: true);
+
+        var buildButton = (Button)bar.Children[7];
+        Assert.Equal("Build", buildButton.Label);
+        Assert.False(buildButton.Visible);
     }
 
     [Fact]
@@ -30,6 +54,8 @@ public class ShipControlBarTests
         bar.UpdateForShip(
             hasWeapons: false,
             hasMovement: true,
+            hasResourceCollector: false,
+            hasStructureBuilder: false,
             stance: null,
             formation: null,
             showFormation: false);
@@ -68,6 +94,8 @@ public class ShipControlBarTests
         bar.UpdateForShip(
             hasWeapons: true,
             hasMovement: true,
+            hasResourceCollector: false,
+            hasStructureBuilder: false,
             stance: Stance.Aggressive,
             formation: FormationType.Wedge,
             showFormation: true);
@@ -77,6 +105,50 @@ public class ShipControlBarTests
 
         var formationButton = (Button)bar.Children[6];
         Assert.Equal("Wedge", formationButton.Label);
+    }
+
+    [Fact]
+    public void ControlBar_uses_abbreviated_command_labels()
+    {
+        var bar = new ShipControlBar();
+        bar.UpdateForShip(
+            hasWeapons: true,
+            hasMovement: true,
+            hasResourceCollector: true,
+            hasStructureBuilder: true,
+            stance: null,
+            formation: null,
+            showFormation: true);
+
+        Assert.Equal("Ptrl", ((Button)bar.Children[2]).Label);
+        Assert.Equal("Atk", ((Button)bar.Children[3]).Label);
+        Assert.Equal("A-Mv", ((Button)bar.Children[4]).Label);
+        Assert.Equal("Hvst", ((Button)bar.Children[8]).Label);
+    }
+
+    [Fact]
+    public void ControlBar_abbreviated_buttons_provide_tooltip_on_hover()
+    {
+        var bar = new ShipControlBar { Visible = true };
+        bar.UpdateForShip(
+            hasWeapons: true,
+            hasMovement: true,
+            hasResourceCollector: true,
+            hasStructureBuilder: true,
+            stance: Stance.Defensive,
+            formation: FormationType.Wedge,
+            showFormation: true);
+
+        var (barPos, barSize) = bar.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
+        var attackButton = (Button)bar.Children[3];
+        var (btnPos, btnSize) = attackButton.Resolve(barPos, barSize);
+        var center = btnPos + btnSize * 0.5f;
+
+        attackButton.UpdatePointerState(center, false, barPos, barSize);
+
+        TooltipContent? tooltip = attackButton.GetTooltipContent();
+        Assert.NotNull(tooltip);
+        Assert.Equal("Attack (T)", tooltip!.Title);
     }
 
     [Fact]

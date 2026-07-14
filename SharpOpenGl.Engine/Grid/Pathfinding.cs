@@ -1,3 +1,5 @@
+using SharpOpenGl.Engine.ECS;
+
 namespace SharpOpenGl.Engine.Grid;
 
 /// <summary>
@@ -25,7 +27,7 @@ public static class Pathfinding
                                           bool diagonal = false)
     {
         if (start == goal) return new List<GridCell>();
-        if (!goal.IsPassable) return new List<GridCell>();
+        if (!goal.IsPassable || goal.Occupant != Entity.Null) return new List<GridCell>();
 
         // Priority queue ordered by f = g + h
         var open = new PriorityQueue<GridCell, float>();

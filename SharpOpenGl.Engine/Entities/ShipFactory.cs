@@ -50,6 +50,8 @@ public sealed class ShipFactory
         FactoryHelpers.ApplyHealth(world, entity, def.Components?.Health);
         FactoryHelpers.ApplyMovement(world, entity, def.Components?.Movement);
         FactoryHelpers.ApplyWeapons(world, entity, def.Components?.Weapons);
+        FactoryHelpers.ApplyShipTurretArticulation(world, entity, def);
+        SpecialHullArticulationSpawner.AttachSpecialHullParts(world, entity, def, raceId: string.Empty);
 
         // Category-specific components
         if (string.Equals(def.Category, "hero", StringComparison.OrdinalIgnoreCase))
@@ -65,6 +67,8 @@ public sealed class ShipFactory
 
         // Resource collector (miners)
         FactoryHelpers.ApplyResourceCollector(world, entity, def.Components?.ResourceCollector);
+        FactoryHelpers.ApplyShipRepair(world, entity, def.Components?.ShipRepair);
+        FactoryHelpers.ApplyStructureBuilder(world, entity, def.Components?.StructureBuilder);
         FactoryHelpers.ApplySightRadius(world, entity, def.Components);
 
         return entity;

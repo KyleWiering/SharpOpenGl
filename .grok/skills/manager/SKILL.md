@@ -1,155 +1,120 @@
 ---
 name: manager
 description: >
-  Manager iteration lead for SharpOpenGl org pipeline. Owns section iterations,
-  breaks work into work orders, delegates to Worker subagents, runs verifiers,
-  and updates iteration MD tickets until section acceptance criteria are met.
-  Pattern mirrors mesh-improvement-loop (updater + scorer). Use when a Director
-  delegates a section, user runs "/manager", or orchestrating an iteration loop.
-argument-hint: "<project-slug> <section-id>"
+  Manager iteration lead for SharpOpenGl org pipeline. Owns section iterations and
+  work-order tickets, spawns Worker/Verifier subagents (or signals CEO to proxy
+  when nesting is blocked). Modes: prepare (queue + spawn) and checkpoint (review).
+  Use when Director or CEO dispatches a section, user runs "/manager", or
+  orchestrating an iteration loop.
+argument-hint: "<project-slug> <section-id> [prepare|checkpoint]"
 metadata:
-  short-description: "Manager — iterations, work orders, delegate to workers"
+  short-description: "Manager — spawn workers, checkpoint iterations"
 ---
 
 # Manager Skill
 
-You are the **Manager**. The Director hands you a **section ticket**. You run **iterations** — each iteration delegates **work orders** to **Worker** subagents, optionally runs a **Verifier**, and updates MD tickets until acceptance criteria pass.
+You are the **Manager**. The Director hands you a **section ticket**. You run **iterations** by preparing work orders, **spawning Worker/Verifier subagents**, and **checkpointing** results.
+
+When you cannot spawn (child subagent / nesting depth = 1), queue work in `workers-queue.json` / `verifiers-queue.json` and return `SIGNAL: DELEGATION_READY workers` — the **CEO will proxy** Worker waves on your behalf (CEO is orchestrating for the Director, who delegated to you).
+
+## Spawn capability (mandatory check)
+
+| Condition | Mode | Worker spawn |
+|-----------|------|--------------|
+| Root session (user ran `/manager` directly) | **Direct** | You spawn Workers via `spawn_subagent` / `Task` |
+| Spawned by CEO or Director (child) | **Proxy** | Queue JSON → `DELEGATION_READY workers` → CEO proxies |
+
+**Always attempt direct spawn first** in MODE=prepare after queuing JSON. If the tool fails, return proxy signal immediately.
 
 ## Paths
 
 | Artifact | Path |
 |----------|------|
-| Section (input) | `.grok/org/<project-slug>/sections/<section-id>.md` |
+| Section | `.grok/org/<project-slug>/sections/<section-id>.md` |
 | Iterations | `.grok/org/<project-slug>/iterations/<section-id>/iteration-NN.md` |
 | Work orders | `.grok/org/<project-slug>/work-orders/<order-id>.md` |
-| Iteration template | `<this-skill-dir>/references/iteration-template.md` |
-| Subagent prompts | `<this-skill-dir>/references/subagent-prompts.md` |
-| Worker skill | `<repo>/.grok/skills/worker/SKILL.md` |
-| Mesh loop (domain) | `<repo>/.grok/skills/mesh-improvement-loop/SKILL.md` |
+| Workers queue | `.grok/org/<project-slug>/delegations/workers-queue.json` |
+| Verifiers queue | `.grok/org/<project-slug>/delegations/verifiers-queue.json` |
+| Spawn prompts | `<this-skill-dir>/references/subagent-prompts.md` |
+| Templates | `<this-skill-dir>/references/` |
+| Mesh loop | `<repo>/.grok/skills/mesh-improvement-loop/SKILL.md` |
 
 Resolve `REPO` = repo root.
 
-## Invocation
+## Modes (CEO or Director passes in spawn prompt)
 
-Normally invoked by Director subagent. Standalone:
+### MODE=prepare
+
+Run at start of each iteration.
+
+1. Read section ticket. Set section Status → `in_progress`.
+2. Create/open `iteration-NN.md` from template.
+3. Set **This iteration focus** (3–5 bullets).
+4. Create 1–3 `work-orders/wo-NN-XX.md` files.
+5. Write `workers-queue.json` and `verifiers-queue.json` if needed.
+
+6. **Spawn Workers (direct mode):**
+
+For each `pending` order, spawn `worker-<order-id>` using prompt from `references/subagent-prompts.md`. Wait for results, update queue statuses.
+
+7. **Spawn Verifier (direct mode):** if `verifiers-queue.json` has `pending`, spawn verifier after workers.
+
+8. **Proxy fallback (child mode):** if spawn fails or you were CEO-spawned, return:
 
 ```
-/manager <project-slug> <section-id>
-/manager status <project-slug> <section-id>
+SIGNAL: DELEGATION_READY workers
 ```
 
-## Phase 0 — Read section
+or `SIGNAL: DELEGATION_READY verifier` if only verifier remains.
 
-1. Read `sections/<section-id>.md`. Abort if missing.
-2. Note acceptance criteria, **Manager playbook**, max iterations, key files.
-3. Set section **Status** → `in_progress`, **Manager** → `manager-<section-id>`.
+CEO proxies the wave, then re-spawns you MODE=checkpoint.
+
+### MODE=checkpoint
+
+Run after workers/verifier finish (you spawned them, or CEO proxied).
+
+1. Read all work-order tickets for this iteration.
+2. Update iteration **Results**, **Remaining gaps**, **Manager notes**.
+3. Update section **Iteration index**.
+4. Check acceptance criteria.
+
+| Outcome | Return SIGNAL |
+|---------|---------------|
+| Criteria met | `SIGNAL: SECTION_DONE <section-id>` |
+| More work, iterations remain | `SIGNAL: DELEGATION_READY workers` (CEO/Director re-spawns MODE=prepare) |
+| Max iterations, not met | `SIGNAL: SECTION_BLOCKED <section-id>` |
 
 ## Playbook routing
 
-| Playbook type | Manager behavior |
-|---------------|------------------|
-| `general` | Standard iteration loop below |
-| `mesh-improvement-loop` | Follow mesh-improvement-loop SKILL for this section; map `do-better.md` ↔ `iteration-NN.md`; Workers = mesh-updater, Verifier = mesh-scorer |
+| Playbook | prepare behavior |
+|----------|------------------|
+| `general` | Standard work orders + build-test verifier |
+| `mesh-improvement-loop` | wo-NN-01 role `mesh-updater`; verifier type `mesh-scorer`; sync `model-improvement/<race>/<hull>/do-better.md` |
 
-For mesh playbook, also create/use:
+Mesh mapping:
 
-```
-model-improvement/<race>/<hull>/do-better.md
-```
+| Mesh loop | Queue entry |
+|-----------|-------------|
+| mesh-updater | workers-queue, role `mesh-updater` |
+| mesh-scorer | verifiers-queue, type `mesh-scorer` |
 
-Sync iteration focus from do-better **Next loop focus** each round.
-
-## Main loop (iteration NN = 1 … max_iterations)
-
-Stop early if all acceptance criteria met.
-
-### Step A — Open iteration ticket
-
-1. Create `iterations/<section-id>/iteration-NN.md` from template if missing.
-2. Set **This iteration focus** (3–5 bullets) from section goal or previous **Remaining gaps**.
-3. Set iteration **Status** → `in_progress`.
-
-### Step B — Create work orders
-
-Break iteration focus into 1–3 work orders:
-
-| Order ID | Typical role |
-|----------|--------------|
-| `wo-NN-01` | Primary implementer |
-| `wo-NN-02` | Secondary (tests, polish) — optional |
-
-Create each `work-orders/wo-NN-XX.md` from worker template. Link in iteration **Work orders** table.
-
-### Step C — Delegate to Workers
-
-For each work order with Status `pending`:
-
-Launch **one** `generalPurpose` subagent per order.
-
-**Subagent name:** `worker-<order-id>`
-
-Use prompt from `references/subagent-prompts.md` → `worker-{order-id}`.
-
-After return: verify work order **Status** updated. If `blocked`, note in iteration and retry once or escalate.
-
-### Step D — Verifier (if required)
-
-If iteration specifies verifier:
-
-Launch **one** `generalPurpose` subagent.
-
-**Subagent name:** `verifier-iteration-NN`
-
-Use prompt from `references/subagent-prompts.md` → `verifier-iteration-NN`.
-
-**Verifier types:**
-
-| Type | Action |
-|------|--------|
-| `build-test` | `dotnet build` + `dotnet test` (scoped filter from section) |
-| `mesh-scorer` | mesh-preview capture + score-mesh (see mesh-improvement-loop) |
-| `reviewer` | Read diff, check acceptance criteria only — no edits |
-
-Update iteration **Results** and **Remaining gaps**.
-
-### Step E — Manager checkpoint
-
-1. Update section **Iteration index** table.
-2. Check acceptance criteria against iteration results.
-
-**If met:** section **Status** → `done`, **Manager verdict** → done in last iteration, return to Director.
-
-**If not met and NN < max_iterations:** set **Next iteration focus**, increment NN, continue.
-
-**If not met and NN = max_iterations:** section **Status** → `blocked`, report blockers to Director.
-
-## Mesh-improvement-loop mapping
-
-When playbook = `mesh-improvement-loop`:
-
-| Mesh loop | Manager equivalent |
-|-----------|-------------------|
-| mesh-updater | Worker `wo-NN-01` (implementer) |
-| mesh-scorer | Verifier `verifier-iteration-NN` |
-| do-better.md | iteration-NN.md + do-better.md (keep both in sync) |
-| Loop 5 pause | Manager stops, asks human via Director/CEO before NN 6 |
-
-Read race/hull/loop_count from section **Manager playbook** table.
+Loop 5 pause: return `SIGNAL: SECTION_BLOCKED` with note `HUMAN_GATE_LOOP_5` — CEO asks human before iteration 6.
 
 ## Rules
 
-- Manager **does not** implement code — Workers do.
-- One Worker subagent per work order per round.
-- Every iteration must have ≥1 work order and a verifier when section says `Verifier required: yes`.
-- Update all three MD layers (work-order, iteration, section) before returning to Director.
-- Max 5 iterations unless section ticket says otherwise.
+- Manager does not implement code — Workers do.
+- Always write queue JSON before spawning or returning proxy signal.
+- Attempt Worker spawn in MODE=prepare when root.
+- When child, return `DELEGATION_READY workers` — CEO proxies on your behalf.
+- Update section + iteration MD in MODE=checkpoint.
+- End every return with exactly one `SIGNAL:` line.
 
-## Return to Director
+## Return format
 
 ```
-- section status
-- iterations completed: N
-- acceptance met: yes/no
-- artifacts: [paths]
-- blockers: [list or none]
+section: <section-id>
+iteration: <NN>
+SIGNAL: <code>
+summary: ...
+spawn_mode: direct | proxy
 ```

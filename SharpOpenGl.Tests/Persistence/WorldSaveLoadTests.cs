@@ -92,6 +92,77 @@ public class WorldSaveLoadTests
     }
 
     [Fact]
+    public void Save_and_load_roundtrip_preserves_under_construction_state()
+    {
+        var sourceWorld = new World();
+        Entity building = sourceWorld.CreateEntity();
+        sourceWorld.AddComponent(building, new TransformComponent { Position = new Vector3(18f, 0f, 20f) });
+        sourceWorld.AddComponent(building, new BuildingComponent
+        {
+            BuildingType = "power_reactor",
+            ProductionRate = 0f,
+            PlayerId = 1,
+        });
+        sourceWorld.AddComponent(building, new HealthComponent
+        {
+            MaxHP = 1000f,
+            CurrentHP = 250f,
+        });
+        sourceWorld.AddComponent(building, new EntityNameComponent { DefinitionId = "power_reactor" });
+        sourceWorld.AddComponent(building, new UnderConstructionComponent
+        {
+            DefinitionId = "power_reactor",
+            BuildProgress = 12f,
+            TotalBuildTime = 30f,
+            PlayerId = 1,
+        });
+
+        var grid = new GridSystem(32, 32, 10f);
+        var fog = new FogOfWar(grid);
+        var resources = new ResourceManager();
+        resources.AddPlayer(1);
+
+        SaveData save = WorldSaveService.Capture(new WorldSaveContext
+        {
+            World = sourceWorld,
+            ResourceManager = resources,
+            GridSystem = grid,
+            FogOfWar = fog,
+            FogPlayerId = 0,
+            CameraX = 0f,
+            CameraY = 0f,
+            CameraZoom = 1f,
+            SlotName = SaveSlotNames.ManualSlots[0],
+        });
+
+        var targetWorld = new World();
+        var targetGrid = new GridSystem(32, 32, 10f);
+        var targetFog = new FogOfWar(targetGrid);
+        var targetResources = new ResourceManager();
+        targetResources.AddPlayer(1);
+        var factory = new UnitFactory();
+
+        WorldLoadService.Restore(new WorldLoadContext
+        {
+            World = targetWorld,
+            ResourceManager = targetResources,
+            GridSystem = targetGrid,
+            FogOfWar = targetFog,
+            FogPlayerId = 0,
+            UnitFactory = factory,
+            ResolveDefinition = id => SampleDefinitions()[id],
+        }, save);
+
+        Entity loaded = targetWorld.Query<BuildingComponent>().First().Entity;
+        var underConstruction = targetWorld.GetComponent<UnderConstructionComponent>(loaded);
+        Assert.NotNull(underConstruction);
+        Assert.Equal(12f, underConstruction!.BuildProgress, 0.001f);
+        Assert.Equal(30f, underConstruction.TotalBuildTime, 0.001f);
+        Assert.Equal(0f, targetWorld.GetComponent<BuildingComponent>(loaded)!.ProductionRate, 0.001f);
+        Assert.Null(targetWorld.GetComponent<WeaponListComponent>(loaded));
+    }
+
+    [Fact]
     public void LoadLatest_restore_path_uses_full_snapshot()
     {
         string dir = Path.Combine(Path.GetTempPath(), $"saveload_{Guid.NewGuid():N}");
@@ -222,6 +293,26 @@ public class WorldSaveLoadTests
             {
                 Health = new HealthDefinition { MaxHP = 2000f },
                 Building = new BuildingDefinition { BuildingType = "command_center", Footprint = [2, 2] },
+            },
+        },
+        ["power_reactor"] = new EntityDefinition
+        {
+            Id = "power_reactor",
+            Category = "building",
+            BuildTime = 30f,
+            Components = new ComponentsDefinition
+            {
+                Health = new HealthDefinition { MaxHP = 1000f },
+                Building = new BuildingDefinition
+                {
+                    BuildingType = "power_reactor",
+                    ProductionRate = 1.5f,
+                    Footprint = [2, 2],
+                },
+                Weapons =
+                [
+                    new WeaponDefinition { Slot = 0, Type = "laser", Damage = 10f, Range = 100f, FireRate = 1f },
+                ],
             },
         },
     };

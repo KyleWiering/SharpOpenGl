@@ -20,7 +20,7 @@ public sealed class LoadingScreen : UIScreen
     // ── Widgets ───────────────────────────────────────────────────────────────
 
     private readonly ProgressBar _bar;
-    private readonly Panel _statusPanel;
+    private readonly Label _statusLabel;
 
     // ── Properties ───────────────────────────────────────────────────────────
 
@@ -41,14 +41,9 @@ public sealed class LoadingScreen : UIScreen
     /// <summary>Short text displayed above the progress bar (e.g. "Loading assets…").</summary>
     public string StatusText
     {
-        get => _statusLabel;
-        set
-        {
-            _statusLabel = value;
-            // The label is painted by OnDraw via the Panel; just store it.
-        }
+        get => _statusLabel.Text;
+        set => _statusLabel.Text = value;
     }
-    private string _statusLabel = "Loading…";
 
     // ── Construction ──────────────────────────────────────────────────────────
 
@@ -66,17 +61,19 @@ public sealed class LoadingScreen : UIScreen
         };
         AddWidget(backdrop);
 
-        // Status panel (centre, above bar)
-        _statusPanel = new Panel
+        _statusLabel = new Label
         {
-            Name = "StatusPanel",
+            Name = "StatusLabel",
             Anchor = Anchor.Center,
-            Position = new Vector2(-300f, -40f),
-            Size = new Vector2(600f, 32f),
-            BackgroundColor = Vector4.Zero,
-            DrawBorder = false,
+            Position = new Vector2(-290f, -40f),
+            Size = new Vector2(580f, 48f),
+            FontSize = 20f,
+            WrapWidth = 560f,
+            MaxLines = 2,
+            TextColor = new Vector4(0.75f, 0.85f, 1f, 1f),
+            Text = "Loading…",
         };
-        AddWidget(_statusPanel);
+        AddWidget(_statusLabel);
 
         // Progress bar (centred, 600 × 28)
         _bar = new ProgressBar
@@ -91,21 +88,4 @@ public sealed class LoadingScreen : UIScreen
         AddWidget(_bar);
     }
 
-    // ── Per-frame ─────────────────────────────────────────────────────────────
-
-    /// <inheritdoc/>
-    public override void Draw(IUIRenderer renderer)
-    {
-        base.Draw(renderer);
-
-        // Draw the status text manually at a fixed position in reference coordinates.
-        Vector2 viewport = UIScaler.ReferenceSize;
-        float textX = viewport.X / 2f - 290f;
-        float textY = viewport.Y / 2f - 40f;
-        renderer.DrawText(
-            _statusLabel,
-            new Vector2(textX, textY),
-            fontSize: 20f,
-            color: new Vector4(0.75f, 0.85f, 1f, 1f));
-    }
 }

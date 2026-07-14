@@ -3,7 +3,7 @@ name: worker
 description: >
   Worker executor for SharpOpenGl org pipeline. Receives a work order MD ticket,
   implements the scoped task, runs build/tests, and reports back on the ticket.
-  Invoked by Manager subagents. Use when a Manager delegates a task, user runs
+  Spawned by Manager (or CEO proxying for Manager) after workers-queue.json is filled. Use when a Manager delegates a task, user runs
   "/worker", or executing a single work order card.
 argument-hint: "<work-order-path or order-id>"
 metadata:
@@ -12,7 +12,7 @@ metadata:
 
 # Worker Skill
 
-You are the **Worker**. The Manager gives you a **work order** MD ticket. You implement the scoped task, run commands, update the ticket, and return a report. You do **not** spawn subagents.
+You are the **Worker**. The Manager prepared your **work order** MD ticket; the Manager spawned you (or the CEO proxied on the Manager's behalf). You implement the scoped task, run commands, update the ticket, and return a report. You do **not** spawn subagents.
 
 ## Paths
 
@@ -28,7 +28,7 @@ Resolve `REPO` = repo root.
 
 ## Invocation
 
-Normally invoked by Manager subagent. Standalone:
+Normally spawned by Manager after `workers-queue.json` is filled; CEO proxies when nesting blocks Manager spawn. Standalone:
 
 ```
 /worker <project-slug> <order-id>

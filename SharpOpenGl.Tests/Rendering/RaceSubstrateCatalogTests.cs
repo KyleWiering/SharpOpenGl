@@ -8,11 +8,14 @@ public class RaceSubstrateCatalogTests
     public RaceSubstrateCatalogTests() => RaceVisualSchema.ResetForTests();
 
     [Fact]
-    public void Catalog_enumerates_232_race_model_substrates()
+    public void Catalog_enumerates_280_race_model_substrates()
     {
         int count = RaceSubstrateCatalog.AllEntries().Count();
-        Assert.Equal(232, count);
-        Assert.Equal(232, RaceSubstrateCatalog.TotalEntryCount);
+        int expected = RaceVisualSchema.AllRaces.Count
+            * (FleetGalleryLayout.AllShipIds.Length + FleetGalleryLayout.AllBaseIds.Length);
+        Assert.Equal(280, expected);
+        Assert.Equal(expected, count);
+        Assert.Equal(expected, RaceSubstrateCatalog.TotalEntryCount);
     }
 
     [Fact]

@@ -1,0 +1,36 @@
+{
+  "id": "shield_emitter",
+  "displayName": "Shield Emitter",
+  "category": "base",
+  "mesh": "meshes/power_reactor.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 780, "shields": 50, "armor": 45 },
+    "building": {
+      "buildingType": "shield_emitter",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [2, 2],
+      "rotates": true
+    },
+    "sightRadius": 8
+  },
+  "cost": { "energy": 120, "minerals": 180, "data": 20, "crew": 2 },
+  "buildTime": 32,
+  "articulation": {
+    "parts": [
+      {
+        "id": "shield_dish",
+        "partType": "SensorDish",
+        "localPivot": [0, 4.06, 0.56],
+        "meshOffset": [0, -4.06, -0.56],
+        "yawMin": -90,
+        "yawMax": 90,
+        "idleSweep": true,
+        "idleSweepSpeed": 22,
+        "slewRate": 90,
+        "meshKey": "station_part:shield_dish"
+      }
+    ]
+  }
+}

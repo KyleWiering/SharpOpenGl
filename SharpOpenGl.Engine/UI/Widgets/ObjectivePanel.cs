@@ -36,19 +36,29 @@ public sealed class ObjectivePanel : Widget
 
         if (!string.IsNullOrEmpty(MissionTitle))
         {
-            renderer.DrawText(MissionTitle, new Vector2(x, y), TitleFontSize,
+            string title = UITextDrawing.TruncateWithEllipsis(MissionTitle, innerW, TitleFontSize);
+            renderer.DrawText(title, new Vector2(x, y), TitleFontSize,
                 new Vector4(0.55f, 0.85f, 1f, 1f));
             y += TitleFontSize * UITextDrawing.LineHeightFactor + 4f;
         }
 
+        float hintReserve = string.IsNullOrEmpty(HintText)
+            ? 0f
+            : HintFontSize * UITextDrawing.LineHeightFactor + 12f;
+        float objectiveBottom = position.Y + size.Y - hintReserve;
+
         foreach (var obj in Objectives)
         {
+            if (y >= objectiveBottom)
+                break;
+
             string prefix = obj.IsCompleted ? "[X] " : "[ ] ";
             var color = obj.IsCompleted
                 ? new Vector4(0.45f, 0.9f, 0.55f, 1f)
                 : new Vector4(0.92f, 0.92f, 0.95f, 1f);
-            renderer.DrawText(prefix + obj.Text, new Vector2(x, y), BodyFontSize, color);
-            y += BodyFontSize * UITextDrawing.LineHeightFactor;
+            UITextDrawing.DrawTextBlock(renderer, prefix + obj.Text, new Vector2(x, y),
+                BodyFontSize, color, innerW, maxLines: 2);
+            y += BodyFontSize * UITextDrawing.LineHeightFactor * 2f;
         }
 
         if (!string.IsNullOrEmpty(HintText) && y + HintFontSize < position.Y + size.Y)

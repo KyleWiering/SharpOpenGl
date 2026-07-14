@@ -137,154 +137,117 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
     private void DrawGlyph(char c, float x, float y, float w, float h, float t, Vector4 color)
     {
         float halfH = h * 0.5f;
+        float diagStep = MathF.Max(t, h * 0.22f);
 
-        var segments = GetCharSegments(char.ToUpper(c));
-        foreach (var seg in segments)
+        foreach (var seg in UIFontGlyphSegments.GetSegments(c))
         {
             switch (seg)
             {
-                case Seg.Top:
+                case UIFontGlyphSegments.Segment.Top:
                     DrawRect(new Vector2(x, y), new Vector2(w, t), color);
                     break;
-                case Seg.Bottom:
+                case UIFontGlyphSegments.Segment.Bottom:
                     DrawRect(new Vector2(x, y + h - t), new Vector2(w, t), color);
                     break;
-                case Seg.Middle:
+                case UIFontGlyphSegments.Segment.Middle:
                     DrawRect(new Vector2(x, y + halfH - t * 0.5f), new Vector2(w, t), color);
                     break;
-                case Seg.TopLeft:
+                case UIFontGlyphSegments.Segment.MiddleRight:
+                    DrawRect(new Vector2(x + w * 0.5f, y + halfH - t * 0.5f), new Vector2(w * 0.5f, t), color);
+                    break;
+                case UIFontGlyphSegments.Segment.TopLeft:
                     DrawRect(new Vector2(x, y), new Vector2(t, halfH), color);
                     break;
-                case Seg.TopRight:
+                case UIFontGlyphSegments.Segment.TopRight:
                     DrawRect(new Vector2(x + w - t, y), new Vector2(t, halfH), color);
                     break;
-                case Seg.BottomLeft:
+                case UIFontGlyphSegments.Segment.BottomLeft:
                     DrawRect(new Vector2(x, y + halfH), new Vector2(t, halfH), color);
                     break;
-                case Seg.BottomRight:
+                case UIFontGlyphSegments.Segment.BottomRight:
                     DrawRect(new Vector2(x + w - t, y + halfH), new Vector2(t, halfH), color);
                     break;
-                case Seg.LeftFull:
+                case UIFontGlyphSegments.Segment.LeftFull:
                     DrawRect(new Vector2(x, y), new Vector2(t, h), color);
                     break;
-                case Seg.RightFull:
+                case UIFontGlyphSegments.Segment.RightFull:
                     DrawRect(new Vector2(x + w - t, y), new Vector2(t, h), color);
                     break;
-                case Seg.CenterVert:
+                case UIFontGlyphSegments.Segment.CenterVert:
                     DrawRect(new Vector2(x + w * 0.5f - t * 0.5f, y), new Vector2(t, h), color);
                     break;
-                case Seg.BottomCenterStem:
+                case UIFontGlyphSegments.Segment.BottomCenterStem:
                     DrawRect(new Vector2(x + w * 0.5f - t * 0.5f, y + halfH), new Vector2(t, halfH), color);
                     break;
-                case Seg.TopHalfRight:
+                case UIFontGlyphSegments.Segment.TopHalfRight:
                     DrawRect(new Vector2(x + w * 0.5f, y), new Vector2(w * 0.5f, t), color);
                     break;
-                case Seg.BottomHalfLeft:
+                case UIFontGlyphSegments.Segment.BottomHalfLeft:
                     DrawRect(new Vector2(x, y + h - t), new Vector2(w * 0.5f, t), color);
                     break;
-                case Seg.Dot:
+                case UIFontGlyphSegments.Segment.Dot:
                     DrawRect(new Vector2(x + w * 0.4f, y + h - t * 2f), new Vector2(t * 1.5f, t * 1.5f), color);
                     break;
-                case Seg.DiagTopRightToBottomLeft:
-                    DrawRect(new Vector2(x + w * 0.66f, y + h * 0.1f), new Vector2(t, h * 0.25f), color);
-                    DrawRect(new Vector2(x + w * 0.33f, y + h * 0.35f), new Vector2(t, h * 0.25f), color);
-                    DrawRect(new Vector2(x, y + h * 0.6f), new Vector2(t, h * 0.25f), color);
+                case UIFontGlyphSegments.Segment.DotLow:
+                    DrawRect(new Vector2(x + w * 0.35f, y + h - t * 1.2f), new Vector2(t * 1.5f, t * 1.5f), color);
                     break;
-                case Seg.DiagTopLeftToBottomRight:
-                    DrawRect(new Vector2(x, y + h * 0.1f), new Vector2(t, h * 0.25f), color);
-                    DrawRect(new Vector2(x + w * 0.33f, y + h * 0.35f), new Vector2(t, h * 0.25f), color);
-                    DrawRect(new Vector2(x + w * 0.66f, y + h * 0.6f), new Vector2(t, h * 0.25f), color);
+                case UIFontGlyphSegments.Segment.TopTick:
+                    DrawRect(new Vector2(x + w * 0.55f, y), new Vector2(t, t * 1.8f), color);
                     break;
-                case Seg.DiagMidLeftTopRight:
-                    DrawRect(new Vector2(x + w * 0.45f, y + halfH - t), new Vector2(t, halfH * 0.5f), color);
-                    DrawRect(new Vector2(x + w * 0.7f, y + t), new Vector2(t, halfH * 0.45f), color);
-                    DrawRect(new Vector2(x + w - t, y), new Vector2(t, t * 1.4f), color);
+                case UIFontGlyphSegments.Segment.TopPeakLeft:
+                    DrawRect(new Vector2(x + t, y), new Vector2(t, t * 1.2f), color);
+                    DrawRect(new Vector2(x + w * 0.22f, y), new Vector2(t, t * 1.8f), color);
+                    DrawRect(new Vector2(x + w * 0.38f, y), new Vector2(t, t * 2.4f), color);
                     break;
-                case Seg.DiagMidLeftBottomRight:
-                    DrawRect(new Vector2(x + w * 0.45f, y + halfH), new Vector2(t, halfH * 0.5f), color);
-                    DrawRect(new Vector2(x + w * 0.7f, y + h - halfH * 0.45f - t), new Vector2(t, halfH * 0.45f), color);
-                    DrawRect(new Vector2(x + w - t, y + h - t * 1.4f), new Vector2(t, t * 1.4f), color);
+                case UIFontGlyphSegments.Segment.TopPeakRight:
+                    DrawRect(new Vector2(x + w - t * 2f, y), new Vector2(t, t * 1.2f), color);
+                    DrawRect(new Vector2(x + w * 0.62f, y), new Vector2(t, t * 1.8f), color);
+                    DrawRect(new Vector2(x + w * 0.46f, y), new Vector2(t, t * 2.4f), color);
                     break;
-                case Seg.DiagMidRightBottomRight:
+                case UIFontGlyphSegments.Segment.BottomValleyLeft:
+                    DrawRect(new Vector2(x + t, y + h - t * 1.2f), new Vector2(t, t * 1.2f), color);
+                    DrawRect(new Vector2(x + w * 0.22f, y + h - t * 1.8f), new Vector2(t, t * 1.8f), color);
+                    DrawRect(new Vector2(x + w * 0.38f, y + h - t * 2.4f), new Vector2(t, t * 2.4f), color);
+                    break;
+                case UIFontGlyphSegments.Segment.BottomValleyRight:
+                    DrawRect(new Vector2(x + w - t * 2f, y + h - t * 1.2f), new Vector2(t, t * 1.2f), color);
+                    DrawRect(new Vector2(x + w * 0.62f, y + h - t * 1.8f), new Vector2(t, t * 1.8f), color);
+                    DrawRect(new Vector2(x + w * 0.46f, y + h - t * 2.4f), new Vector2(t, t * 2.4f), color);
+                    break;
+                case UIFontGlyphSegments.Segment.DiagTopRightToBottomLeft:
+                    DrawRect(new Vector2(x + w * 0.66f, y + h * 0.08f), new Vector2(t, diagStep), color);
+                    DrawRect(new Vector2(x + w * 0.33f, y + h * 0.33f), new Vector2(t, diagStep), color);
+                    DrawRect(new Vector2(x, y + h * 0.58f), new Vector2(t, diagStep), color);
+                    break;
+                case UIFontGlyphSegments.Segment.DiagTopLeftToBottomRight:
+                    DrawRect(new Vector2(x, y + h * 0.08f), new Vector2(t, diagStep), color);
+                    DrawRect(new Vector2(x + w * 0.33f, y + h * 0.33f), new Vector2(t, diagStep), color);
+                    DrawRect(new Vector2(x + w * 0.66f, y + h * 0.58f), new Vector2(t, diagStep), color);
+                    break;
+                case UIFontGlyphSegments.Segment.DiagMidLeftTopRight:
+                    DrawRect(new Vector2(x + w * 0.42f, y + halfH - t), new Vector2(t, halfH * 0.52f), color);
+                    DrawRect(new Vector2(x + w * 0.68f, y + t), new Vector2(t, halfH * 0.48f), color);
+                    DrawRect(new Vector2(x + w - t, y), new Vector2(t, t * 1.6f), color);
+                    break;
+                case UIFontGlyphSegments.Segment.DiagMidLeftBottomRight:
+                    DrawRect(new Vector2(x + w * 0.42f, y + halfH), new Vector2(t, halfH * 0.52f), color);
+                    DrawRect(new Vector2(x + w * 0.68f, y + h - halfH * 0.48f - t), new Vector2(t, halfH * 0.48f), color);
+                    DrawRect(new Vector2(x + w - t, y + h - t * 1.6f), new Vector2(t, t * 1.6f), color);
+                    break;
+                case UIFontGlyphSegments.Segment.DiagMidRightBottomRight:
                     DrawRect(new Vector2(x + w * 0.55f, y + halfH - t * 0.5f), new Vector2(t, halfH * 0.45f), color);
                     DrawRect(new Vector2(x + w * 0.75f, y + h * 0.62f), new Vector2(t, h * 0.22f), color);
                     DrawRect(new Vector2(x + w - t, y + h - t), new Vector2(t, t), color);
                     break;
-                case Seg.TopHalfLeft:
+                case UIFontGlyphSegments.Segment.TopHalfLeft:
                     DrawRect(new Vector2(x, y), new Vector2(w * 0.5f, t), color);
                     break;
-                case Seg.BottomHalfRight:
+                case UIFontGlyphSegments.Segment.BottomHalfRight:
                     DrawRect(new Vector2(x + w * 0.5f, y + h - t), new Vector2(w * 0.5f, t), color);
                     break;
             }
         }
     }
-
-    private enum Seg
-    {
-        Top, Bottom, Middle,
-        TopLeft, TopRight, BottomLeft, BottomRight,
-        LeftFull, RightFull, CenterVert, BottomCenterStem,
-        TopHalfRight, BottomHalfLeft, Dot,
-        DiagTopRightToBottomLeft, DiagTopLeftToBottomRight,
-        DiagMidLeftTopRight, DiagMidLeftBottomRight, DiagMidRightBottomRight,
-        TopHalfLeft, BottomHalfRight
-    }
-
-    private static Seg[] GetCharSegments(char c) => c switch
-    {
-        'A' => [Seg.Top, Seg.TopLeft, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.BottomRight],
-        'B' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.LeftFull, Seg.TopRight, Seg.BottomRight],
-        'C' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.BottomLeft],
-        'D' => [Seg.Top, Seg.Bottom, Seg.TopRight, Seg.BottomRight, Seg.LeftFull],
-        'E' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.BottomLeft],
-        'F' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.BottomLeft],
-        'G' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.BottomLeft, Seg.BottomRight, Seg.Middle],
-        'H' => [Seg.LeftFull, Seg.RightFull, Seg.Middle],
-        'I' => [Seg.Top, Seg.Bottom, Seg.CenterVert],
-        'J' => [Seg.Top, Seg.TopRight, Seg.BottomRight, Seg.Bottom, Seg.BottomLeft],
-        'K' => [Seg.LeftFull, Seg.DiagMidLeftTopRight, Seg.DiagMidLeftBottomRight],
-        'L' => [Seg.TopLeft, Seg.BottomLeft, Seg.Bottom],
-        'M' => [Seg.LeftFull, Seg.RightFull, Seg.TopHalfLeft, Seg.TopHalfRight],
-        'N' => [Seg.LeftFull, Seg.RightFull, Seg.DiagTopRightToBottomLeft],
-        'O' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
-        'P' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft],
-        'Q' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight, Seg.DiagMidRightBottomRight],
-        'R' => [Seg.Top, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.DiagMidRightBottomRight],
-        'S' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.BottomRight],
-        'T' => [Seg.Top, Seg.CenterVert],
-        'U' => [Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
-        'V' => [Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight, Seg.Bottom],
-        'W' => [Seg.LeftFull, Seg.RightFull, Seg.BottomHalfLeft, Seg.BottomHalfRight],
-        'X' => [Seg.DiagTopLeftToBottomRight, Seg.DiagTopRightToBottomLeft],
-        'Y' => [Seg.TopLeft, Seg.TopRight, Seg.BottomCenterStem],
-        'Z' => [Seg.Top, Seg.Bottom, Seg.DiagTopRightToBottomLeft],
-        '0' => [Seg.Top, Seg.Bottom, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
-        '1' => [Seg.TopRight, Seg.BottomRight, Seg.Bottom],
-        '2' => [Seg.Top, Seg.TopRight, Seg.Middle, Seg.BottomLeft, Seg.Bottom],
-        '3' => [Seg.Top, Seg.Middle, Seg.Bottom, Seg.TopRight, Seg.BottomRight],
-        '4' => [Seg.TopLeft, Seg.Middle, Seg.TopRight, Seg.BottomRight],
-        '5' => [Seg.Top, Seg.TopLeft, Seg.Middle, Seg.BottomRight, Seg.Bottom],
-        '6' => [Seg.Top, Seg.TopLeft, Seg.Middle, Seg.BottomLeft, Seg.BottomRight, Seg.Bottom],
-        '7' => [Seg.Top, Seg.TopRight, Seg.BottomRight],
-        '8' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomLeft, Seg.BottomRight],
-        '9' => [Seg.Top, Seg.Bottom, Seg.Middle, Seg.TopLeft, Seg.TopRight, Seg.BottomRight],
-        '.' => [Seg.Dot],
-        ':' => [Seg.Top, Seg.Bottom],
-        '-' => [Seg.Middle],
-        '+' => [Seg.Middle, Seg.CenterVert],
-        '/' => [Seg.DiagTopRightToBottomLeft],
-        '(' => [Seg.Top, Seg.TopLeft, Seg.BottomLeft, Seg.Bottom],
-        ')' => [Seg.Top, Seg.TopRight, Seg.BottomRight, Seg.Bottom],
-        '=' => [Seg.Middle, Seg.Bottom],
-        '_' => [Seg.Bottom],
-        '>' => [Seg.TopLeft, Seg.Middle, Seg.BottomLeft],
-        '<' => [Seg.TopRight, Seg.Middle, Seg.BottomRight],
-        '#' => [Seg.Middle, Seg.CenterVert, Seg.Top, Seg.Bottom],
-        '•' => [Seg.Dot],
-        '·' => [Seg.Dot],
-        _ => [Seg.Middle],
-    };
 
     public void Dispose()
     {

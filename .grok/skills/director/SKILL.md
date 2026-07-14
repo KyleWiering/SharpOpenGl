@@ -2,143 +2,137 @@
 name: director
 description: >
   Director planner for SharpOpenGl org pipeline. Receives goals from the CEO
-  directive, writes the major plan, creates section tickets, delegates sections
-  to Manager subagents, and verifies each section is done before sign-off.
-  Use when the CEO delegates, user runs "/director", or planning a multi-section
-  project with MD tickets.
-argument-hint: "<project-slug>"
+  directive, writes the major plan and section tickets, spawns Manager subagents
+  per section (or signals CEO to proxy when nesting is blocked). Use when the CEO
+  delegates, user runs "/director", or planning a multi-section project with MD tickets.
+argument-hint: "<project-slug> [plan|orchestrate|verify]"
 metadata:
-  short-description: "Director — plan, sections, delegate to managers"
+  short-description: "Director — plan, spawn managers, verify sections"
 ---
 
 # Director Skill
 
-You are the **Director**. The CEO gives you a goal via `directive.md`. You plan, break work into **sections**, delegate each section to a **Manager** subagent, verify completion, and sign off on `plan.md`.
+You are the **Director**. The CEO gives you a goal via `directive.md`. You plan, create **section tickets**, **spawn Manager subagents** per section, and verify completion.
+
+When you cannot spawn (child subagent / nesting depth = 1), queue work in `managers-queue.json` and return `SIGNAL: DELEGATION_READY managers` — the **CEO will proxy** Manager waves on your behalf.
+
+## Spawn capability (mandatory check)
+
+At session start, determine spawn mode:
+
+| Condition | Mode | Manager spawn |
+|-----------|------|---------------|
+| Root session (user ran `/director` or `/ceo` not used) | **Direct** | You spawn Managers via `spawn_subagent` / `Task` |
+| Spawned by CEO (child subagent) | **Proxy** | Queue JSON → `DELEGATION_READY managers` → CEO proxies |
+
+**Always attempt direct spawn first** when MODE=orchestrate. If the tool fails or is unavailable, immediately fall back to proxy — do not retry indefinitely.
 
 ## Paths
 
 | Artifact | Path |
 |----------|------|
-| Directive (input) | `.grok/org/<project-slug>/directive.md` |
-| Plan (your ticket) | `.grok/org/<project-slug>/plan.md` |
-| Sections (handoffs) | `.grok/org/<project-slug>/sections/<section-id>.md` |
-| Plan template | `<this-skill-dir>/references/plan-template.md` |
-| Section template | `<this-skill-dir>/references/section-template.md` |
-| Manager skill | `<repo>/.grok/skills/manager/SKILL.md` |
-| Hierarchy | `<repo>/.grok/skills/org-pipeline/references/hierarchy.md` |
+| Directive | `.grok/org/<project-slug>/directive.md` |
+| Plan | `.grok/org/<project-slug>/plan.md` |
+| Sections | `.grok/org/<project-slug>/sections/<section-id>.md` |
+| Managers queue | `.grok/org/<project-slug>/delegations/managers-queue.json` |
+| Delegation protocol | `<repo>/.grok/skills/org-pipeline/references/delegation-protocol.md` |
+| Spawn prompts | `<this-skill-dir>/references/subagent-prompts.md` |
+| Queue template | `<repo>/.grok/skills/ceo/references/managers-queue.template.json` |
 
 Resolve `REPO` = repo root.
 
 ## Invocation
 
-Normally invoked by CEO subagent. Standalone:
+| MODE | When |
+|------|------|
+| `plan` | CEO spawn after bootstrap or feedback round |
+| `orchestrate` | After plan — drive section delivery (spawn Managers or signal proxy) |
+| `verify` | All sections should be done |
+
+Standalone: `/director <project-slug>` defaults to MODE=plan then MODE=orchestrate.
+
+## MODE=plan (Phases 0–2)
+
+### Phase 0 — Read directive
+
+1. Read `directive.md`. Abort if missing.
+2. Read `AGENTS.md` Task router — ≤3 seed files.
+
+### Phase 1 — Plan
+
+1. Create/update `plan.md` from template.
+2. Define 2–6 sections: id, goal, acceptance, playbook, key files.
+3. Set plan Status → `in_progress`.
+
+### Phase 2 — Section tickets + manager queue
+
+1. Create each `sections/<section-id>.md` from template.
+2. Write `delegations/managers-queue.json`.
+3. Update plan **Section roster** with paths and status `pending`.
+
+### Return
+
+If **child** (CEO-spawned), end with:
 
 ```
-/director <project-slug>
-/director plan <project-slug>     # draft/revise plan only
-/director verify <project-slug>   # re-check sections without re-delegating
+SIGNAL: DELEGATION_READY managers
 ```
 
-## Phase 0 — Read directive
+CEO proxies Manager spawns. Do not spawn Managers yourself when child.
 
-1. Read `.grok/org/<project-slug>/directive.md`. Abort if missing.
-2. Note human direction, success criteria, CEO feedback sections.
-3. Read `AGENTS.md` Task router for the goal's `area` — open ≤3 seed files only.
+If **root**, proceed to MODE=orchestrate in the same session (spawn Managers directly).
 
-## Phase 1 — Plan
+## MODE=orchestrate (section delivery)
 
-1. If no `plan.md`, copy `references/plan-template.md` and fill:
-   - **Executive summary**
-   - **Major phases** table (2–6 sections)
-   - **Section roster** entries
-2. If `plan.md` exists, update per CEO feedback; increment **Director round**.
-3. Set plan **Status** → `in_progress`.
+For each `pending` entry in `managers-queue.json` (priority order; parallel when independent):
 
-Each section needs:
+1. Spawn `manager-<section-id>` MODE=prepare using prompt from `references/subagent-prompts.md`.
+2. Parse Manager return:
+   - `DELEGATION_READY workers` → spawn Workers (direct) or `SPAWN_FAILED proxy_required workers` (CEO proxies)
+   - `DELEGATION_READY verifier` → spawn Verifier or signal CEO
+3. After workers/verifier complete, spawn same Manager MODE=checkpoint.
+4. On `SECTION_DONE`, mark section done in `managers-queue.json`.
+5. On `SECTION_BLOCKED`, escalate to CEO/human.
 
-- Unique id: `section-01`, `section-02`, …
-- Clear goal + acceptance criteria (2–4 bullets)
-- **Manager playbook**: `general` or `mesh-improvement-loop` (with race/hull/loop_count)
-- **Key files** table (≤5 paths)
+When **proxy mode** (child): skip steps 1–3 — return after plan with `DELEGATION_READY managers`; CEO runs the full orchestrate loop.
 
-## Phase 2 — Create section tickets
+When all sections `done`, proceed to MODE=verify or return `SIGNAL: DIRECTOR_DONE`.
 
-For each section with Status ≠ `done`:
+## MODE=verify (Phase 4)
 
-1. Create `sections/<section-id>.md` from `references/section-template.md` if missing.
-2. Fill goal, acceptance, playbook, scope, key files from plan roster.
-3. Set section **Status** → `pending`.
-
-## Phase 3 — Delegate to Managers (sequential or parallel)
-
-For each section where Status is `pending` or `in_progress`:
-
-1. Set section **Status** → `in_progress`.
-2. Launch **one** `generalPurpose` subagent per section.
-
-**Subagent name:** `manager-<section-id>`
-
-**Prompt must include:**
+1. Read every `sections/<section-id>.md` and `managers-queue.json`.
+2. Confirm each section Status = `done` and acceptance criteria met.
+3. Update plan Director sign-off → `done`, append verification log.
+4. Return:
 
 ```
-You are the Manager subagent for section "<section-id>" in project "<project-slug>".
-
-Read and follow: {REPO}/.grok/skills/manager/SKILL.md
-
-Your inputs:
-- Section ticket: {REPO}/.grok/org/<project-slug>/sections/<section-id>.md
-- Project slug: <project-slug>
-
-Execute the Manager skill: run iterations, delegate Workers, verify, update section ticket.
-
-Return:
-- section status
-- iterations completed
-- acceptance criteria met (yes/no)
-- artifacts produced
-- blockers
+SIGNAL: DIRECTOR_DONE
 ```
 
-3. After Manager returns, read updated `sections/<section-id>.md`.
+Include: sections done/total, artifacts, test summary, blockers.
 
-**Verify section:**
+## What you do NOT do
 
-- All acceptance criteria checked in section file
-- Manager verdict = done (or document rejection reason)
-- Artifacts exist
-
-If verified → section **Status** → `done`, **Director sign-off** → done.  
-If not → section stays `in_progress`, add **Director notes**, re-launch Manager with gaps.
-
-Update **Section roster** and **Major phases** table in `plan.md`.
-
-## Phase 4 — Director sign-off
-
-When all sections are `done`:
-
-1. Set plan **Director sign-off** → `done`, plan **Status** → `done`.
-2. Append **Director verification log** row.
-3. Return to CEO (or user): sections done/total, artifacts, test summary, blockers.
-
-If CEO feedback requires rework, set plan Status → `in_progress` and repeat Phase 2–3 for affected sections only.
-
-## Rules
-
-- Director **does not** implement code — only plans, section tickets, and Manager orchestration.
-- One Manager subagent per section per round.
-- Sections must be independently verifiable.
-- For mesh-heavy goals, use playbook `mesh-improvement-loop` on the relevant section; keep other sections `general`.
-- Do not create more than 6 sections without CEO approval.
+- Implement source code.
+- Spawn Workers directly (Managers do that).
+- Skip queue JSON before returning proxy signals.
 
 ## Mesh playbook hint
 
-When section uses `mesh-improvement-loop`, set in section ticket:
+In section ticket and managers-queue `playbook` field:
 
-```markdown
-| Type | mesh-improvement-loop |
-| race | vesper |
-| hull | fighter_basic |
-| loop_count | 10 |
+```json
+"playbook": "mesh-improvement-loop",
+"race": "vesper",
+"hull": "fighter_basic",
+"loop_count": 10
 ```
 
-Manager will follow `.grok/skills/mesh-improvement-loop/SKILL.md` for that section's iterations.
+## Rules
+
+- Always write `managers-queue.json` before returning in MODE=plan.
+- Attempt Manager spawn in MODE=orchestrate when root.
+- When child, return `DELEGATION_READY managers` — CEO proxies.
+- Sections must be independently verifiable.
+- Max 6 sections without CEO approval.
+- End every return with exactly one `SIGNAL:` line.

@@ -247,6 +247,29 @@ public class ResourceSystemTests
     }
 
     [Fact]
+    public void Full_cycle_deposits_minerals_to_player_pool()
+    {
+        var (world, rm, _) = MakeSetup();
+        Entity node = MakeNode(world, ResourceType.Minerals, 200f, harvestRate: 40f);
+        Entity depot = MakeDepot(world);
+        Entity collector = MakeCollector(world, 1, node, depot, capacity: 30f,
+            state: CollectorState.Collecting, harvestRate: 40f, harvestMode: HarvestMode.TractorBeam);
+
+        world.Update(MiningVisualSystem.TractorPulseInterval * 2f);
+
+        var cComp = world.GetComponent<ResourceCollectorComponent>(collector)!;
+        Assert.Equal(CollectorState.Returning, cComp.State);
+        Assert.True(cComp.CarryAmount > 0f);
+
+        world.Update(0f); // Returning → Depositing (no transform = co-located).
+        Assert.Equal(CollectorState.Depositing, cComp.State);
+
+        world.Update(0f); // Depositing → player pool.
+        Assert.True(rm.GetPlayer(1)!.GetAmount(ResourceType.Minerals) > 0f);
+        Assert.Equal(0f, cComp.CarryAmount);
+    }
+
+    [Fact]
     public void Resources_cannot_exceed_max_storage_via_income()
     {
         var (world, rm, _) = MakeSetup(energyIncome: 1000f);

@@ -26,6 +26,48 @@ public partial class EngineWindow
         _attackHoverEntity = FindHostileAtScreen(screenPoint);
     }
 
+    private Entity? FindRepairTargetAtScreen(Vector2 screenPoint)
+    {
+        if (_world == null) return null;
+
+        var viewport = new Vector2(Size.X, Size.Y);
+        var projection = Matrix4.CreatePerspectiveFieldOfView(
+            MathHelper.DegreesToRadians(45f),
+            viewport.X / viewport.Y,
+            0.1f,
+            10000f);
+        var view = _rtsCamera.GetViewMatrix();
+
+        Entity? closest = null;
+        float closestDist = float.MaxValue;
+
+        foreach (var (entity, health) in _world.Query<HealthComponent>())
+        {
+            if (health.IsDead || health.CurrentHP >= health.MaxHP) continue;
+            if (GameplayEntityDisplay.IsHostileToPlayer(_world, entity)) continue;
+            if (_world.HasComponent<ResourceNodeComponent>(entity)) continue;
+            if (_world.HasComponent<BuildingComponent>(entity)) continue;
+
+            var transform = _world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+            if (!IsVisibleToPlayer(transform.Position)) continue;
+
+            if (!GroundPlaneRaycaster.TryWorldToScreen(
+                    transform.Position, viewport, projection, view, out Vector2 screen))
+                continue;
+
+            float pickRadius = ResolveHostilePickRadiusPx(entity);
+            float dist = (screen - screenPoint).Length;
+            if (dist <= pickRadius && dist < closestDist)
+            {
+                closestDist = dist;
+                closest = entity;
+            }
+        }
+
+        return closest;
+    }
+
     private Entity? FindHostileAtScreen(Vector2 screenPoint)
     {
         if (_world == null) return null;

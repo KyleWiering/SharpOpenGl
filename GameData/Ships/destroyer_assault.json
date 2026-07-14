@@ -14,5 +14,11 @@
     ]
   },
   "cost": { "energy": 300, "minerals": 400, "data": 50, "crew": 8 },
-  "buildTime": 60
+  "buildTime": 60,
+  "articulation": {
+    "parts": [
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.5, 1.1], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "slewRate": 90, "meshKey": "articulated/turret_yaw/destroyer_assault" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.25, 0.3], "pitchMin": -10, "pitchMax": 45, "slewRate": 90, "meshKey": "articulated/turret_pitch/destroyer_assault" }
+    ]
+  }
 }

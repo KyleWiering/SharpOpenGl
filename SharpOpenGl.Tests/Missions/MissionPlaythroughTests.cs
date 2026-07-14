@@ -1,6 +1,11 @@
+using System.Text.Json;
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Assets;
+using SharpOpenGl.Engine.Build;
+using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Entities;
+using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Missions;
 using SharpOpenGl.Engine.Multiplayer;
@@ -72,6 +77,242 @@ public class MissionPlaythroughTests
         Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "destroy_scouts");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
         Assert.Contains(mission.DemoScript, s => s.Type == "build_unit");
+    }
+
+    [Fact]
+    public void Example_scenario_place_building_step_targets_shipyard_small_at_demo_coordinates()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("example_scenario")!;
+
+        var placeStep = Assert.Single(
+            mission.DemoScript,
+            s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
+
+        Assert.Equal(99f, placeStep.Position![0]);
+        Assert.Equal(95f, placeStep.Position[1]);
+    }
+
+    // ── mission_abandoned_salvage ─────────────────────────────────────────────
+
+    [Fact]
+    public void Abandoned_salvage_demoScript_includes_repair_and_move_steps()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("mission_abandoned_salvage")!;
+
+        Assert.True(mission.DemoScript.Length >= 10);
+        Assert.Contains(mission.DemoScript, s => s.Type == "camera_pan");
+        Assert.Contains(mission.DemoScript, s => s.Type == "move_to");
+        Assert.Contains(mission.DemoScript, s => s.Type == "repair_target" && s.TargetTag == "derelict_1");
+        Assert.Contains(mission.DemoScript, s => s.Type == "repair_target" && s.TargetTag == "derelict_2");
+        Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "repair_derelict_1");
+        Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "repair_derelict_2");
+        Assert.Contains(mission.DemoScript, s => s.Type == "select_units" && s.Filter == "support_repair");
+    }
+
+    [Fact]
+    public void Abandoned_salvage_loads_primary_repair_objectives()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("mission_abandoned_salvage")!;
+
+        Assert.NotNull(mission.Objectives);
+        Assert.Equal(4, mission.Objectives.Primary.Length);
+
+        var repairObjectives = mission.Objectives.Primary
+            .Where(o => o.Type == "repair_target")
+            .ToArray();
+        Assert.Equal(2, repairObjectives.Length);
+        Assert.Equal("derelict_1", repairObjectives[0].Target);
+        Assert.Equal("derelict_2", repairObjectives[1].Target);
+    }
+
+    [Fact]
+    public void Abandoned_salvage_spawn_positions_are_demo_safe()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("mission_abandoned_salvage")!;
+
+        Assert.Equal(new[] { 8, 12 }, mission.StartConditions!.PlayerSpawn);
+
+        var spawnTrigger = mission.Triggers.First(t => t.Id == "spawn_derelicts");
+        var derelictSpawns = spawnTrigger.Actions
+            .Where(a => a.Type == "spawn_units")
+            .ToArray();
+        Assert.Equal(2, derelictSpawns.Length);
+        Assert.Equal(new[] { 28, 18 }, derelictSpawns[0].Position);
+        Assert.Equal(new[] { 44, 30 }, derelictSpawns[1].Position);
+    }
+
+    // ── mission_build_tree ────────────────────────────────────────────────────
+
+    [Fact]
+    public void Mission_build_tree_demoScript_includes_tiered_place_building_steps()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("mission_build_tree")!;
+
+        var placeSteps = mission.DemoScript
+            .Where(s => s.Type == "place_building")
+            .ToArray();
+
+        Assert.True(placeSteps.Length >= 15);
+        Assert.Contains(placeSteps, s => s.BuildingId == "power_reactor");
+        Assert.Contains(placeSteps, s => s.BuildingId == "shipyard_small");
+        Assert.Contains(placeSteps, s => s.BuildingId == "orbital_uplink");
+        Assert.Contains(placeSteps, s => s.BuildingId == "fortress_core");
+    }
+
+    [Fact]
+    public void Mission_build_tree_place_building_order_respects_prerequisite_chain()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("mission_build_tree")!;
+        var catalog = CreateBuildMapCatalog();
+
+        var built = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "command_center" };
+
+        foreach (var step in mission.DemoScript.Where(s => s.Type == "place_building"))
+        {
+            Assert.False(string.IsNullOrWhiteSpace(step.BuildingId));
+            if (step.BuildingId!.Equals("command_center", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var prerequisites = catalog.GetPrerequisites(step.BuildingId);
+            Assert.True(
+                BuildMapCatalog.IsUnlocked(prerequisites, built),
+                $"Building '{step.BuildingId}' is not unlocked with built set [{string.Join(", ", built)}].");
+
+            built.Add(step.BuildingId);
+        }
+    }
+
+    [Fact]
+    public void Mission_build_tree_demoScript_has_builder_selection_beat()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("mission_build_tree")!;
+
+        Assert.Contains(
+            mission.DemoScript,
+            s => s.Type == "select_units" && s.Filter == "support_repair");
+    }
+
+    [Fact]
+    public void Mission_build_tree_demo_covers_all_build_map_ids()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("mission_build_tree")!;
+        var config = LoadBuildMapConfig();
+
+        var allBuildMapIds = config.Categories
+            .SelectMany(c => c.Buildings)
+            .Select(b => b.Id)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var demoPlacementIds = mission.DemoScript
+            .Where(s => s.Type == "place_building")
+            .Select(s => s.BuildingId!)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        demoPlacementIds.Add("command_center");
+
+        Assert.Equal(allBuildMapIds, demoPlacementIds);
+    }
+
+    [Fact]
+    public void Campaign_mission_prerequisite_chain_unchanged()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+
+        Assert.Equal("tutorial_01", loader.Load("mission_02")!.PrerequisiteMissionId);
+        Assert.Equal("mission_02", loader.Load("mission_03")!.PrerequisiteMissionId);
+        Assert.Equal("mission_03", loader.Load("mission_04")!.PrerequisiteMissionId);
+        Assert.Equal("mission_04", loader.Load("mission_05")!.PrerequisiteMissionId);
+        Assert.Null(loader.Load("mission_build_tree")!.PrerequisiteMissionId);
+    }
+
+    [Fact]
+    public void Agent_executes_repair_target_step_and_waits_for_objective()
+    {
+        var def = new MissionDefinition
+        {
+            Id = "repair_agent",
+            Objectives = new ObjectivesDefinition
+            {
+                Primary =
+                [
+                    new ObjectiveDefinition
+                    {
+                        Id = "repair_derelict_1",
+                        Type = "repair_target",
+                        Target = "derelict_1",
+                        Condition = "healthPercent >= 0.50",
+                    },
+                    new ObjectiveDefinition
+                    {
+                        Id = "hold_position",
+                        Type = "survive_time",
+                        Target = "9999",
+                    },
+                ],
+            },
+            DemoScript =
+            [
+                new DemoScriptStepDefinition { Type = "select_units", Filter = "support_repair" },
+                new DemoScriptStepDefinition { Type = "repair_target", TargetTag = "derelict_1" },
+                new DemoScriptStepDefinition { Type = "wait_objective", ObjectiveId = "repair_derelict_1" },
+                new DemoScriptStepDefinition { Type = "wait", Seconds = 0.1f },
+            ],
+            Triggers = [],
+            Victory = new EndConditionDefinition { Type = "all_primary_complete" },
+            Defeat = new EndConditionDefinition { Type = "unit_destroyed", Target = "player_support" },
+        };
+
+        var state = new MissionState(def) { Phase = MissionPhase.InProgress };
+        var bus = new EventBus();
+        var world = new World();
+        var objectiveSystem = new ObjectiveSystem(state, bus);
+        var repairSystem = new RepairSystem(bus) { PlayerFaction = 1 };
+
+        Entity repairer = world.CreateEntity();
+        world.AddComponent(repairer, new TransformComponent { Position = Vector3.Zero });
+        world.AddComponent(repairer, new CombatTargetComponent { Faction = 1 });
+        world.AddComponent(repairer, new SelectionComponent { IsSelected = false });
+        world.AddComponent(repairer, new EntityNameComponent { DefinitionId = "support_repair" });
+        world.AddComponent(repairer, new ShipRepairComponent
+        {
+            RepairRange = 60f,
+            RepairRate = 50f,
+            RepairableCategories = ["fighter"],
+        });
+
+        Entity derelict = world.CreateEntity();
+        world.AddComponent(derelict, new TransformComponent { Position = new Vector3(10f, 0f, 0f) });
+        world.AddComponent(derelict, new HealthComponent { MaxHP = 100f, CurrentHP = 10f });
+        world.AddComponent(derelict, new CombatTargetComponent { Faction = 0 });
+        world.AddComponent(derelict, new EntityNameComponent { DefinitionId = "fighter_basic" });
+        state.EntityTags["derelict_1"] = derelict;
+        state.EntityTags["player_support"] = repairer;
+
+        var agent = new MissionPlaythroughAgent(def, CreateContext(world, state));
+
+        agent.Tick(0f);
+        agent.Tick(0f);
+        Assert.Equal(2, agent.StepIndex);
+
+        float elapsed = 0f;
+        while (!state.FindObjective("repair_derelict_1")!.IsCompleted && elapsed < 10f)
+        {
+            repairSystem.Update(world, 0.5f);
+            objectiveSystem.Update(world, 0.5f);
+            elapsed += 0.5f;
+        }
+
+        Assert.True(state.FindObjective("repair_derelict_1")!.IsCompleted);
+
+        agent.Tick(0f);
+        Assert.Equal(3, agent.StepIndex);
     }
 
     // ── Step sequencing ───────────────────────────────────────────────────────
@@ -318,5 +559,45 @@ public class MissionPlaythroughTests
         Assert.True(state.AllPrimaryComplete);
         Assert.True(agent.MissionObjectivesComplete);
         Assert.True(elapsed <= 120f);
+    }
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+    };
+
+    private static BuildMapCatalog CreateBuildMapCatalog()
+    {
+        var config = LoadBuildMapConfig();
+        var defs = LoadAllBaseDefinitions();
+        return new BuildMapCatalog(config, defs);
+    }
+
+    private static BuildMapConfig LoadBuildMapConfig()
+    {
+        string path = Path.Combine(GetTestDataPath(), "Config", "build_map.json");
+        string json = File.ReadAllText(path);
+        var config = JsonSerializer.Deserialize<BuildMapConfig>(json, JsonOptions);
+        Assert.NotNull(config);
+        return config!;
+    }
+
+    private static Dictionary<string, EntityDefinition> LoadAllBaseDefinitions()
+    {
+        var defs = new Dictionary<string, EntityDefinition>(StringComparer.OrdinalIgnoreCase);
+        string basesPath = Path.Combine(GetTestDataPath(), "Bases");
+
+        foreach (string file in Directory.GetFiles(basesPath, "*.json"))
+        {
+            if (Path.GetFileName(file).StartsWith("_", StringComparison.Ordinal)) continue;
+            string json = File.ReadAllText(file);
+            var def = JsonSerializer.Deserialize<EntityDefinition>(json, JsonOptions);
+            if (def?.Id != null)
+                defs[def.Id] = def;
+        }
+
+        return defs;
     }
 }

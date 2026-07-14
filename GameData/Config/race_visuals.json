@@ -29,23 +29,23 @@
                                                  ]
                                   },
                       "modifiers":  {
-                                        "wingSweep":  0.04,
-                                        "wingSpan":  0.92,
-                                        "hullLength":  0.9,
-                                        "hullWidth":  1.38,
-                                        "protrusion":  0.12,
+                                        "wingSweep":  0.27,
+                                        "wingSpan":  0.78,
+                                        "hullLength":  1.25,
+                                        "hullWidth":  0.97,
+                                        "protrusion":  0.14,
                                         "asymmetry":  0,
-                                        "facetSharpness":  0.15,
+                                        "facetSharpness":  0.18,
                                         "engineCount":  2,
-                                        "superstructure":  0.42
+                                        "superstructure":  0.31
                                     },
                       "substrate":  {
                                         "pattern":  "retro",
-                                        "uvScale":  0.07,
-                                        "panelDepth":  0.05,
-                                        "grit":  0.04,
-                                        "accentBoost":  0.12,
-                                        "microFrequency":  1.1
+                                        "uvScale":  0.06,
+                                        "panelDepth":  0.22,
+                                        "grit":  0.05,
+                                        "accentBoost":  0.36,
+                                        "microFrequency":  2.2
                                     }
                   },
                   {

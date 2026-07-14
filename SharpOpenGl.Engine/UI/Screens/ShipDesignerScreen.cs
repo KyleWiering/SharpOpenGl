@@ -26,7 +26,7 @@ public sealed class ShipDesignerScreen : UIScreen
     private int _raceIndex;
     private DesignerAssetCategory _category = DesignerAssetCategory.Ship;
 
-    private readonly Panel _controlPanel;
+    private readonly ScrollPanel _controlPanel;
     private readonly Label _previewLabel;
     private readonly Label _raceLabel;
     private readonly Label _modelLabel;
@@ -90,11 +90,13 @@ public sealed class ShipDesignerScreen : UIScreen
             Position = new Vector2(32f, -72f),
             Size = new Vector2(720f, 48f),
             FontSize = 18f,
+            WrapWidth = 700f,
+            MaxLines = 2,
             TextColor = new Vector4(0.75f, 0.82f, 0.95f, 1f),
         };
         AddWidget(_previewLabel);
 
-        _controlPanel = new Panel
+        _controlPanel = new ScrollPanel
         {
             Name = "ControlPanel",
             Anchor = Anchor.TopRight,
@@ -153,6 +155,7 @@ public sealed class ShipDesignerScreen : UIScreen
         BuildPickerRow("ModelPrev", "ModelNext", 68f, CycleModel);
 
         BuildControls();
+        _controlPanel.RecalculateContentHeight(_controlPanel.Size);
         RefreshSelectionLabels();
     }
 

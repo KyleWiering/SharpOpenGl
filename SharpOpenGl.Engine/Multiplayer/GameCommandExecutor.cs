@@ -18,6 +18,7 @@ public sealed class GameCommandExecutor
             AttackCommand attack => ExecuteAttack(context, attack),
             BuildCommand build => ExecuteBuild(context, build),
             StopCommand stop => ExecuteStop(context, stop),
+            RepairCommand repair => ExecuteRepair(context, repair),
             _ => false,
         };
     }
@@ -123,6 +124,36 @@ public sealed class GameCommandExecutor
             context.Supply.ConsumeSupply(building.PlayerId, crew);
 
         building.BuildQueue.Enqueue(command.ItemId);
+        return true;
+    }
+
+    private static bool ExecuteRepair(GameCommandContext context, RepairCommand command)
+    {
+        var world = context.World;
+        if (!TryResolveEntity(world, command.TargetEntityId, out Entity target)) return false;
+
+        var health = world.GetComponent<HealthComponent>(target);
+        if (health == null || health.IsDead) return false;
+
+        var repairers = ResolveEntities(world, command.RepairerIds)
+            .Where(e => IsPlayerSelectable(world, e, context.PlayerId))
+            .Where(e => world.HasComponent<ShipRepairComponent>(e))
+            .ToList();
+
+        if (repairers.Count == 0) return false;
+
+        foreach (var repairer in repairers)
+        {
+            var order = world.GetComponent<RepairOrderComponent>(repairer);
+            if (order == null)
+            {
+                order = new RepairOrderComponent();
+                world.AddComponent(repairer, order);
+            }
+
+            order.Target = target;
+        }
+
         return true;
     }
 

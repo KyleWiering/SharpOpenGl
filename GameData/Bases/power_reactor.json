@@ -10,10 +10,26 @@
       "buildingType": "power_reactor",
       "productionRate": 1.0,
       "buildQueue": [],
-      "footprint": [2, 2]
+      "footprint": [2, 2],
+      "rotates": false
     },
     "sightRadius": 6
   },
   "cost": { "energy": 100, "minerals": 150, "data": 5, "crew": 2 },
-  "buildTime": 30
+  "buildTime": 30,
+  "articulation": {
+    "parts": [
+      {
+        "id": "reactor_ring",
+        "partType": "SensorDish",
+        "localPivot": [0, 4.34, 0],
+        "yawMin": -180,
+        "yawMax": 180,
+        "idleSweep": true,
+        "idleSweepSpeed": 45,
+        "slewRate": 90,
+        "meshKey": "station_part:reactor_ring"
+      }
+    ]
+  }
 }

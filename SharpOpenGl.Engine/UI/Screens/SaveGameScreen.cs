@@ -10,7 +10,9 @@ namespace SharpOpenGl.Engine.UI.Screens;
 public sealed class SaveGameScreen : UIScreen
 {
     private readonly SaveManager _saveManager;
+    private ScrollPanel _slotScroll = null!;
     private readonly List<Button> _slotButtons = new();
+    private const float SlotLabelFontSize = 18f;
     /// <inheritdoc/>
     public override string ScreenName => "SaveGame";
 
@@ -76,19 +78,30 @@ public sealed class SaveGameScreen : UIScreen
         float btnW = 420f;
         float btnH = 48f;
         float gap = 10f;
-        float startY = 72f;
 
+        _slotScroll = new ScrollPanel
+        {
+            Name = "SlotScroll",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(-btnW / 2f, 72f),
+            Size = new Vector2(btnW, 470f),
+            BackgroundColor = Vector4.Zero,
+            DrawBorder = false,
+        };
+        card.AddChild(_slotScroll);
+
+        float startY = 0f;
         var quickSave = new Button
         {
             Name = "QuickSave",
             Label = "Quick Save",
-            Anchor = Anchor.TopCenter,
-            Position = new Vector2(-btnW / 2f, startY),
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(0f, startY),
             Size = new Vector2(btnW, btnH),
-            FontSize = 18f,
+            FontSize = SlotLabelFontSize,
         };
         quickSave.Clicked += () => OnSlotClicked(SaveSlotNames.Autosave);
-        card.AddChild(quickSave);
+        _slotScroll.AddChild(quickSave);
         _slotButtons.Add(quickSave);
 
         for (int i = 0; i < SaveSlotNames.ManualSlots.Length; i++)
@@ -98,15 +111,17 @@ public sealed class SaveGameScreen : UIScreen
             {
                 Name = slot,
                 Label = SaveSlotNames.DisplayName(slot),
-                Anchor = Anchor.TopCenter,
-                Position = new Vector2(-btnW / 2f, startY + (i + 1) * (btnH + gap)),
+                Anchor = Anchor.TopLeft,
+                Position = new Vector2(0f, startY + (i + 1) * (btnH + gap)),
                 Size = new Vector2(btnW, btnH),
-                FontSize = 18f,
+                FontSize = SlotLabelFontSize,
             };
             btn.Clicked += () => OnSlotClicked(slot);
-            card.AddChild(btn);
+            _slotScroll.AddChild(btn);
             _slotButtons.Add(btn);
         }
+
+        _slotScroll.RecalculateContentHeight(_slotScroll.Size);
 
         var back = new Button
         {
@@ -139,8 +154,17 @@ public sealed class SaveGameScreen : UIScreen
 
             string mission = string.IsNullOrWhiteSpace(info.MissionId) ? "Free Play" : info.MissionId;
             string when = FormatSavedAt(info.SavedAt);
-            button.Label = $"{SaveSlotNames.DisplayName(slotKey)} — {mission} ({when})";
+            button.Label = TruncateSlotLabel(
+                $"{SaveSlotNames.DisplayName(slotKey)} — {mission} ({when})");
         }
+
+        _slotScroll.RecalculateContentHeight(_slotScroll.Size);
+    }
+
+    private static string TruncateSlotLabel(string label)
+    {
+        float maxWidth = UITextDrawing.ContentWrapWidth(420f, 12f);
+        return UITextDrawing.TruncateWithEllipsis(label, maxWidth, SlotLabelFontSize);
     }
 
     private void OnSlotClicked(string slotName)

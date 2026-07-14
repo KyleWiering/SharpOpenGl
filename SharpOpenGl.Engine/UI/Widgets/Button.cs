@@ -7,10 +7,14 @@ namespace SharpOpenGl.Engine.UI.Widgets;
 /// </summary>
 public sealed class Button : Widget
 {
-    private const float TextPadding = 20f;
+    /// <summary>Horizontal inset reserved on each side of button face text.</summary>
+    public const float TextPadding = 20f;
 
     /// <summary>Text displayed on the button face.</summary>
     public string Label { get; set; } = string.Empty;
+
+    /// <summary>Full command name shown in a tooltip when the face label is abbreviated.</summary>
+    public string? TooltipHint { get; set; }
 
     /// <summary>Background colour in the normal state.</summary>
     public Vector4 NormalColor { get; set; } = new Vector4(0.2f, 0.2f, 0.3f, 1f);
@@ -62,6 +66,18 @@ public sealed class Button : Widget
 
     /// <summary>Raised when the button is clicked (pointer tap within bounds).</summary>
     public event Action? Clicked;
+
+    /// <summary>Usable text width inside a button after horizontal padding.</summary>
+    public static float GetInnerTextMaxWidth(Vector2 size) =>
+        MathF.Max(0f, size.X - TextPadding);
+
+    /// <inheritdoc/>
+    public override TooltipContent? GetTooltipContent()
+    {
+        if (!IsHovered && !IsKeyboardFocused) return null;
+        if (string.IsNullOrWhiteSpace(TooltipHint)) return null;
+        return new TooltipContent(Title: TooltipHint.Trim());
+    }
 
     /// <summary>Programmatically activate the button (keyboard / accessibility).</summary>
     public void Activate()
@@ -138,7 +154,11 @@ public sealed class Button : Widget
         float fittedPhysical = UIFontMetrics.FitFontSize(Label, preferredPhysical, maxWidth, minPhysical);
         float logicalDrawSize = fittedPhysical / physicalScale;
 
-        var lines = UITextDrawing.WrapText(Label, maxWidth, fittedPhysical);
+        string displayText = Label;
+        if (UIFontMetrics.MeasureTextWidth(Label, fittedPhysical) > maxWidth)
+            displayText = UITextDrawing.TruncateWithEllipsis(Label, maxWidth, fittedPhysical);
+
+        var lines = UITextDrawing.WrapText(displayText, maxWidth, fittedPhysical);
         float lineHeight = fittedPhysical * UITextDrawing.LineHeightFactor;
         float blockHeight = lines.Count * lineHeight;
         float startY = position.Y + (size.Y - blockHeight / physicalScale) * 0.5f;

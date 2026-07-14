@@ -1,4 +1,8 @@
-using System.Text.Json.Serialization;
+using System.Runtime.CompilerServices;
+using OpenTK.Mathematics;
+using SharpOpenGl.Engine.ECS;
+
+[assembly: InternalsVisibleTo("SharpOpenGl.Tests")]
 
 namespace SharpOpenGl.Engine.Entities;
 
@@ -63,6 +67,29 @@ public sealed class SquadMemberDefinition
     public float[]? FormationOffset { get; set; }
 }
 
+/// <summary>JSON shape for a structure-builder capability block.</summary>
+public sealed class StructureBuilderDefinition
+{
+    /// <summary>World-unit range from builder to placement site (default 80 if 0).</summary>
+    public float PlacementRange { get; set; }
+
+    /// <summary>Whitelist of base definition ids this unit may place.</summary>
+    public string[] BuildableIds { get; set; } = [];
+}
+
+/// <summary>JSON shape for a ship repair capability block.</summary>
+public sealed class ShipRepairDefinition
+{
+    /// <summary>World-unit range at which hull repair can be applied (default 60 if 0).</summary>
+    public float RepairRange { get; set; }
+
+    /// <summary>Hit points restored per second while actively repairing.</summary>
+    public float RepairRate { get; set; } = 12f;
+
+    /// <summary>Entity categories this unit may repair.</summary>
+    public string[] RepairableCategories { get; set; } = [];
+}
+
 /// <summary>JSON shape for a resource collector block.</summary>
 public sealed class ResourceCollectorDefinition
 {
@@ -88,6 +115,90 @@ public sealed class BuildingDefinition
     public float    ProductionRate { get; set; } = 1f;
     public string[] BuildQueue     { get; set; } = [];
     public int[]    Footprint      { get; set; } = [1, 1];
+
+    /// <summary>Whether the player may rotate this structure before/during placement.</summary>
+    public bool Rotates { get; set; }
+}
+
+/// <summary>JSON shape for a single articulated part entry inside <see cref="ArticulationDefinition"/>.</summary>
+public sealed class ArticulationPartDefinition
+{
+    /// <summary>Required stable key for nesting via <see cref="OwnerPartId"/>.</summary>
+    public string Id { get; set; } = string.Empty;
+
+    /// <summary>Maps to <see cref="ArticulatedPartType"/> enum name (case-insensitive).</summary>
+    public string PartType { get; set; } = string.Empty;
+
+    /// <summary>Owner-local pivot as <c>[x, y, z]</c>; must be length 3 when present.</summary>
+    public float[]? LocalPivot { get; set; }
+
+    /// <summary>Optional mesh origin offset from pivot as <c>[x, y, z]</c>.</summary>
+    public float[]? MeshOffset { get; set; }
+
+    public float? YawMin { get; set; }
+    public float? YawMax { get; set; }
+    public float? PitchMin { get; set; }
+    public float? PitchMax { get; set; }
+
+    /// <summary>Optional <see cref="RenderComponent.MeshKey"/>; omit when the part has no separate draw mesh.</summary>
+    public string? MeshKey { get; set; }
+
+    /// <summary>
+    /// When set, the spawned part's <see cref="ArticulatedPartComponent.Owner"/> is the part entity with this id;
+    /// otherwise the owner is the hull or building root.
+    /// </summary>
+    public string? OwnerPartId { get; set; }
+
+    /// <summary>When true, enable idle sweep motion (default false if omitted).</summary>
+    public bool? IdleSweep { get; set; }
+
+    /// <summary>Idle sweep speed in degrees per second.</summary>
+    public float? IdleSweepSpeed { get; set; }
+
+    /// <summary>Maps to <see cref="ArticulatedPartComponent.SlewRateDegreesPerSecond"/> (default 90 at spawn if omitted).</summary>
+    public float? SlewRate { get; set; }
+}
+
+/// <summary>JSON shape for the optional root-level <c>articulation</c> block on an entity definition.</summary>
+public sealed class ArticulationDefinition
+{
+    public ArticulationPartDefinition[] Parts { get; set; } = [];
+}
+
+/// <summary>Parse helpers for <see cref="ArticulationDefinition"/> used by spawner and tests.</summary>
+internal static class ArticulationDefinitionParser
+{
+    /// <summary>
+    /// Parses <paramref name="raw"/> into <paramref name="type"/> (case-insensitive enum name).
+    /// Returns false for unknown values; the spawner skips those parts.
+    /// </summary>
+    public static bool TryParsePartType(string? raw, out ArticulatedPartType type)
+        => Enum.TryParse(raw, ignoreCase: true, out type);
+
+    /// <summary>
+    /// Converts a three-element float array to <see cref="Vector3"/>; returns null when not exactly length 3.
+    /// Malformed <c>localPivot</c> arrays are skipped by the spawner (with trace) rather than defaulting to zero.
+    /// </summary>
+    public static Vector3? TryParseVec3(float[]? values)
+        => values is { Length: 3 }
+            ? new Vector3(values[0], values[1], values[2])
+            : null;
+
+    /// <summary>True when <paramref name="def"/> is non-null, has at least one part, and all part ids are unique.</summary>
+    public static bool IsValid(ArticulationDefinition? def)
+    {
+        if (def?.Parts is not { Length: > 0 } parts)
+            return false;
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (ArticulationPartDefinition part in parts)
+        {
+            if (string.IsNullOrWhiteSpace(part.Id) || !seen.Add(part.Id))
+                return false;
+        }
+
+        return true;
+    }
 }
 
 /// <summary>Bag of optional component blocks inside an entity definition.</summary>
@@ -101,6 +212,8 @@ public sealed class ComponentsDefinition
     public SquadMemberDefinition? SquadMember { get; set; }
     public BuildingDefinition?    Building    { get; set; }
     public ResourceCollectorDefinition? ResourceCollector { get; set; }
+    public ShipRepairDefinition? ShipRepair { get; set; }
+    public StructureBuilderDefinition? StructureBuilder { get; set; }
 
     /// <summary>Fog-of-war reveal radius in grid cells.</summary>
     public int SightRadius { get; set; } = 5;
@@ -148,6 +261,9 @@ public sealed class EntityDefinition
     /// Only relevant for building-type entities (shipyard, command center).
     /// </summary>
     public List<string>? Producible { get; set; }
+
+    /// <summary>Optional articulated child parts (turrets, cranes, sensor dishes, etc.).</summary>
+    public ArticulationDefinition? Articulation { get; set; }
 
     // JSON comment fields are ignored automatically (AllowTrailingCommas + SkipComments).
 }
