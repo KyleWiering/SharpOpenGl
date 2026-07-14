@@ -96,15 +96,55 @@ public sealed class MeshManifest
 
     public string ResolveMeshPath(string gameDataRoot, string key)
     {
-        if (TryGetByKey(key, out MeshManifestEntry? entry))
+        if (TryResolveEntry(key, out MeshManifestEntry? entry))
             return Path.Combine(gameDataRoot, "Meshes", entry!.RelativePath.Replace('/', Path.DirectorySeparatorChar));
 
+        string normalized = StripMeshesPrefix(key);
+        if (!normalized.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
+            normalized += ".obj";
+        normalized = ApplyMeshFolderCasing(normalized);
+        return Path.Combine(gameDataRoot, "Meshes", normalized.Replace('/', Path.DirectorySeparatorChar));
+    }
+
+    private bool TryResolveEntry(string key, out MeshManifestEntry? entry)
+    {
+        if (TryGetByKey(key, out entry))
+            return true;
+
+        string stripped = StripMeshesPrefix(key);
+        if (!stripped.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
+            stripped += ".obj";
+        return TryGetByKey($"meshes/{stripped}", out entry);
+    }
+
+    private static string StripMeshesPrefix(string key)
+    {
         string normalized = key.Replace('\\', '/').Trim();
         if (normalized.StartsWith("meshes/", StringComparison.OrdinalIgnoreCase))
             normalized = normalized["meshes/".Length..];
-        if (!normalized.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
-            normalized += ".obj";
-        return Path.Combine(gameDataRoot, "Meshes", normalized.Replace('/', Path.DirectorySeparatorChar));
+        return normalized;
+    }
+
+    private static string ApplyMeshFolderCasing(string relativePath)
+    {
+        int slash = relativePath.IndexOf('/');
+        if (slash < 0)
+            return relativePath;
+
+        string folder = relativePath[..slash];
+        string rest = relativePath[slash..];
+        string cased = folder.ToLowerInvariant() switch
+        {
+            "ships" => "Ships",
+            "designs" => "Designs",
+            "stations" => "Stations",
+            "environment" => "Environment",
+            "projectiles" => "Projectiles",
+            "effects" => "Effects",
+            "units" => "Units",
+            _ => folder,
+        };
+        return cased + rest;
     }
 
     public static string ShipKey(string raceId, string modelId) =>
