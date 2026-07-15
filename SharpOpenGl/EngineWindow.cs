@@ -976,26 +976,28 @@ public partial class EngineWindow : GameWindow
         // Gameplay-specific updates (paused while mission result overlay is visible)
         if (_sceneManager.State == GameState.Playing && _world != null && !IsMissionResultOverlayActive())
         {
+            float gameplayDt = _demoRecordingMode ? dt * DemoSimulationTimeScale : dt;
+
             if (_demoRecordingMode)
-                UpdateDemoRecording(dt);
+                UpdateDemoRecording(gameplayDt, dt);
             else
                 UpdateCameraControls(dt);
             UpdateSandboxChunks();
-            _attackHoverPulse += dt;
-            _shieldRingPulse += dt;
+            _attackHoverPulse += gameplayDt;
+            _shieldRingPulse += gameplayDt;
 
             if (_articulationSystem != null)
                 _articulationSystem.CameraPosition = GetGameplayCameraPosition();
 
             // Update ECS world (issue #1: ensures movement system runs)
-            _world.Update(dt);
-            StationRotationSystem.UpdateStationRotations(_world, dt);
-            UpdateExplosionVfx(dt);
-            UpdateCombatRingOverlays(dt);
-            UpdateFogNebulaOverlay(dt);
+            _world.Update(gameplayDt);
+            StationRotationSystem.UpdateStationRotations(_world, gameplayDt);
+            UpdateExplosionVfx(gameplayDt);
+            UpdateCombatRingOverlays(gameplayDt);
+            UpdateFogNebulaOverlay(gameplayDt);
 
             // Tick economy (issue #4: resources on HUD)
-            _resourceManager?.Tick(dt);
+            _resourceManager?.Tick(gameplayDt);
             BindResourceHUD();
             BindBuildPanel();
             BindBuildMapPanel();

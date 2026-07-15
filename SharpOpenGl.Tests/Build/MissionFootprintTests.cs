@@ -36,7 +36,7 @@ public class MissionFootprintTests
     ];
 
     [Fact]
-    public void Example_scenario_place_building_validates_for_shipyard_small_on_mission_grid()
+    public void Example_scenario_place_building_steps_validate_prerequisite_chain_on_mission_grid()
     {
         var grid = CreateMissionGrid();
         var world = new World();
@@ -46,22 +46,40 @@ public class MissionFootprintTests
 
         OccupyMissionDefaultBases(grid, world, defs);
 
-        var step = LoadMission("example_scenario")
+        var placeSteps = LoadMission("example_scenario")
             .DemoScript
-            .First(s => s.Type == "place_building");
+            .Where(s => s.Type == "place_building")
+            .ToArray();
 
-        Assert.Equal("shipyard_small", step.BuildingId);
-        Assert.Equal(99f, step.Position![0]);
-        Assert.Equal(95f, step.Position[1]);
+        Assert.Equal(2, placeSteps.Length);
+        Assert.Equal("power_reactor", placeSteps[0].BuildingId);
+        Assert.Equal("shipyard_small", placeSteps[1].BuildingId);
 
-        Vector3 worldPos = MapCoordinates.GridToWorld(step.Position![0], step.Position[1]);
-        var def = defs["shipyard_small"];
-        EnsurePrerequisitesBuilt(world, catalog, step.BuildingId!, playerId: 1);
+        var occupied = CollectOccupiedCells(grid);
+        foreach (var step in placeSteps)
+        {
+            Vector3 worldPos = MapCoordinates.GridToWorld(step.Position![0], step.Position[1]);
+            var def = defs[step.BuildingId!];
 
-        var result = BuildingPlacementValidator.Validate(
-            grid, world, playerId: 1, def, worldPos, catalog, resources, supply: null);
+            var result = BuildingPlacementValidator.Validate(
+                grid, world, playerId: 1, def, worldPos, catalog, resources, supply: null);
 
-        Assert.True(result.IsValid, $"Expected valid placement, got {result.Reason}");
+            Assert.True(result.IsValid,
+                $"Expected valid placement for {step.BuildingId}, got {result.Reason}");
+
+            int[] footprint = def.Components?.Building?.Footprint ?? [1, 1];
+            Entity placed = world.CreateEntity();
+            world.AddComponent(placed, new BuildingComponent
+            {
+                BuildingType = step.BuildingId!,
+                PlayerId = 1,
+                Footprint = footprint,
+            });
+            BuildingFootprint.Occupy(grid, placed, worldPos, footprint);
+            var (cols, rows) = BuildingFootprint.GetSize(footprint);
+            foreach (var cell in BuildingFootprint.EnumerateCells(grid, worldPos, cols, rows))
+                occupied.Add(cell);
+        }
     }
 
     [Fact]

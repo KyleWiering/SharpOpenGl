@@ -12,8 +12,10 @@ public partial class EngineWindow
     private DemoVideoRecorder? _demoRecorder;
     private float _demoElapsed;
     private bool _demoFinalizePending;
-    private const float DemoMaxDurationSeconds = 180f;
+    private const float DemoMaxDurationSeconds = 120f;
     private const float DemoVictoryHoldSeconds = 2f;
+    /// <summary>Speeds simulation during recording so CI finishes near the advertised ~45s runtime.</summary>
+    internal const float DemoSimulationTimeScale = 2.5f;
     private float _demoVictoryHold;
 
     public const string GameplayDemoFileName = "gameplay-demo.mp4";
@@ -97,6 +99,7 @@ public partial class EngineWindow
                 : (world, entities, target, append) =>
                     _squadSystem.AssignMoveRoutes(world, entities.ToList(), target, append),
             PlaceBuilding = (buildingId, worldPos) => TryPlaceBuildingAt(buildingId, worldPos),
+            BuildMapCatalog = _buildMapCatalog,
             Grid = _gridSystem,
             Fog = _fogOfWar,
         };
@@ -112,18 +115,18 @@ public partial class EngineWindow
             });
     }
 
-    private void UpdateDemoRecording(float dt)
+    private void UpdateDemoRecording(float simDt, float wallDt)
     {
         if (!_demoRecordingMode || _sceneManager.State != GameState.Playing) return;
 
         EnsurePlaythroughAgent();
-        _playthroughAgent?.Tick(dt);
-        _demoElapsed += dt;
+        _playthroughAgent?.Tick(simDt);
+        _demoElapsed += wallDt;
 
         if (_playthroughAgent == null) return;
 
         if (_playthroughAgent.MissionObjectivesComplete)
-            _demoVictoryHold += dt;
+            _demoVictoryHold += simDt;
 
         bool timedOut = _demoElapsed >= DemoMaxDurationSeconds;
         bool scriptDone = _playthroughAgent.ScriptFinished;

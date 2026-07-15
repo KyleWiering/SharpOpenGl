@@ -20,7 +20,11 @@ public sealed class MissionPlaythroughAgent
 
     private int _stepIndex;
     private float _stepTimer;
+    private float _stepElapsed;
     private long _tick;
+
+    /// <summary>Skip stuck placement steps so headless demo recording does not hit the max-duration cap.</summary>
+    private const float PlaceBuildingStepTimeoutSeconds = 90f;
     private bool _placeBuildingIssued;
     private bool _harvestWired;
     private int[]? _lastMoveGridPosition;
@@ -88,6 +92,7 @@ public sealed class MissionPlaythroughAgent
                 break;
 
             case "place_building":
+                _stepElapsed += deltaTime;
                 if (!_placeBuildingIssued)
                 {
                     if (IssuePlaceBuilding(step))
@@ -96,11 +101,11 @@ public sealed class MissionPlaythroughAgent
                         if (!RequiresConstructionWait(step))
                             Advance();
                     }
+                    else if (_stepElapsed >= PlaceBuildingStepTimeoutSeconds)
+                        Advance();
                 }
-                else if (IsPlacedStructureComplete(step))
-                {
+                else if (IsPlacedStructureComplete(step) || _stepElapsed >= PlaceBuildingStepTimeoutSeconds)
                     Advance();
-                }
 
                 break;
 
@@ -502,6 +507,7 @@ public sealed class MissionPlaythroughAgent
     {
         _stepIndex++;
         _stepTimer = 0f;
+        _stepElapsed = 0f;
         _placeBuildingIssued = false;
         _harvestWired = false;
     }

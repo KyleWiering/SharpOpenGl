@@ -75,22 +75,28 @@ public class MissionPlaythroughTests
         Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "reach_waypoint");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_target");
         Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "destroy_scouts");
+        Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "power_reactor");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
         Assert.Contains(mission.DemoScript, s => s.Type == "build_unit");
     }
 
     [Fact]
-    public void Example_scenario_place_building_step_targets_shipyard_small_at_demo_coordinates()
+    public void Example_scenario_place_building_steps_follow_prerequisite_order()
     {
         var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
         var mission = loader.Load("example_scenario")!;
 
-        var placeStep = Assert.Single(
-            mission.DemoScript,
-            s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
+        var placeSteps = mission.DemoScript
+            .Where(s => s.Type == "place_building")
+            .ToArray();
 
-        Assert.Equal(99f, placeStep.Position![0]);
-        Assert.Equal(95f, placeStep.Position[1]);
+        Assert.Equal(2, placeSteps.Length);
+        Assert.Equal("power_reactor", placeSteps[0].BuildingId);
+        Assert.Equal(96f, placeSteps[0].Position![0]);
+        Assert.Equal(92f, placeSteps[0].Position[1]);
+        Assert.Equal("shipyard_small", placeSteps[1].BuildingId);
+        Assert.Equal(99f, placeSteps[1].Position![0]);
+        Assert.Equal(95f, placeSteps[1].Position[1]);
     }
 
     // ── mission_abandoned_salvage ─────────────────────────────────────────────
