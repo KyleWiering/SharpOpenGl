@@ -46,8 +46,12 @@ public sealed class MovementSystem : GameSystem
 
             if (distance < ArrivalThreshold && !routeManaged)
             {
-                movement.PathTarget = null;
-                movement.Velocity = Vector3.Zero;
+                // Harvest orbit retargets every frame; do not zero velocity on ring waypoints.
+                if (!IsHarvestOrbitLeg(world, entity))
+                {
+                    movement.PathTarget = null;
+                    movement.Velocity = Vector3.Zero;
+                }
                 continue;
             }
 
@@ -109,5 +113,19 @@ public sealed class MovementSystem : GameSystem
         while (degrees > 180f) degrees -= 360f;
         while (degrees < -180f) degrees += 360f;
         return degrees;
+    }
+
+    private static bool IsHarvestOrbitLeg(World world, Entity entity)
+    {
+        var collector = world.GetComponent<ResourceCollectorComponent>(entity);
+        if (collector == null)
+            return false;
+
+        if (collector.State != CollectorState.MovingToNode
+            && collector.State != CollectorState.Collecting)
+            return false;
+
+        return world.IsAlive(collector.AssignedNode)
+            && world.HasComponent<ResourceNodeComponent>(collector.AssignedNode);
     }
 }

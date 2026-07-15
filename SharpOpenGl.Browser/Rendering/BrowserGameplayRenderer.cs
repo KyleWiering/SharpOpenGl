@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Rendering;
 
 namespace SharpOpenGl.Browser.Rendering;
@@ -12,6 +13,7 @@ public sealed class BrowserGameplayRenderer
 {
     private readonly WebGlRenderer _renderer;
     private readonly BrowserMeshLibrary _meshes;
+    private readonly BrowserTerrainReadabilityOverlay _terrainOverlay = new();
     private float _auraPulse;
     private readonly RtsCameraController _camera = new()
     {
@@ -32,7 +34,14 @@ public sealed class BrowserGameplayRenderer
 
     public RtsCameraController Camera => _camera;
 
-    public void Render(World world, int viewportWidth, int viewportHeight, ExplosionVfxController? explosionVfx = null, float deltaTime = 0.016f)
+    public void Render(
+        World world,
+        int viewportWidth,
+        int viewportHeight,
+        ExplosionVfxController? explosionVfx = null,
+        float deltaTime = 0.016f,
+        GridSystem? grid = null,
+        FogOfWar? fog = null)
     {
         _auraPulse += deltaTime;
         float aspect = viewportWidth / (float)Math.Max(1, viewportHeight);
@@ -48,6 +57,8 @@ public sealed class BrowserGameplayRenderer
             _camera.Height, _camera.MinHeight, _camera.MaxHeight);
         _renderer.DrawMesh(gridMesh, gridCount, gridModel, Vector4.Zero, GlPrimitive.Lines);
 
+        SyncAndRenderTerrainOverlay(grid, fog, viewportWidth, viewportHeight);
+
         RenderTeamAuras(world);
 
         foreach (var (entity, render) in world.Query<RenderComponent>())
@@ -56,18 +67,22 @@ public sealed class BrowserGameplayRenderer
             var transform = world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
-            if (render.MeshId < 0 && !string.IsNullOrEmpty(render.MeshKey)
-                && _meshes.TryResolveProjectileMesh(render.MeshKey, out int meshId, out int vertCount))
+            if (render.MeshId < 0 && !string.IsNullOrEmpty(render.MeshKey))
             {
-                render.MeshId = meshId;
-                render.VertexCount = vertCount;
+                if (_meshes.TryResolveProjectileMesh(render.MeshKey, out int meshId, out int vertCount)
+                    || _meshes.TryGetArticulatedPart(render.MeshKey, out meshId, out vertCount))
+                {
+                    render.MeshId = meshId;
+                    render.VertexCount = vertCount;
+                }
             }
 
             if (render.MeshId < 0) continue;
 
             bool isProjectile = world.HasComponent<ProjectileComponent>(entity);
+            bool isArticulatedPart = ArticulationDrawHelper.IsArticulatedPartChild(world, entity);
 
-            if (!isProjectile)
+            if (!isProjectile && !isArticulatedPart)
             {
                 var movement = world.GetComponent<MovementComponent>(entity);
                 if (movement != null && movement.Velocity.LengthSquared > 1f)
@@ -78,25 +93,46 @@ public sealed class BrowserGameplayRenderer
                                          Matrix4.CreateTranslation(0f, 0f, -0.5f) *
                                          transform.GetModelMatrix();
                     _renderer.DrawMesh(_meshes.EngineTrail, _meshes.EngineTrailCount, trailModel,
-                        Vector4.Zero, GlPrimitive.Triangles);
+                        Vector4.Zero, GlPrimitive.Triangles, componentTextureIndex: ComponentTextureIndex.Engine);
                 }
             }
 
             var projectile = world.GetComponent<ProjectileComponent>(entity);
             var visual = world.GetComponent<ProjectileVisualComponent>(entity);
-            Matrix4 model = isProjectile
-                ? BuildProjectileModel(transform, projectile, visual)
-                : transform.GetModelMatrix();
+            Matrix4 model;
+            if (!ArticulationDrawHelper.TryGetArticulatedModelMatrix(world, entity, transform, out model))
+                model = isProjectile
+                    ? BuildProjectileModel(transform, projectile, visual)
+                    : transform.GetModelMatrix();
 
-            Vector4 color = render.RaceTextureIndex >= 0
-                ? Vector4.Zero
-                : isProjectile
+            int raceTex = render.RaceTextureIndex;
+            int compTex = -1;
+            Vector4 color;
+            if (render.RaceTextureIndex >= 0)
+            {
+                color = Vector4.Zero;
+            }
+            else if (isProjectile)
+            {
+                raceTex = -1;
+                compTex = ComponentTextureIndex.Weapon;
+                color = ResolveProjectileTint(world, entity, projectile, visual);
+            }
+            else if (render.ComponentTextureIndex >= 0)
+            {
+                raceTex = -1;
+                compTex = render.ComponentTextureIndex;
+                color = Vector4.Zero;
+            }
+            else
+            {
+                color = world.HasComponent<ResourceNodeComponent>(entity) || world.HasComponent<AIControlledComponent>(entity)
                     ? render.Color
-                    : world.HasComponent<ResourceNodeComponent>(entity) || world.HasComponent<AIControlledComponent>(entity)
-                        ? render.Color
-                        : Vector4.Zero;
+                    : Vector4.Zero;
+            }
 
-            _renderer.DrawMesh(render.MeshId, render.VertexCount, model, color, render.PrimitiveType, render.RaceTextureIndex, render.TeamTint);
+            _renderer.DrawMesh(render.MeshId, render.VertexCount, model, color, render.PrimitiveType,
+                raceTex, render.TeamTint, compTex);
         }
 
         foreach (var (entity, sel) in world.Query<SelectionComponent>())
@@ -110,6 +146,8 @@ public sealed class BrowserGameplayRenderer
                 new Vector4(0, 1, 0, 1), GlPrimitive.Lines);
         }
 
+        RenderRoutePreviews(world);
+
         if (explosionVfx != null)
         {
             var (pointCount, vertices) = explosionVfx.BuildVertexData();
@@ -120,6 +158,35 @@ public sealed class BrowserGameplayRenderer
         }
 
         _renderer.EndFrame();
+    }
+
+    private void RenderRoutePreviews(World world)
+    {
+        foreach (var (entity, sel) in world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+
+            var queue = world.GetComponent<WaypointQueueComponent>(entity);
+            if (queue == null) continue;
+
+            var transform = world.GetComponent<TransformComponent>(entity);
+            if (transform == null) continue;
+
+            var segments = RoutePreviewHelper.BuildSegments(transform.Position, queue);
+            if (segments == null) continue;
+
+            float[] vertices = ProceduralMeshes.BuildLineStripVertices(
+                segments, RoutePreviewHelper.DefaultLineColor, y: RoutePreviewHelper.DefaultLineY);
+            int vertCount = ProceduralMeshes.VertexCount(vertices);
+            if (vertCount < 2) continue;
+
+            _renderer.DrawLineStrip(
+                _meshes.RoutePreviewBuffer,
+                vertices,
+                vertCount,
+                Matrix4.Identity,
+                RoutePreviewHelper.DefaultLineColorRgba);
+        }
     }
 
     private void RenderTeamAuras(World world)
@@ -157,6 +224,37 @@ public sealed class BrowserGameplayRenderer
             _renderer.DrawMesh(_meshes.SelectionRing, _meshes.SelectionRingCount, ringModel,
                 PlayerColorPalette.GetAuraRingColor(playerId, pulse), GlPrimitive.Lines);
         }
+    }
+
+    private void SyncAndRenderTerrainOverlay(GridSystem? grid, FogOfWar? fog, int viewportWidth, int viewportHeight)
+    {
+        if (grid == null) return;
+
+        float aspect = viewportWidth / (float)Math.Max(1, viewportHeight);
+        Vector4 bounds = _camera.GetVisibleBoundsXZ(aspect, margin: 20f);
+        _terrainOverlay.Sync(grid, fog, playerId: 1, bounds);
+        if (!_terrainOverlay.IsDrawEnabled || _meshes.GroundQuadCount <= 0) return;
+
+        foreach (TerrainReadabilityOverlay.TerrainTintCell cell in _terrainOverlay.Cells)
+        {
+            Matrix4 model = Matrix4.CreateScale(cell.CellSize, 1f, cell.CellSize) *
+                              Matrix4.CreateTranslation(cell.Center.X, 0.14f, cell.Center.Z);
+            _renderer.DrawMesh(_meshes.GroundQuad, _meshes.GroundQuadCount, model, cell.Color, GlPrimitive.Triangles);
+        }
+    }
+
+    private static Vector4 ResolveProjectileTint(
+        World world, Entity entity, ProjectileComponent? proj, ProjectileVisualComponent? visual)
+    {
+        if (proj == null || visual == null)
+            return Vector4.Zero;
+
+        if (proj.Type is not (ProjectileType.Homing or ProjectileType.AoE) || proj.MaxLifetime <= 0f)
+            return Vector4.Zero;
+
+        float lifetimeRatio = Math.Clamp(proj.Lifetime / proj.MaxLifetime, 0f, 1f);
+        Vector4 baseTint = WeaponProfiles.TrailColor(visual.Visual, proj.Type);
+        return WeaponProfiles.HomingTrailSteerTint(baseTint, lifetimeRatio, visual.Visual);
     }
 
     private static Matrix4 BuildProjectileModel(TransformComponent transform, ProjectileComponent? proj,

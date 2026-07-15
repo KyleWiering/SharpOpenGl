@@ -3,6 +3,7 @@
   "id": "hero_default",
   "displayName": "Vanguard",
   "category": "hero",
+  "shipRole": "political",
   "mesh": "meshes/hero_vanguard.obj",
   "fallbackMesh": "default",
   "components": {
@@ -21,5 +22,13 @@
       "xp": 0,
       "upgradeTree": "tech_trees/hero_vanguard.json"
     }
+  },
+  "articulation": {
+    "parts": [
+      { "id": "primary_yaw", "partType": "TurretYaw", "localPivot": [0, 0.5, 0.8], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/hero_default" },
+      { "id": "primary_pitch", "partType": "TurretPitch", "ownerPartId": "primary_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/hero_default" },
+      { "id": "secondary_yaw", "partType": "TurretYaw", "localPivot": [0, 0.45, -0.3], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/hero_default" },
+      { "id": "secondary_pitch", "partType": "TurretPitch", "ownerPartId": "secondary_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/hero_default" }
+    ]
   }
 }

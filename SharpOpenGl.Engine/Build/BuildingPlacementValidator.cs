@@ -20,6 +20,54 @@ public enum PlacementFailureReason
     ResourceBlocked,
 }
 
+/// <summary>Player-facing copy for placement validation failures.</summary>
+public static class PlacementFailureReasonExtensions
+{
+    /// <summary>Short HUD message for a validation failure reason.</summary>
+    public static string ToPlayerMessage(this PlacementFailureReason reason) => reason switch
+    {
+        PlacementFailureReason.None => string.Empty,
+        PlacementFailureReason.UnknownDefinition => "Unknown structure",
+        PlacementFailureReason.Locked => "Requires prerequisite structure",
+        PlacementFailureReason.CannotAfford => "Insufficient resources",
+        PlacementFailureReason.SupplyCap => "Supply cap reached",
+        PlacementFailureReason.OutOfBounds => "Outside build area",
+        PlacementFailureReason.ImpassableTerrain => "Impassable terrain",
+        PlacementFailureReason.CellOccupied => "Cell occupied",
+        PlacementFailureReason.ResourceBlocked => "Resource node blocked",
+        _ => "Cannot place here",
+    };
+
+    /// <summary>HUD message when the structure builder is too far from the cursor.</summary>
+    public static string ToBuilderRangeMessage(float rangeMeters) =>
+        $"Builder out of range ({rangeMeters:0}m)";
+
+    /// <summary>HUD status while hovering a valid placement location.</summary>
+    public static string ValidPlacementStatus => "Click to place";
+
+    /// <summary>HUD toast after a structure is placed successfully.</summary>
+    public static string BuildPlacedMessage(string displayName) =>
+        $"{displayName} — Placed";
+
+    /// <summary>
+    /// Player-facing placement hint for ghost preview and HUD band.
+    /// Range failures take priority over cell/terrain validation.
+    /// </summary>
+    public static string BuildStatusMessage(
+        PlacementValidationResult validation,
+        bool inRange,
+        string rangeReason)
+    {
+        if (!inRange)
+            return rangeReason;
+
+        if (validation.IsValid)
+            return ValidPlacementStatus;
+
+        return validation.Reason.ToPlayerMessage();
+    }
+}
+
 /// <summary>Outcome of a placement validation check.</summary>
 public readonly struct PlacementValidationResult
 {

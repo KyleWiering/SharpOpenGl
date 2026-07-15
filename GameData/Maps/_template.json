@@ -17,6 +17,19 @@
         "_comment_rect": "Rectangle covering [minX, minY, maxX, maxY] (inclusive).",
         "type": "nebula",
         "rect": [10, 10, 20, 20]
+      },
+      {
+        "_comment": "Terrain types: asteroid_field | nebula | debris | ion_storm | wormhole_remnant",
+        "type": "debris",
+        "cells": [[40, 40], [41, 40]]
+      },
+      {
+        "type": "ion_storm",
+        "rect": [50, 50, 55, 55]
+      },
+      {
+        "type": "wormhole_remnant",
+        "cells": [[58, 58]]
       }
     ]
   },
@@ -24,13 +37,13 @@
   "playerCount": 2,
   "spawnPoints": [
     {
+      "_comment_build_tree": "≥32×32 recommended for full tiered tree (16 structures + 1-cell gutter)",
       "player": 1,
-      "position": [3, 3],
+      "position": [16, 16],
       "layer": "surface",
-      "baseArea": [0, 0, 12, 12],
+      "baseArea": [0, 0, 31, 31],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 4] },
-        { "id": "shipyard_small", "offset": [8, 4] }
+        { "id": "command_center", "offset": [4, 4] }
       ]
     },
     { "player": 2, "position": [60, 60], "layer": "surface" }
@@ -71,6 +84,28 @@
       "name": "Nebula",
       "position": [25, 25],
       "scale": 12
+    },
+    {
+      "_comment": "featureType: asteroid_field | nebula | debris | ion_storm | wormhole_remnant",
+      "kind": "scenery",
+      "featureType": "debris",
+      "name": "Debris Field",
+      "position": [40, 40],
+      "scale": 7
+    },
+    {
+      "kind": "scenery",
+      "featureType": "ion_storm",
+      "name": "Ion Storm",
+      "position": [52, 52],
+      "scale": 10
+    },
+    {
+      "kind": "scenery",
+      "featureType": "wormhole_remnant",
+      "name": "Wormhole Remnant",
+      "position": [58, 58],
+      "scale": 9
     }
   ]
 }

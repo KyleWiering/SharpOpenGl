@@ -1,0 +1,109 @@
+{
+  "id": "training_04_defense",
+  "displayName": "Training: Turret Defense",
+  "description": "Build five defense turrets while hostile interceptors raid your perimeter. HQ and a builder are already on site; finish the emplacements to win.",
+  "map": "sector_alpha",
+  "planetName": "Bastion Range",
+  "starMapPosition": [0.28, 0.22],
+  "planetColor": "#E07050",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, Bastion Range is a live-fire fortification exercise. You start with Base HQ and a Restoration Tender. Hostile interceptor raids will keep pressing from the far side of the sector until all five Defense Turrets are online — spawns cease on victory. Resources cover at least five turrets with a rebuild buffer (turret cost 60E/90M/1 crew each; start 800E/700M/20 crew). Victory when all five turrets are complete; if your builder is lost, the exercise fails.",
+    "objectivesPreview": [
+      "Build 5 defense turrets under intermittent raids",
+      "Raids continue until all five turrets are online",
+      "Keep your Restoration Tender alive"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [12, 12],
+    "startingUnits": ["support_repair"],
+    "startingBuildings": ["command_center"],
+    "spawnDefaultBase": false,
+    "startingResources": {
+      "energy": 800,
+      "minerals": 700,
+      "data": 100,
+      "crew": 20
+    }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "build_turrets",
+        "type": "construct",
+        "target": "defense_turret:5",
+        "description": "Build 5 defense turrets"
+      }
+    ],
+    "secondary": []
+  },
+  "triggers": [
+    {
+      "id": "raid_wave",
+      "oneShot": false,
+      "condition": { "type": "timer", "seconds": 20 },
+      "actions": [
+        {
+          "type": "spawn_units",
+          "units": ["interceptor_mk2"],
+          "position": [55, 55],
+          "tag": "raid_interceptor",
+          "faction": 2
+        }
+      ]
+    },
+    {
+      "id": "raid_wave_alt",
+      "oneShot": false,
+      "condition": { "type": "timer", "seconds": 45 },
+      "actions": [
+        {
+          "type": "spawn_units",
+          "units": ["interceptor_mk2"],
+          "position": [58, 18],
+          "tag": "raid_interceptor_alt",
+          "faction": 2
+        }
+      ]
+    },
+    {
+      "id": "raid_briefing",
+      "oneShot": true,
+      "condition": { "type": "timer", "seconds": 3 },
+      "actions": [
+        {
+          "type": "dialog",
+          "speaker": "Range Control",
+          "text": "Hostile interceptors inbound. Emplace five Defense Turrets — do not lose your tender."
+        }
+      ]
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "unit_destroyed", "target": "player_support" },
+  "rewards": {
+    "resources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+    "xp": 75,
+    "unlocks": []
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [12, 12], "height": 220 },
+    { "type": "wait", "seconds": 1 },
+    { "type": "select_units", "filter": "support_repair" },
+    { "type": "wait", "seconds": 0.5 },
+    { "type": "place_building", "buildingId": "defense_turret", "position": [18, 14] },
+    { "type": "wait", "seconds": 3.5 },
+    { "type": "place_building", "buildingId": "defense_turret", "position": [22, 14] },
+    { "type": "wait", "seconds": 3.5 },
+    { "type": "place_building", "buildingId": "defense_turret", "position": [18, 18] },
+    { "type": "wait", "seconds": 3.5 },
+    { "type": "place_building", "buildingId": "defense_turret", "position": [22, 18] },
+    { "type": "wait", "seconds": 3.5 },
+    { "type": "camera_pan", "position": [55, 55], "height": 280 },
+    { "type": "wait", "seconds": 3 },
+    { "type": "place_building", "buildingId": "defense_turret", "position": [26, 16] },
+    { "type": "wait", "seconds": 1.5 },
+    { "type": "wait_objective", "objectiveId": "build_turrets" }
+  ]
+}

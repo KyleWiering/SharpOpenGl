@@ -174,4 +174,41 @@ public class SquadSystemTests
 
         world.Dispose();
     }
+
+    [Fact]
+    public void CycleFormation_cycles_line_wedge_box_column_and_back()
+    {
+        var (world, squads, ships) = SetupShips(4);
+        squads.FormSquad(world, ships, FormationType.Line);
+
+        Assert.Equal(FormationType.Wedge, squads.CycleFormation(world, ships));
+        Assert.Equal(FormationType.Box, squads.CycleFormation(world, ships));
+        Assert.Equal(FormationType.Column, squads.CycleFormation(world, ships));
+        Assert.Equal(FormationType.Line, squads.CycleFormation(world, ships));
+
+        Assert.Equal(FormationType.Line, squads.GetFormationForSelection(ships, world));
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void GetFormationForSelection_returns_null_for_mixed_squads()
+    {
+        var (world, squads, ships) = SetupShips(4);
+        squads.FormSquad(world, ships.Take(2).ToList(), FormationType.Line);
+        squads.FormSquad(world, ships.Skip(2).ToList(), FormationType.Wedge);
+
+        Assert.Null(squads.GetFormationForSelection(ships, world));
+
+        world.Dispose();
+    }
+
+    [Fact]
+    public void FormationLayout_next_formation_matches_documented_cycle()
+    {
+        Assert.Equal(FormationType.Wedge, FormationLayout.NextFormation(FormationType.Line));
+        Assert.Equal(FormationType.Box, FormationLayout.NextFormation(FormationType.Wedge));
+        Assert.Equal(FormationType.Column, FormationLayout.NextFormation(FormationType.Box));
+        Assert.Equal(FormationType.Line, FormationLayout.NextFormation(FormationType.Column));
+    }
 }

@@ -2,6 +2,7 @@
   "id": "transport_cargo",
   "displayName": "Hauler Transport",
   "category": "transport",
+  "shipRole": "engineering",
   "mesh": "meshes/transport_cargo.obj",
   "fallbackMesh": "default",
   "components": {

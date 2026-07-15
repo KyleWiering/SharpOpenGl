@@ -2,6 +2,7 @@
   "id": "support_repair",
   "displayName": "Restoration Tender",
   "category": "support",
+  "shipRole": "engineering",
   "mesh": "meshes/support_repair.obj",
   "fallbackMesh": "default",
   "components": {
@@ -10,6 +11,21 @@
     "weapons": [
       { "slot": 0, "type": "beam", "damage": 15, "range": 200, "fireRate": 1.5 }
     ],
+    "structureBuilder": {
+      "placementRange": 80,
+      "buildableIds": [
+        "power_reactor",
+        "resource_refinery",
+        "supply_depot",
+        "sensor_array",
+        "defense_turret"
+      ]
+    },
+    "shipRepair": {
+      "repairRange": 60,
+      "repairRate": 15,
+      "repairableCategories": ["fighter", "gunship", "corvette"]
+    },
     "sightRadius": 5
   },
   "cost": { "energy": 160, "minerals": 180, "data": 60, "crew": 4 },

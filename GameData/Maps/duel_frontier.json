@@ -23,6 +23,31 @@
         "_comment": "Center nebula — vision cover, not impassable",
         "type": "nebula",
         "rect": [88, 88, 112, 112]
+      },
+      {
+        "_comment": "West debris drift — salvage scenery",
+        "type": "debris",
+        "rect": [72, 94, 84, 106]
+      },
+      {
+        "_comment": "East debris drift — mirror of west salvage lane",
+        "type": "debris",
+        "rect": [116, 94, 128, 106]
+      },
+      {
+        "_comment": "West ion storm — mirrored flank hazard",
+        "type": "ion_storm",
+        "rect": [58, 94, 66, 106]
+      },
+      {
+        "_comment": "East ion storm — mirrored flank hazard",
+        "type": "ion_storm",
+        "rect": [134, 94, 142, 106]
+      },
+      {
+        "_comment": "Collapsed gate north of center",
+        "type": "wormhole_remnant",
+        "cells": [[100, 118], [101, 118], [100, 119]]
       }
     ]
   },
@@ -31,20 +56,18 @@
       "player": 1,
       "position": [28, 100],
       "layer": "surface",
-      "baseArea": [20, 92, 36, 108],
+      "baseArea": [8, 82, 44, 118],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 2,
       "position": [172, 100],
       "layer": "surface",
-      "baseArea": [164, 92, 180, 108],
+      "baseArea": [156, 82, 192, 118],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     }
   ],
@@ -57,9 +80,9 @@
     { "type": "minerals", "position": [176, 96],  "amount": 4000 },
     { "type": "data",     "position": [176, 104], "amount": 3000 },
     { "type": "crew",     "position": [162, 104], "amount": 2500 },
-    { "type": "minerals", "position": [100, 100], "amount": 6000 },
-    { "type": "energy",   "position": [96, 104],  "amount": 4500 },
-    { "type": "data",     "position": [104, 96],  "amount": 3500 }
+    { "type": "minerals", "position": [100, 100], "amount": 7000 },
+    { "type": "energy",   "position": [96, 104],  "amount": 5200 },
+    { "type": "data",     "position": [104, 96],  "amount": 4000 }
   ],
   "mapFeatures": [
     {
@@ -82,6 +105,41 @@
       "name": "Contested Veil",
       "position": [100, 100],
       "scale": 14
+    },
+    {
+      "kind": "scenery",
+      "featureType": "debris",
+      "name": "Salvage Drift",
+      "position": [78, 100],
+      "scale": 10
+    },
+    {
+      "kind": "scenery",
+      "featureType": "debris",
+      "name": "Salvage Drift East",
+      "position": [122, 100],
+      "scale": 10
+    },
+    {
+      "kind": "scenery",
+      "featureType": "ion_storm",
+      "name": "Static Maw West",
+      "position": [70, 100],
+      "scale": 12
+    },
+    {
+      "kind": "scenery",
+      "featureType": "ion_storm",
+      "name": "Static Maw East",
+      "position": [130, 100],
+      "scale": 12
+    },
+    {
+      "kind": "scenery",
+      "featureType": "wormhole_remnant",
+      "name": "Collapsed Gate",
+      "position": [100, 118],
+      "scale": 11
     }
   ]
 }

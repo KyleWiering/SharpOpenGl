@@ -12,6 +12,13 @@ public sealed class MultiplayerSetupScreen : UIScreen
 {
     public const int SlotCount = MultiplayerSetupLogic.MaxSlots;
 
+    private const float MapLabelWidth = 640f;
+    private const float MapLabelPadding = 10f;
+    private const float ValidationLabelWidth = 900f;
+    private const float ValidationLabelPadding = 10f;
+    private const float RaceLabelWidth = 300f;
+    private const float RaceLabelPadding = 10f;
+
     /// <inheritdoc/>
     public override string ScreenName => "MultiplayerSetup";
 
@@ -28,7 +35,9 @@ public sealed class MultiplayerSetupScreen : UIScreen
     private readonly Button _startBtn;
     private readonly Label _validationLabel;
     private readonly Label _mapLabel;
+    private readonly Label _difficultyLabel;
     private int _mapIndex;
+    private SkirmishDifficultyTier _difficulty = SkirmishDifficultyTier.Normal;
 
     public MultiplayerSetupScreen()
     {
@@ -76,6 +85,7 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Position = new Vector2(-360f, 132f),
             Size = new Vector2(44f, 44f),
             FontSize = 22f,
+            RequireMinimumHitExtent = true,
         };
         MenuTheme.ApplyNavButton(mapPrev, showGlow: false);
         mapPrev.Clicked += () => CycleMap(-1);
@@ -87,8 +97,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Text = "Map",
             Anchor = Anchor.TopCenter,
             Position = new Vector2(-40f, 138f),
-            Size = new Vector2(640f, 32f),
+            Size = new Vector2(MapLabelWidth, 32f),
             FontSize = 18f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(MapLabelWidth, MapLabelPadding),
+            MaxLines = 1,
             TextColor = MenuTheme.BodyTextColor,
         };
         AddWidget(_mapLabel);
@@ -101,23 +113,60 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Position = new Vector2(280f, 132f),
             Size = new Vector2(44f, 44f),
             FontSize = 22f,
+            RequireMinimumHitExtent = true,
         };
         MenuTheme.ApplyNavButton(mapNext, showGlow: false);
         mapNext.Clicked += () => CycleMap(1);
         AddWidget(mapNext);
 
-        const float columnWidth = 860f;
-        const float rowHeight = 96f;
-        const float rowStartY = 188f;
-        const float leftColumnX = -columnWidth - 20f;
-        const float rightColumnX = 20f;
+        var diffPrev = new Button
+        {
+            Name = "DiffPrev",
+            Label = "<",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(-360f, 176f),
+            Size = new Vector2(44f, 44f),
+            FontSize = 22f,
+            RequireMinimumHitExtent = true,
+        };
+        MenuTheme.ApplyNavButton(diffPrev, showGlow: false);
+        diffPrev.Clicked += () => CycleDifficulty(-1);
+        AddWidget(diffPrev);
+
+        _difficultyLabel = new Label
+        {
+            Name = "DifficultyLabel",
+            Text = "Difficulty: Normal",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(-40f, 182f),
+            Size = new Vector2(MapLabelWidth, 32f),
+            FontSize = 18f,
+            TextColor = MenuTheme.BodyTextColor,
+        };
+        AddWidget(_difficultyLabel);
+
+        var diffNext = new Button
+        {
+            Name = "DiffNext",
+            Label = ">",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(280f, 176f),
+            Size = new Vector2(44f, 44f),
+            FontSize = 22f,
+            RequireMinimumHitExtent = true,
+        };
+        MenuTheme.ApplyNavButton(diffNext, showGlow: false);
+        diffNext.Clicked += () => CycleDifficulty(1);
+        AddWidget(diffNext);
 
         for (int i = 0; i < SlotCount; i++)
         {
-            int column = i / 4;
-            int row = i % 4;
-            float x = column == 0 ? leftColumnX : rightColumnX;
-            float y = rowStartY + row * rowHeight;
+            int column = i / MultiplayerSetupLayout.SlotRowsPerColumn;
+            int row = i % MultiplayerSetupLayout.SlotRowsPerColumn;
+            float x = column == 0
+                ? MultiplayerSetupLayout.LeftColumnX
+                : MultiplayerSetupLayout.RightColumnX;
+            float y = MultiplayerSetupLayout.SlotRowStartY + row * MultiplayerSetupLayout.SlotRowHeight;
             _slotWidgets[i] = CreateSlotRow(i, x, y);
         }
 
@@ -126,9 +175,11 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Name = "MPValidation",
             Text = string.Empty,
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(0f, 598f),
-            Size = new Vector2(900f, 28f),
+            Position = new Vector2(0f, MultiplayerSetupLayout.ValidationTop),
+            Size = new Vector2(ValidationLabelWidth, MultiplayerSetupLayout.ValidationHeight),
             FontSize = 16f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(ValidationLabelWidth, ValidationLabelPadding),
+            MaxLines = 2,
             TextColor = new Vector4(1f, 0.55f, 0.35f, 1f),
         };
         AddWidget(_validationLabel);
@@ -138,9 +189,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Name = "StartMP",
             Label = "Start Match",
             Anchor = Anchor.TopCenter,
-            Position = new Vector2(-170f, 638f),
-            Size = new Vector2(340f, 58f),
+            Position = new Vector2(-170f, MultiplayerSetupLayout.StartButtonTop),
+            Size = new Vector2(340f, MultiplayerSetupLayout.StartButtonHeight),
             FontSize = 22f,
+            RequireMinimumHitExtent = true,
         };
         MenuTheme.ApplyNavButton(_startBtn);
         _startBtn.Clicked += OnStartClicked;
@@ -154,12 +206,14 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Position = new Vector2(40f, -80f),
             Size = new Vector2(200f, 56f),
             FontSize = 20f,
+            RequireMinimumHitExtent = true,
         };
         MenuTheme.ApplyNavButton(backBtn);
         backBtn.Clicked += () => BackRequested?.Invoke();
         AddWidget(backBtn);
 
         RefreshMapLabel();
+        RefreshDifficultyLabel();
         RefreshAllSlots();
         RefreshStartState();
     }
@@ -180,11 +234,14 @@ public sealed class MultiplayerSetupScreen : UIScreen
     public string GetSelectedMapId() =>
         _skirmishMaps.Length == 0 ? SkirmishMapCatalog.FallbackMaps[0].Id : _skirmishMaps[_mapIndex].Id;
 
+    /// <summary>Selected skirmish difficulty for tests and diagnostics.</summary>
+    public SkirmishDifficultyTier GetDifficulty() => _difficulty;
+
     /// <summary>Builds the setup result from the current slot state.</summary>
     public MultiplayerSetupResult? BuildResult() =>
         _skirmishMaps.Length == 0
             ? null
-            : MultiplayerSetupLogic.BuildResult(_slots, _raceIds, _skirmishMaps[_mapIndex]);
+            : MultiplayerSetupLogic.BuildResult(_slots, _raceIds, _skirmishMaps[_mapIndex], _difficulty);
 
     /// <summary>Advances skirmish map selection by <paramref name="delta"/>.</summary>
     public void CycleMap(int delta)
@@ -193,6 +250,13 @@ public sealed class MultiplayerSetupScreen : UIScreen
         _mapIndex = MultiplayerSetupLogic.CycleMapIndex(_mapIndex, delta, _skirmishMaps.Length);
         RefreshMapLabel();
         RefreshStartState();
+    }
+
+    /// <summary>Advances AI difficulty tier (Easy / Normal / Hard).</summary>
+    public void CycleDifficulty(int delta)
+    {
+        _difficulty = SkirmishDifficultyTuning.Cycle(_difficulty, delta);
+        RefreshDifficultyLabel();
     }
 
     /// <summary>Advances a slot through Empty → Human → AI.</summary>
@@ -236,8 +300,8 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Position = new Vector2(x + 70f, y + 4f),
             Size = new Vector2(150f, 44f),
             FontSize = 17f,
+            RequireMinimumHitExtent = true,
         };
-        MenuTheme.ApplyNavButton(widgets.KindButton, showGlow: false);
         int captured = slotIndex;
         widgets.KindButton.Clicked += () => CycleSlotKind(captured);
         AddWidget(widgets.KindButton);
@@ -250,6 +314,7 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Position = new Vector2(x + 250f, y + 4f),
             Size = new Vector2(44f, 44f),
             FontSize = 22f,
+            RequireMinimumHitExtent = true,
         };
         MenuTheme.ApplyNavButton(widgets.RacePrev, showGlow: false);
         widgets.RacePrev.Clicked += () => CycleSlotRace(captured, -1);
@@ -261,8 +326,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Text = "Race",
             Anchor = Anchor.TopCenter,
             Position = new Vector2(x + 300f, y + 10f),
-            Size = new Vector2(300f, 32f),
+            Size = new Vector2(RaceLabelWidth, 32f),
             FontSize = 18f,
+            WrapWidth = UITextDrawing.ContentWrapWidth(RaceLabelWidth, RaceLabelPadding),
+            MaxLines = 1,
             TextColor = MenuTheme.BodyTextColor,
         };
         AddWidget(widgets.RaceLabel);
@@ -275,6 +342,7 @@ public sealed class MultiplayerSetupScreen : UIScreen
             Position = new Vector2(x + 610f, y + 4f),
             Size = new Vector2(44f, 44f),
             FontSize = 22f,
+            RequireMinimumHitExtent = true,
         };
         MenuTheme.ApplyNavButton(widgets.RaceNext, showGlow: false);
         widgets.RaceNext.Clicked += () => CycleSlotRace(captured, 1);
@@ -313,9 +381,19 @@ public sealed class MultiplayerSetupScreen : UIScreen
             MultiplayerSlotKind.Ai => "AI",
             _ => "Empty",
         };
+        MenuTheme.ApplySlotKindButton(widgets.KindButton, slot.Kind);
+
+        Vector4? raceAccent = active
+            ? MenuTheme.ResolveRaceAccentColor(GetSlotRaceId(slotIndex))
+            : null;
+        MenuTheme.ApplyRaceToggleButton(widgets.RacePrev, active, raceAccent);
+        MenuTheme.ApplyRaceToggleButton(widgets.RaceNext, active, raceAccent);
 
         widgets.RaceLabel.Text = active
-            ? FormatRaceName(GetSlotRaceId(slotIndex))
+            ? UITextDrawing.TruncateWithEllipsis(
+                FormatRaceName(GetSlotRaceId(slotIndex)),
+                UITextDrawing.ContentWrapWidth(RaceLabelWidth, RaceLabelPadding),
+                18f)
             : "—";
 
         widgets.RaceLabel.Visible = true;
@@ -324,6 +402,12 @@ public sealed class MultiplayerSetupScreen : UIScreen
         widgets.RaceLabel.TextColor = active
             ? MenuTheme.BodyTextColor
             : new Vector4(0.45f, 0.48f, 0.55f, 0.8f);
+    }
+
+    private void RefreshDifficultyLabel()
+    {
+        _difficultyLabel.Text =
+            $"Difficulty: {SkirmishDifficultyTuning.DisplayName(_difficulty)}";
     }
 
     private void RefreshMapLabel()
@@ -335,7 +419,10 @@ public sealed class MultiplayerSetupScreen : UIScreen
         }
 
         var map = _skirmishMaps[_mapIndex];
-        _mapLabel.Text = $"Map: {map.DisplayName} ({map.PlayerCount} players)";
+        _mapLabel.Text = UITextDrawing.TruncateWithEllipsis(
+            $"Map: {map.DisplayName} ({map.PlayerCount} players)",
+            UITextDrawing.ContentWrapWidth(MapLabelWidth, MapLabelPadding),
+            18f);
     }
 
     private void RefreshStartState()

@@ -29,6 +29,7 @@ public sealed class RaceSubstrateProfile
         {
             "sleek" => new() { Pattern = "sleek", UvScale = 0.09f, PanelDepth = 0.03f, Grit = 0.08f, MicroFrequency = 3.2f },
             "blocky" => new() { Pattern = "blocky", UvScale = 0.14f, PanelDepth = 0.1f, Grit = 0.28f, MicroFrequency = 1.8f },
+            "truss" => new() { Pattern = "truss", UvScale = 0.09f, PanelDepth = 0.08f, Grit = 0.18f, MicroFrequency = 1.6f },
             "organic" => new() { Pattern = "organic", UvScale = 0.11f, PanelDepth = 0.05f, Grit = 0.12f, MicroFrequency = 2.8f },
             "asymmetric" => new() { Pattern = "asymmetric", UvScale = 0.13f, PanelDepth = 0.07f, Grit = 0.2f, MicroFrequency = 2.1f },
             "radiant" => new() { Pattern = "radiant", UvScale = 0.1f, PanelDepth = 0.04f, Grit = 0.1f, AccentBoost = 0.35f, MicroFrequency = 2.6f },

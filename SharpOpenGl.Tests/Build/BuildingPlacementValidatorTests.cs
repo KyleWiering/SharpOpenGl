@@ -185,6 +185,136 @@ public class BuildingPlacementValidatorTests
     }
 
     [Fact]
+    public void Validate_rejects_partial_overlap_on_multi_cell_footprint()
+    {
+        var grid = new GridSystem(20, 20, 10f, new Vector2(-100f, -100f));
+        var world = new World();
+        var commandCenter = world.CreateEntity();
+        world.AddComponent(commandCenter, new BuildingComponent
+        {
+            BuildingType = "command_center",
+            PlayerId = 1,
+            Footprint = [2, 2],
+        });
+
+        BuildingFootprint.Occupy(grid, commandCenter, new Vector3(0f, 0f, 0f), [2, 2]);
+
+        var resources = CreateFundedResources();
+        var catalog = CreateCatalog();
+        var def = new EntityDefinition
+        {
+            Id = "repair_bay",
+            Components = new ComponentsDefinition
+            {
+                Building = new BuildingDefinition { Footprint = [3, 3] },
+            },
+            Cost = new CostDefinition(),
+        };
+
+        var result = BuildingPlacementValidator.Validate(
+            grid, world, 1, def, new Vector3(10f, 0f, 0f),
+            catalog, resources, supply: null);
+
+        Assert.False(result.IsValid);
+        Assert.Equal(PlacementFailureReason.CellOccupied, result.Reason);
+    }
+
+    [Fact]
+    public void BuildStatusMessage_prioritizes_range_over_cell_validation()
+    {
+        var occupied = PlacementValidationResult.Fail(PlacementFailureReason.CellOccupied);
+        string rangeReason = PlacementFailureReasonExtensions.ToBuilderRangeMessage(80f);
+
+        Assert.Equal(rangeReason,
+            PlacementFailureReasonExtensions.BuildStatusMessage(occupied, inRange: false, rangeReason));
+    }
+
+    [Theory]
+    [InlineData(PlacementFailureReason.CellOccupied, "Cell occupied")]
+    [InlineData(PlacementFailureReason.ImpassableTerrain, "Impassable terrain")]
+    public void BuildStatusMessage_surfaces_validation_reason_on_invalid_cells(
+        PlacementFailureReason reason, string expected)
+    {
+        var result = PlacementValidationResult.Fail(reason);
+        Assert.Equal(expected,
+            PlacementFailureReasonExtensions.BuildStatusMessage(result, inRange: true, rangeReason: string.Empty));
+    }
+
+    [Fact]
+    public void BuildStatusMessage_shows_click_prompt_when_valid()
+    {
+        Assert.Equal("Click to place",
+            PlacementFailureReasonExtensions.BuildStatusMessage(
+                PlacementValidationResult.Ok(), inRange: true, rangeReason: string.Empty));
+    }
+
+    [Fact]
+    public void BuildPlacedMessage_formats_success_toast()
+    {
+        Assert.Equal("Supply Depot — Placed",
+            PlacementFailureReasonExtensions.BuildPlacedMessage("Supply Depot"));
+    }
+
+    [Fact]
+    public void ToPlayerMessage_covers_all_failure_reasons()
+    {
+        var messages = new Dictionary<PlacementFailureReason, string>();
+        foreach (PlacementFailureReason reason in Enum.GetValues<PlacementFailureReason>())
+        {
+            if (reason == PlacementFailureReason.None)
+                continue;
+
+            string message = reason.ToPlayerMessage();
+            Assert.False(string.IsNullOrWhiteSpace(message));
+            messages[reason] = message;
+        }
+
+        Assert.Equal(Enum.GetValues<PlacementFailureReason>().Length - 1, messages.Count);
+        Assert.Equal(messages.Count, messages.Values.Distinct(StringComparer.Ordinal).Count());
+        Assert.Equal(
+            "Builder out of range (50m)",
+            PlacementFailureReasonExtensions.ToBuilderRangeMessage(50f));
+    }
+
+    [Fact]
+    public void Validate_snapped_position_matches_cell_center()
+    {
+        var grid = new GridSystem(20, 20, 10f, new Vector2(-100f, -100f));
+        var cursor = new Vector3(-73f, 0f, 42f);
+
+        Vector3 snapped = BuildingFootprint.SnapToCellCenter(grid, cursor);
+        Assert.True(grid.WorldToGrid(snapped, out int x, out int y));
+        Assert.Equal(grid.GridToWorld(x, y), snapped);
+
+        var world = new World();
+        world.AddComponent(world.CreateEntity(), new BuildingComponent
+        {
+            BuildingType = "command_center",
+            PlayerId = 1,
+        });
+
+        var resources = CreateFundedResources();
+        var catalog = CreateCatalog();
+        var def = new EntityDefinition
+        {
+            Id = "shipyard_small",
+            Components = new ComponentsDefinition
+            {
+                Building = new BuildingDefinition { Footprint = [1, 1] },
+            },
+            Cost = new CostDefinition(),
+        };
+
+        var snappedResult = BuildingPlacementValidator.Validate(
+            grid, world, 1, def, snapped, catalog, resources, supply: null);
+        var rawResult = BuildingPlacementValidator.Validate(
+            grid, world, 1, def, cursor, catalog, resources, supply: null);
+
+        Assert.Equal(snappedResult.IsValid, rawResult.IsValid);
+        Assert.Equal(snappedResult.Reason, rawResult.Reason);
+    }
+
+    [Fact]
     public void Occupy_marks_all_footprint_cells()
     {
         var grid = new GridSystem(20, 20, 10f, new Vector2(-100f, -100f));

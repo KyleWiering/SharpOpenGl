@@ -6,7 +6,7 @@ public sealed class DemoScriptStepDefinition
     /// <summary>
     /// Step kind: <c>select_units</c>, <c>move_to</c>, <c>attack_move</c>,
     /// <c>attack_target</c>, <c>wait</c>, <c>wait_objective</c>, <c>camera_pan</c>,
-    /// <c>build_unit</c>, <c>place_building</c>.
+    /// <c>build_unit</c>, <c>place_building</c>, <c>wait_for_construction</c>.
     /// </summary>
     public string Type { get; set; } = string.Empty;
 

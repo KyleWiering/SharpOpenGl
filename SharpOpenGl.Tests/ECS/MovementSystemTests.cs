@@ -5,6 +5,7 @@ using Xunit;
 
 namespace SharpOpenGl.Tests.ECS;
 
+[Collection("MovementBalance")]
 public class MovementSystemTests
 {
     public MovementSystemTests()

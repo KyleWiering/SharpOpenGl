@@ -1,0 +1,116 @@
+{
+  "project_slug": "superior-menu-skills",
+  "skill": "menu-system-suite",
+  "target": "default",
+  "scoreNumber": 1,
+  "scored_at": "2026-07-14T00:00:00Z",
+  "scorer": "manager",
+  "mode": "score",
+  "childScores": {
+    "formWidgetQuality": {
+      "skill": "form-widget-quality",
+      "scorePath": ".grok/org/superior-menu-skills/scores/form-widget-quality/<target>/score-NN.json",
+      "overallScore": 0,
+      "passed": false,
+      "categoryFloors": {
+        "textFit": { "score": 0, "max": 20, "passed": false },
+        "legibility": { "score": 0, "max": 20, "passed": false },
+        "contrast": { "score": 0, "max": 20, "passed": false },
+        "layout": { "score": 0, "max": 20, "passed": false },
+        "accessibility": { "score": 0, "max": 20, "passed": false }
+      },
+      "notes": ""
+    },
+    "hudButtonQuality": {
+      "skill": "hud-button-quality",
+      "scorePath": ".grok/org/superior-menu-skills/scores/hud-button-quality/<target>/score-NN.json",
+      "overallScore": 0,
+      "passed": false,
+      "categoryFloors": {
+        "hitTarget": { "score": 0, "max": 20, "passed": false },
+        "stateFeedback": { "score": 0, "max": 20, "passed": false },
+        "visualClarity": { "score": 0, "max": 20, "passed": false },
+        "labelFit": { "score": 0, "max": 20, "passed": false },
+        "hudDensity": { "score": 0, "max": 20, "passed": false }
+      },
+      "notes": ""
+    },
+    "menuContinuity": {
+      "skill": "menu-continuity",
+      "scorePath": ".grok/org/superior-menu-skills/scores/menu-continuity/<target>/score-NN.json",
+      "overallScore": 0,
+      "passed": false,
+      "categoryFloors": {
+        "navigationFlow": { "score": 0, "max": 20, "passed": false },
+        "themeConsistency": { "score": 0, "max": 20, "passed": false },
+        "transitionContinuity": { "score": 0, "max": 20, "passed": false },
+        "screenParity": { "score": 0, "max": 20, "passed": false },
+        "backNav": { "score": 0, "max": 20, "passed": false }
+      },
+      "notes": ""
+    }
+  },
+  "resolutionGate": {
+    "desktop_default": {
+      "viewport": "1024x768",
+      "passed": false,
+      "passRate": 0.0,
+      "applicableRows": 0,
+      "passedRows": 0,
+      "notes": ""
+    },
+    "reference_logical": {
+      "viewport": "1920x1080",
+      "passed": false,
+      "passRate": 0.0,
+      "applicableRows": 0,
+      "passedRows": 0,
+      "notes": ""
+    },
+    "browser_viewport": {
+      "viewport": "browser",
+      "passed": false,
+      "passRate": 0.0,
+      "applicableRows": 0,
+      "passedRows": 0,
+      "notes": ""
+    },
+    "allViewportsPassed": false
+  },
+  "weightedComponents": {
+    "formWidgetQuality": { "weight": 0.30, "score": 0, "contribution": 0 },
+    "hudButtonQuality": { "weight": 0.30, "score": 0, "contribution": 0 },
+    "menuContinuity": { "weight": 0.30, "score": 0, "contribution": 0 },
+    "resolutionGate": { "weight": 0.10, "score": 0, "contribution": 0 }
+  },
+  "weightedOverall": 0,
+  "passThreshold": 80,
+  "passed": false,
+  "regressionGate": {
+    "uiTestsRun": "dotnet test SharpOpenGl.Tests --filter \"FullyQualifiedName~UI\"",
+    "uiTestsPassed": null,
+    "uiTestsFailed": []
+  },
+  "evidence": {
+    "screenshots": [],
+    "rubricPaths": [
+      ".grok/org/superior-menu-skills/rubrics/form-widget-rubric.md",
+      ".grok/org/superior-menu-skills/rubrics/hud-button-rubric.md",
+      ".grok/org/superior-menu-skills/rubrics/menu-continuity-rubric.md",
+      ".grok/org/superior-menu-skills/rubrics/resolution-matrix.md"
+    ]
+  },
+  "baselineComparison": {
+    "baselinePath": ".grok/org/superior-menu-skills/scores/suite/baseline.json",
+    "deltaOverall": null,
+    "regressed": false,
+    "childDeltas": {
+      "formWidgetQuality": null,
+      "hudButtonQuality": null,
+      "menuContinuity": null
+    },
+    "notes": "First suite score writes baseline when missing"
+  },
+  "topBlockers": [],
+  "nextActions": []
+}

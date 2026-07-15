@@ -57,6 +57,9 @@ public sealed class MissionState
     /// <summary>Maps tags to all entities sharing that tag (for destroy-all objectives).</summary>
     public Dictionary<string, HashSet<Entity>> EntityGroups { get; } = new();
 
+    /// <summary>Combat and production counters for victory overlay stats (P08-D09).</summary>
+    public MissionRunStats RunStats { get; } = new();
+
     // ── Construction ──────────────────────────────────────────────────────────
 
     /// <param name="definition">The loaded mission definition.</param>

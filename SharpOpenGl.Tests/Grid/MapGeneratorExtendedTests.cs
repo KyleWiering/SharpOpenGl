@@ -114,4 +114,155 @@ public class MapGeneratorExtendedTests
         // At least terrain regions should differ
         Assert.NotEqual(def1.Id, def2.Id);
     }
+
+    [Fact]
+    public void Generate_config_includes_harvestable_and_neutral_planets()
+    {
+        var gen = new MapGenerator(seed: 42);
+        var config = new MapGeneratorConfig
+        {
+            Width = 64,
+            Height = 64,
+            HarvestablePlanetCount = 1,
+            NeutralPlanetCount = 1,
+        };
+
+        MapDefinition def = gen.Generate(config);
+
+        Assert.Contains(def.MapFeatures, f => f.Kind == "harvestable_planet");
+        Assert.Contains(def.MapFeatures, f => f.Kind == "neutral_planet");
+    }
+
+    [Fact]
+    public void Generate_config_economy_features_respect_min_feature_distance()
+    {
+        var gen = new MapGenerator(seed: 55);
+        const int minDist = 10;
+        var config = new MapGeneratorConfig
+        {
+            Width = 64,
+            Height = 64,
+            ResourceNodeCount = 4,
+            HarvestablePlanetCount = 1,
+            NeutralPlanetCount = 1,
+            MinFeatureDistance = minDist,
+            ScatterSceneryFromTerrain = false,
+        };
+
+        MapDefinition def = gen.Generate(config);
+
+        var economyPositions = def.ResourceNodes
+            .Select(n => (n.Position[0], n.Position[1]))
+            .Concat(def.MapFeatures
+                .Where(f => f.Kind is "harvestable_planet" or "neutral_planet")
+                .Select(f => (f.Position[0], f.Position[1])))
+            .ToList();
+
+        for (int i = 0; i < economyPositions.Count; i++)
+        {
+            for (int j = i + 1; j < economyPositions.Count; j++)
+            {
+                int dx = economyPositions[i].Item1 - economyPositions[j].Item1;
+                int dy = economyPositions[i].Item2 - economyPositions[j].Item2;
+                float dist = MathF.Sqrt(dx * dx + dy * dy);
+                Assert.True(dist >= minDist,
+                    $"Economy features {i} and {j} too close: {dist}");
+            }
+        }
+    }
+
+    [Fact]
+    public void Generate_config_same_seed_produces_identical_features()
+    {
+        var config = new MapGeneratorConfig
+        {
+            Width = 64,
+            Height = 64,
+            ResourceNodeCount = 4,
+            HarvestablePlanetCount = 1,
+            NeutralPlanetCount = 1,
+        };
+
+        MapDefinition def1 = new MapGenerator(seed: 99).Generate(config);
+        MapDefinition def2 = new MapGenerator(seed: 99).Generate(config);
+
+        Assert.Equal(def1.MapFeatures.Length, def2.MapFeatures.Length);
+        for (int i = 0; i < def1.MapFeatures.Length; i++)
+        {
+            Assert.Equal(def1.MapFeatures[i].Kind, def2.MapFeatures[i].Kind);
+            Assert.Equal(def1.MapFeatures[i].Position[0], def2.MapFeatures[i].Position[0]);
+            Assert.Equal(def1.MapFeatures[i].Position[1], def2.MapFeatures[i].Position[1]);
+        }
+
+        Assert.Equal(def1.ResourceNodes.Length, def2.ResourceNodes.Length);
+        for (int i = 0; i < def1.ResourceNodes.Length; i++)
+        {
+            Assert.Equal(def1.ResourceNodes[i].Type, def2.ResourceNodes[i].Type);
+            Assert.Equal(def1.ResourceNodes[i].Position[0], def2.ResourceNodes[i].Position[0]);
+            Assert.Equal(def1.ResourceNodes[i].Position[1], def2.ResourceNodes[i].Position[1]);
+        }
+    }
+
+    [Fact]
+    public void Generate_config_spawn_produces_mineable_content()
+    {
+        var gen = new MapGenerator(seed: 77);
+        var config = new MapGeneratorConfig();
+
+        MapDefinition def = gen.Generate(config);
+
+        Assert.Empty(SkirmishMapLogic.ValidateEconomy(def));
+    }
+
+    [Fact]
+    public void GenerateChunk_is_deterministic_for_same_seed_and_coords()
+    {
+        var gen = new MapGenerator(seed: 0);
+
+        MapDefinition first = gen.GenerateChunk(-2, 4, worldSeed: 1234, cellSize: 10f);
+        MapDefinition second = gen.GenerateChunk(-2, 4, worldSeed: 1234, cellSize: 10f);
+
+        Assert.Equal(first.Id, second.Id);
+        Assert.Equal(first.ResourceNodes.Length, second.ResourceNodes.Length);
+        Assert.Equal(first.MapFeatures.Length, second.MapFeatures.Length);
+
+        for (int i = 0; i < first.ResourceNodes.Length; i++)
+        {
+            Assert.Equal(first.ResourceNodes[i].Position[0], second.ResourceNodes[i].Position[0]);
+            Assert.Equal(first.ResourceNodes[i].Position[1], second.ResourceNodes[i].Position[1]);
+            Assert.Equal(first.ResourceNodes[i].Type, second.ResourceNodes[i].Type);
+        }
+    }
+
+    [Fact]
+    public void GenerateChunk_differs_across_chunk_coordinates()
+    {
+        var gen = new MapGenerator(seed: 0);
+
+        MapDefinition a = gen.GenerateChunk(0, 0, worldSeed: 50, cellSize: 10f);
+        MapDefinition b = gen.GenerateChunk(1, 0, worldSeed: 50, cellSize: 10f);
+
+        Assert.NotEqual(a.Id, b.Id);
+    }
+
+    [Fact]
+    public void GenerateChunk_includes_varied_terrain_regions()
+    {
+        var gen = new MapGenerator(seed: 0);
+        var regionTypes = new HashSet<string>();
+
+        for (int cx = -2; cx <= 2; cx++)
+        for (int cy = -2; cy <= 2; cy++)
+        {
+            MapDefinition chunk = gen.GenerateChunk(cx, cy, worldSeed: 77, cellSize: 10f);
+            foreach (var region in chunk.Terrain.Regions)
+                regionTypes.Add(region.Type);
+        }
+
+        Assert.Contains("asteroid_field", regionTypes);
+        Assert.Contains("nebula", regionTypes);
+        Assert.True(
+            regionTypes.Count >= 3,
+            $"Expected at least three terrain region types across chunks, got: {string.Join(", ", regionTypes)}");
+    }
 }

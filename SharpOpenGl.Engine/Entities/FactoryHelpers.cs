@@ -3,6 +3,7 @@ using SharpOpenGl.Engine.Assets;
 using SharpOpenGl.Engine.Combat;
 using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Rendering;
 
 namespace SharpOpenGl.Engine.Entities;
 
@@ -114,6 +115,103 @@ internal static class FactoryHelpers
         world.AddComponent(entity, list);
     }
 
+    /// <summary>
+    /// Spawns nested yaw + pitch articulated child entities for armed corvette/gunship/destroyer hulls.
+    /// </summary>
+    internal static void ApplyShipTurretArticulation(World world, Entity hull, EntityDefinition def)
+    {
+        if (def.Components?.Weapons == null || def.Components.Weapons.Length == 0)
+            return;
+
+        string hullKey = ShipTurretArticulationDefs.ResolveHullKey(def);
+
+        if (def.Articulation != null)
+        {
+            if (TryFilterTurretArticulation(def.Articulation, out ArticulationDefinition? turretArticulation))
+                ArticulationSpawner.SpawnFromDefinition(world, hull, turretArticulation, hullKey);
+            return;
+        }
+
+        if (!ShipTurretArticulationDefs.TryGet(hullKey, out ShipTurretDef turretDef))
+            return;
+
+        Entity yawEntity = world.CreateEntity();
+        world.AddComponent(yawEntity, new ArticulatedPartComponent
+        {
+            Owner = hull,
+            PartType = ArticulatedPartType.TurretYaw,
+            LocalPivotOffset = turretDef.HullPivotOffset,
+            MeshLocalOffset = turretDef.YawMeshOffset,
+            YawMin = turretDef.YawMin,
+            YawMax = turretDef.YawMax,
+            PitchMin = turretDef.PitchMin,
+            PitchMax = turretDef.PitchMax,
+            IdleSweepEnabled = true,
+            IdleSweepSpeed = 8f,
+            SlewRateDegreesPerSecond = 90f,
+        });
+        world.AddComponent(yawEntity, new RenderComponent
+        {
+            MeshKey = ArticulatedShipPartMeshes.BuildPartKey("turret_yaw", hullKey),
+            MeshId = -1,
+            Visible = true,
+            PrimitiveType = 4,
+        });
+
+        Entity pitchEntity = world.CreateEntity();
+        world.AddComponent(pitchEntity, new ArticulatedPartComponent
+        {
+            Owner = yawEntity,
+            PartType = ArticulatedPartType.TurretPitch,
+            LocalPivotOffset = turretDef.PitchPivotOnYaw,
+            MeshLocalOffset = turretDef.PitchMeshOffset,
+            YawMin = turretDef.YawMin,
+            YawMax = turretDef.YawMax,
+            PitchMin = turretDef.PitchMin,
+            PitchMax = turretDef.PitchMax,
+            IdleSweepEnabled = false,
+            SlewRateDegreesPerSecond = 90f,
+        });
+        world.AddComponent(pitchEntity, new RenderComponent
+        {
+            MeshKey = ArticulatedShipPartMeshes.BuildPartKey("turret_pitch", hullKey),
+            MeshId = -1,
+            Visible = true,
+            PrimitiveType = 4,
+        });
+    }
+
+    private static bool TryFilterTurretArticulation(
+        ArticulationDefinition? articulation,
+        out ArticulationDefinition? turretArticulation)
+    {
+        turretArticulation = null;
+        if (articulation?.Parts is not { Length: > 0 } parts)
+            return false;
+
+        var turretParts = new List<ArticulationPartDefinition>();
+        foreach (ArticulationPartDefinition part in parts)
+        {
+            if (!ArticulationDefinitionParser.TryParsePartType(part.PartType, out ArticulatedPartType partType))
+                continue;
+
+            if (partType is not (ArticulatedPartType.TurretYaw or ArticulatedPartType.TurretPitch))
+                continue;
+
+            // launcher_pod is a special-hull part typed as TurretYaw in JSON for schema compat.
+            if (string.Equals(part.Id, "launcher_pod", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            turretParts.Add(part);
+        }
+
+        if (turretParts.Count == 0)
+            return false;
+
+        turretArticulation = new ArticulationDefinition { Parts = turretParts.ToArray() };
+        return ArticulationDefinitionParser.IsValid(turretArticulation);
+    }
+
     /// <summary>Apply <see cref="HeroComponent"/> from definition.</summary>
     internal static void ApplyHero(World world, Entity entity,
         HeroDefinition? hero, AbilityDefinition[]? abilities)
@@ -187,6 +285,7 @@ internal static class FactoryHelpers
             BuildingType   = def.BuildingType,
             ProductionRate = def.ProductionRate,
             Footprint      = def.Footprint is { Length: >= 2 } ? def.Footprint : [1, 1],
+            Rotates        = def.Rotates,
         };
 
         foreach (string item in def.BuildQueue)
@@ -200,6 +299,14 @@ internal static class FactoryHelpers
     {
         int radius = components?.SightRadius > 0 ? components.SightRadius : 5;
         world.AddComponent(entity, new SightRadiusComponent { Radius = radius });
+        ApplyWeaponSkill(world, entity, components?.WeaponSkill);
+    }
+
+    /// <summary>Apply <see cref="WeaponSkillComponent"/> when <c>components.weaponSkill</c> is declared.</summary>
+    internal static void ApplyWeaponSkill(World world, Entity entity, WeaponSkillDefinition? def)
+    {
+        if (def == null) return;
+        world.AddComponent(entity, WeaponSkillProfiles.Resolve(def));
     }
 
     /// <summary>Apply <see cref="ResourceCollectorComponent"/> from definition.</summary>
@@ -224,6 +331,39 @@ internal static class FactoryHelpers
             HarvestRange = range,
             HarvestRate = def.HarvestRate * rateMult,
             CarryCapacity = capacity,
+        });
+    }
+
+    /// <summary>Apply <see cref="ShipRepairComponent"/> from definition.</summary>
+    internal static void ApplyShipRepair(World world, Entity entity, ShipRepairDefinition? def)
+    {
+        if (def == null) return;
+
+        float range = def.RepairRange > 0f
+            ? def.RepairRange
+            : 60f;
+
+        world.AddComponent(entity, new ShipRepairComponent
+        {
+            RepairRange = range,
+            RepairRate = def.RepairRate > 0f ? def.RepairRate : 12f,
+            RepairableCategories = def.RepairableCategories?.ToArray() ?? [],
+        });
+    }
+
+    /// <summary>Apply <see cref="StructureBuilderComponent"/> from definition.</summary>
+    internal static void ApplyStructureBuilder(World world, Entity entity, StructureBuilderDefinition? def)
+    {
+        if (def == null) return;
+
+        float range = def.PlacementRange > 0f
+            ? def.PlacementRange
+            : StructureBuilderComponent.DefaultPlacementRange;
+
+        world.AddComponent(entity, new StructureBuilderComponent
+        {
+            PlacementRange = range,
+            BuildableIds = def.BuildableIds?.ToList() ?? [],
         });
     }
 }

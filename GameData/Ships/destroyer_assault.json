@@ -2,6 +2,7 @@
   "id": "destroyer_assault",
   "displayName": "Ravager Destroyer",
   "category": "destroyer",
+  "shipRole": "military",
   "mesh": "meshes/destroyer_assault.obj",
   "fallbackMesh": "default",
   "components": {
@@ -11,8 +12,19 @@
       { "slot": 0, "type": "railgun", "damage": 150, "range": 500, "fireRate": 1.0 },
       { "slot": 1, "type": "laser", "damage": 40, "range": 300, "fireRate": 3.0 },
       { "slot": 2, "type": "missile", "damage": 120, "range": 600, "fireRate": 0.5 }
-    ]
+    ],
+    "weaponSkill": {
+      "accuracyBonus": 0.06,
+      "reloadModifier": 0.95,
+      "rangeTier": "medium"
+    }
   },
   "cost": { "energy": 300, "minerals": 400, "data": 50, "crew": 8 },
-  "buildTime": 60
+  "buildTime": 60,
+  "articulation": {
+    "parts": [
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.5, 1.1], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "slewRate": 90, "meshKey": "articulated/turret_yaw/destroyer_assault" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.25, 0.3], "pitchMin": -10, "pitchMax": 45, "slewRate": 90, "meshKey": "articulated/turret_pitch/destroyer_assault" }
+    ]
+  }
 }

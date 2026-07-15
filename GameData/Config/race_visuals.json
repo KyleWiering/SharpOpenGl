@@ -1,5 +1,5 @@
-﻿{
-    "_comment":  "Visual schema for 8 playable races. Drives procedural ship silhouettes, per-race surface substrates (mesh micro-variation + shader texture indices 0â€“7), and team tint from PlayerColorPalette at runtime.",
+{
+    "_comment":  "Visual schema for 8 playable races. Drives procedural ship silhouettes, per-race surface substrates (mesh micro-variation + shader texture indices 0Ã¢â‚¬â€œ7), and team tint from PlayerColorPalette at runtime.",
     "version":  1,
     "races":  [
                   {
@@ -29,23 +29,23 @@
                                                  ]
                                   },
                       "modifiers":  {
-                                        "wingSweep":  0.04,
-                                        "wingSpan":  0.92,
-                                        "hullLength":  0.9,
-                                        "hullWidth":  1.38,
-                                        "protrusion":  0.12,
+                                        "wingSweep":  0.27,
+                                        "wingSpan":  0.78,
+                                        "hullLength":  1.25,
+                                        "hullWidth":  0.97,
+                                        "protrusion":  0.14,
                                         "asymmetry":  0,
-                                        "facetSharpness":  0.15,
+                                        "facetSharpness":  0.18,
                                         "engineCount":  2,
-                                        "superstructure":  0.42
+                                        "superstructure":  0.31
                                     },
                       "substrate":  {
                                         "pattern":  "retro",
-                                        "uvScale":  0.07,
-                                        "panelDepth":  0.05,
-                                        "grit":  0.04,
-                                        "accentBoost":  0.12,
-                                        "microFrequency":  1.1
+                                        "uvScale":  0.06,
+                                        "panelDepth":  0.22,
+                                        "grit":  0.05,
+                                        "accentBoost":  0.36,
+                                        "microFrequency":  2.2
                                     }
                   },
                   {
@@ -54,31 +54,31 @@
                       "style":  "vasudan",
                       "palette":  {
                                       "primary":  [
-                                                      0.58,
-                                                      0.48,
-                                                      0.38
+                                                      0.42,
+                                                      0.44,
+                                                      0.46
                                                   ],
                                       "secondary":  [
-                                                        0.42,
-                                                        0.38,
-                                                        0.34
+                                                        0.28,
+                                                        0.32,
+                                                        0.36
                                                     ],
                                       "accent":  [
-                                                     0.72,
-                                                     0.55,
-                                                     0.28
+                                                     0.62,
+                                                     0.82,
+                                                     0.95
                                                  ],
                                       "engine":  [
-                                                     0.45,
-                                                     0.62,
-                                                     0.55
+                                                     0.12,
+                                                     0.78,
+                                                     0.68
                                                  ]
                                   },
                       "modifiers":  {
                                         "wingSweep":  0.2,
                                         "wingSpan":  0.55,
-                                        "hullLength":  1.32,
-                                        "hullWidth":  0.55,
+                                        "hullLength":  1.28,
+                                        "hullWidth":  0.52,
                                         "protrusion":  0.1,
                                         "asymmetry":  0.05,
                                         "facetSharpness":  0.05,
@@ -87,57 +87,57 @@
                                     },
                       "substrate":  {
                                         "pattern":  "vasudan",
-                                        "uvScale":  0.065,
-                                        "panelDepth":  0.04,
-                                        "grit":  0.07,
-                                        "accentBoost":  0.1,
-                                        "microFrequency":  1.4
+                                        "uvScale":  0.058,
+                                        "panelDepth":  0.28,
+                                        "grit":  0.38,
+                                        "accentBoost":  0.36,
+                                        "microFrequency":  5.4
                                     }
                   },
                   {
                       "id":  "korath",
                       "displayName":  "Korath Dominion",
-                      "style":  "blocky",
+                      "style":  "truss",
                       "palette":  {
                                       "primary":  [
-                                                      0.55,
-                                                      0.28,
-                                                      0.22
+                                                      0.93,
+                                                      0.92,
+                                                      0.89
                                                   ],
                                       "secondary":  [
-                                                        0.35,
-                                                        0.18,
-                                                        0.14
+                                                        0.58,
+                                                        0.57,
+                                                        0.55
                                                     ],
                                       "accent":  [
-                                                     1,
-                                                     0.45,
-                                                     0.12
+                                                     0.88,
+                                                     0.74,
+                                                     0.38
                                                  ],
                                       "engine":  [
                                                      0.95,
-                                                     0.35,
-                                                     0.1
+                                                     0.52,
+                                                     0.22
                                                  ]
                                   },
                       "modifiers":  {
-                                        "wingSweep":  0.08,
-                                        "wingSpan":  0.85,
-                                        "hullLength":  0.82,
-                                        "hullWidth":  1.55,
-                                        "protrusion":  0.45,
-                                        "asymmetry":  0.1,
-                                        "facetSharpness":  0.55,
-                                        "engineCount":  4,
-                                        "superstructure":  0.5
+                                        "wingSweep":  0.02,
+                                        "wingSpan":  1.18,
+                                        "hullLength":  1.05,
+                                        "hullWidth":  1.42,
+                                        "protrusion":  0.38,
+                                        "asymmetry":  0.04,
+                                        "facetSharpness":  0.12,
+                                        "engineCount":  2,
+                                        "superstructure":  0.72
                                     },
                       "substrate":  {
-                                        "pattern":  "blocky",
-                                        "uvScale":  0.105,
-                                        "panelDepth":  0.063,
-                                        "grit":  0.147,
-                                        "accentBoost":  0.15,
-                                        "microFrequency":  0.990
+                                        "pattern":  "truss",
+                                        "uvScale":  0.085,
+                                        "panelDepth":  0.06,
+                                        "grit":  0.1,
+                                        "accentBoost":  0.08,
+                                        "microFrequency":  1.45
                                     }
                   },
                   {
@@ -429,28 +429,28 @@
                                        "engineScale":  1.2
                                    },
                         "destroyer":  {
-                                          "size":  3.5,
+                                          "size":  4,
                                           "lengthRatio":  1.4,
                                           "widthRatio":  0.7,
                                           "heightRatio":  0.26,
                                           "engineScale":  1.25
                                       },
                         "cruiser":  {
-                                        "size":  4.2,
+                                        "size":  4.8,
                                         "lengthRatio":  1.2,
                                         "widthRatio":  0.85,
                                         "heightRatio":  0.32,
                                         "engineScale":  1.35
                                     },
                         "carrier":  {
-                                        "size":  4,
+                                        "size":  4.6,
                                         "lengthRatio":  1.15,
                                         "widthRatio":  1.2,
                                         "heightRatio":  0.38,
                                         "engineScale":  1.4
                                     },
                         "dreadnought":  {
-                                            "size":  5.5,
+                                            "size":  6.3,
                                             "lengthRatio":  1.3,
                                             "widthRatio":  1.05,
                                             "heightRatio":  0.42,

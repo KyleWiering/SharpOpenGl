@@ -2,6 +2,7 @@
   "id": "carrier_command",
   "displayName": "Sovereign Carrier",
   "category": "carrier",
+  "shipRole": "political",
   "mesh": "meshes/carrier_command.obj",
   "fallbackMesh": "default",
   "components": {
@@ -18,5 +19,14 @@
     }
   },
   "cost": { "energy": 500, "minerals": 700, "data": 100, "crew": 20 },
-  "buildTime": 120
+  "buildTime": 120,
+  "articulation": {
+    "parts": [
+      { "id": "deck_elevator", "partType": "BayDoor", "localPivot": [0, 0.2, -0.8], "pitchMin": 0, "pitchMax": 60, "meshKey": "articulated/deck_segment/carrier_command" },
+      { "id": "port_defense_yaw", "partType": "TurretYaw", "localPivot": [-0.7, 0.5, -0.8], "yawMin": -140, "yawMax": 140, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/carrier_command" },
+      { "id": "port_defense_pitch", "partType": "TurretPitch", "ownerPartId": "port_defense_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/carrier_command" },
+      { "id": "starboard_defense_yaw", "partType": "TurretYaw", "localPivot": [0.7, 0.5, -0.8], "yawMin": -140, "yawMax": 140, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/carrier_command" },
+      { "id": "starboard_defense_pitch", "partType": "TurretPitch", "ownerPartId": "starboard_defense_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/carrier_command" }
+    ]
+  }
 }

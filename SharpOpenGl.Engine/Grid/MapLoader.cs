@@ -38,60 +38,8 @@ public sealed class MapLoader
 
         var grid = new GridSystem(width, height, cellSize);
 
-        ApplyTerrain(grid, def.Terrain);
+        MapTerrainApplicator.ApplyRegions(grid, def.Terrain);
 
         return grid;
     }
-
-    // ── Terrain application ───────────────────────────────────────────────────
-
-    private static void ApplyTerrain(GridSystem grid, MapTerrain? terrain)
-    {
-        if (terrain == null) return;
-
-        TerrainType defaultType = ParseTerrain(terrain.Default);
-
-        // Apply default to all cells first
-        if (defaultType != TerrainType.Space)
-        {
-            foreach (GridCell cell in grid.AllCells(GridLayer.Surface))
-                cell.Terrain = defaultType;
-        }
-
-        // Apply regions on top
-        foreach (MapTerrainRegion region in terrain.Regions)
-        {
-            TerrainType regionType = ParseTerrain(region.Type);
-
-            if (region.Cells != null)
-            {
-                foreach (int[] coord in region.Cells)
-                {
-                    if (coord.Length < 2) continue;
-                    GridCell? cell = grid.GetCell(coord[0], coord[1], GridLayer.Surface);
-                    if (cell != null) cell.Terrain = regionType;
-                }
-            }
-            else if (region.Rect != null && region.Rect.Length >= 4)
-            {
-                int minX = region.Rect[0], minY = region.Rect[1];
-                int maxX = region.Rect[2], maxY = region.Rect[3];
-                for (int x = minX; x <= maxX; x++)
-                for (int y = minY; y <= maxY; y++)
-                {
-                    GridCell? cell = grid.GetCell(x, y, GridLayer.Surface);
-                    if (cell != null) cell.Terrain = regionType;
-                }
-            }
-        }
-    }
-
-    private static TerrainType ParseTerrain(string? name) => name?.ToLowerInvariant() switch
-    {
-        "asteroid_field" or "asteroidfield" => TerrainType.AsteroidField,
-        "nebula"                            => TerrainType.Nebula,
-        "debris"                            => TerrainType.Debris,
-        "impassable"                        => TerrainType.Impassable,
-        _                                   => TerrainType.Space,
-    };
 }

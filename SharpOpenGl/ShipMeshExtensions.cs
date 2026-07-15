@@ -29,8 +29,8 @@ public static class ShipMeshExtensions
     public static (int vao, int vbo, int vertexCount) BuildGunshipMesh(Vector3 color, float size = 3.2f)
         => BuildRaceMesh(RaceShipMeshes.DefaultRace, "gunship", color, size / 3.2f);
 
-    public static (int vao, int vbo, int vertexCount) BuildCruiserMesh(Vector3 color, float size = 4.2f)
-        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "cruiser", color, size / 4.2f);
+    public static (int vao, int vbo, int vertexCount) BuildCruiserMesh(Vector3 color, float size = 4.8f)
+        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "cruiser", color, size / 4.8f);
 
     public static (int vao, int vbo, int vertexCount) BuildTransportMesh(Vector3 color, float size = 3.8f)
         => BuildRaceMesh(RaceShipMeshes.DefaultRace, "transport", color, size / 3.8f);
@@ -38,8 +38,8 @@ public static class ShipMeshExtensions
     public static (int vao, int vbo, int vertexCount) BuildMinerMesh(Vector3 color, float size = 2.2f)
         => BuildRaceMesh(RaceShipMeshes.DefaultRace, "miner", color, size / 2.2f);
 
-    public static (int vao, int vbo, int vertexCount) BuildDreadnoughtMesh(Vector3 color, float size = 5.5f)
-        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "dreadnought", color, size / 5.5f);
+    public static (int vao, int vbo, int vertexCount) BuildDreadnoughtMesh(Vector3 color, float size = 6.3f)
+        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "dreadnought", color, size / 6.3f);
 
     public static (int vao, int vbo, int vertexCount) BuildInterceptorMesh(Vector3 color, float size = 1.6f)
         => BuildRaceMesh(RaceShipMeshes.DefaultRace, "interceptor", color, size / 1.6f);
@@ -56,11 +56,11 @@ public static class ShipMeshExtensions
     public static (int vao, int vbo, int vertexCount) BuildBomberMesh(Vector3 color, float size = 2.5f)
         => BuildRaceMesh(RaceShipMeshes.DefaultRace, "bomber", color, size / 2.5f);
 
-    public static (int vao, int vbo, int vertexCount) BuildDestroyerMesh(Vector3 color, float size = 3.5f)
-        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "destroyer", color, size / 3.5f);
+    public static (int vao, int vbo, int vertexCount) BuildDestroyerMesh(Vector3 color, float size = 4.0f)
+        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "destroyer", color, size / 4.0f);
 
-    public static (int vao, int vbo, int vertexCount) BuildCarrierMesh(Vector3 color, float size = 4f)
-        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "carrier", color, size / 4f);
+    public static (int vao, int vbo, int vertexCount) BuildCarrierMesh(Vector3 color, float size = 4.6f)
+        => BuildRaceMesh(RaceShipMeshes.DefaultRace, "carrier", color, size / 4.6f);
 
     public static (int vao, int vbo, int vertexCount) BuildShipyardSmall(float size = 6f)
         => BuildShipyardCore(size, 1, 2);

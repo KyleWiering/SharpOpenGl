@@ -1,4 +1,5 @@
 using SharpOpenGl.Engine.Assets;
+using SharpOpenGl.Engine.Rendering;
 using Xunit;
 
 namespace SharpOpenGl.Tests.Assets;
@@ -97,6 +98,34 @@ public class AssetManagerTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public void MeshExists_returns_true_for_vesper_fighter_on_disk()
+    {
+        var manager = new AssetManager(GetGameDataPath());
+        Assert.True(manager.MeshExists("meshes/ships/vesper/fighter_basic.obj"));
+    }
+
+    [Fact]
+    public void ResolveMeshPath_uses_manifest_and_disk_casing_for_stripped_keys()
+    {
+        string root = GetGameDataPath();
+        var manifest = MeshManifest.Load(root);
+        string path = manifest.ResolveMeshPath(root, "ships/vesper/fighter_basic.obj");
+        Assert.Contains($"{Path.DirectorySeparatorChar}Ships{Path.DirectorySeparatorChar}", path);
+        Assert.True(File.Exists(path));
+    }
+
+    private static string GetGameDataPath()
+    {
+        string? dir = AppContext.BaseDirectory;
+        while (dir != null && !File.Exists(Path.Combine(dir, "SharpOpenGl.sln")))
+            dir = Directory.GetParent(dir)?.FullName;
+
+        if (dir == null)
+            throw new InvalidOperationException("Could not locate SharpOpenGl.sln from base directory.");
+
+        return Path.Combine(dir, "GameData");
+    }
     [Fact]
     public void RegisterProceduralMesh_makes_mesh_available_without_file()
     {

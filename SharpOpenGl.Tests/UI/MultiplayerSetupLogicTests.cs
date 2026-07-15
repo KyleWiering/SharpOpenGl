@@ -72,6 +72,20 @@ public class MultiplayerSetupLogicTests
     }
 
     [Fact]
+    public void BuildResult_includes_difficulty_tier()
+    {
+        var slots = MultiplayerSetupLogic.CreateDefaultSlots(RaceIds);
+        var map = SkirmishMapCatalog.FallbackMaps[0];
+
+        var normal = MultiplayerSetupLogic.BuildResult(slots, RaceIds, map, SkirmishDifficultyTier.Normal);
+        var hard = MultiplayerSetupLogic.BuildResult(slots, RaceIds, map, SkirmishDifficultyTier.Hard);
+
+        Assert.NotNull(normal);
+        Assert.Equal(SkirmishDifficultyTier.Normal, normal!.Difficulty);
+        Assert.Equal(SkirmishDifficultyTier.Hard, hard!.Difficulty);
+    }
+
+    [Fact]
     public void ParseConfiguration_supports_eight_active_players_with_seven_ai()
     {
         var slots = new List<(int SlotIndex, MultiplayerSlotKind Kind, string RaceId)>

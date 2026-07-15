@@ -1,0 +1,141 @@
+{
+  "id": "mission_abandoned_salvage",
+  "displayName": "Salvage Run",
+  "description": "A lone restoration tender must locate abandoned hulls in the debris drift and bring them back online.",
+  "map": "sector_alpha",
+  "planetName": "Driftfield Salvage",
+  "starMapPosition": [0.52, 0.38],
+  "planetColor": "#7AB8D4",
+  "prerequisiteMissionId": "mission_02",
+  "briefing": {
+    "text": "Commander, long-range scans found two abandoned interceptors drifting in Sector Alpha's wreckage field. Your Restoration Tender must approach each derelict and restore hull integrity to at least fifty percent. You are operating alone — if the tender is lost, the salvage operation fails.",
+    "objectivesPreview": [
+      "Reach derelict Alpha in the wreckage drift",
+      "Repair derelict Alpha to 50% hull",
+      "Reach derelict Beta near the nebula fringe",
+      "Repair derelict Beta to 50% hull"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [8, 12],
+    "startingUnits": ["support_repair"],
+    "startingResources": { "energy": 400, "minerals": 200, "data": 50, "crew": 8 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "reach_derelict_1",
+        "type": "reach_area",
+        "position": [28, 18],
+        "radius": 12,
+        "description": "Move the Restoration Tender near derelict Alpha"
+      },
+      {
+        "id": "repair_derelict_1",
+        "type": "repair_target",
+        "target": "derelict_1",
+        "condition": "healthPercent >= 0.50",
+        "description": "Repair derelict Alpha to 50% hull integrity"
+      },
+      {
+        "id": "reach_derelict_2",
+        "type": "reach_area",
+        "position": [44, 30],
+        "radius": 12,
+        "description": "Move the Restoration Tender near derelict Beta"
+      },
+      {
+        "id": "repair_derelict_2",
+        "type": "repair_target",
+        "target": "derelict_2",
+        "condition": "healthPercent >= 0.50",
+        "description": "Repair derelict Beta to 50% hull integrity"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "fast_salvage",
+        "type": "survive_time",
+        "target": "120",
+        "description": "Complete all repairs within 2 minutes"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "spawn_derelicts",
+      "condition": { "type": "timer", "seconds": 0 },
+      "actions": [
+        {
+          "type": "spawn_units",
+          "units": ["fighter_basic"],
+          "position": [28, 18],
+          "tag": "derelict_1",
+          "healthPercent": 0.10,
+          "disabled": true
+        },
+        {
+          "type": "spawn_units",
+          "units": ["fighter_basic"],
+          "position": [44, 30],
+          "tag": "derelict_2",
+          "healthPercent": 0.10,
+          "disabled": true
+        },
+        {
+          "type": "dialog",
+          "speaker": "Salvage Control",
+          "text": "Two derelict interceptors confirmed. Restoration Tender is cleared to approach — stay within repair range."
+        },
+        { "type": "camera_pan", "cameraTarget": [28, 18] }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "derelict_1_contact",
+      "condition": { "type": "area_enter", "position": [28, 18], "radius": 14 },
+      "actions": [
+        {
+          "type": "dialog",
+          "speaker": "AI",
+          "text": "Derelict Alpha in range. Hold position and begin hull restoration."
+        }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "derelict_1_repaired",
+      "condition": { "type": "area_enter", "position": [44, 30], "radius": 20 },
+      "actions": [
+        {
+          "type": "dialog",
+          "speaker": "AI",
+          "text": "Alpha restored. Proceed to derelict Beta on the nebula fringe."
+        }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "unit_destroyed", "target": "player_support" },
+  "rewards": {
+    "resources": { "energy": 250, "minerals": 150, "data": 75, "crew": 4 },
+    "xp": 300,
+    "unlocks": ["gunship_basic"]
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [8, 12], "height": 200 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "support_repair" },
+    { "type": "move_to", "position": [28, 18] },
+    { "type": "wait", "seconds": 5 },
+    { "type": "repair_target", "targetTag": "derelict_1" },
+    { "type": "wait_objective", "objectiveId": "repair_derelict_1" },
+    { "type": "move_to", "position": [44, 30] },
+    { "type": "wait", "seconds": 6 },
+    { "type": "repair_target", "targetTag": "derelict_2" },
+    { "type": "wait_objective", "objectiveId": "repair_derelict_2" },
+    { "type": "camera_pan", "position": [36, 24], "height": 240 },
+    { "type": "wait", "seconds": 2 }
+  ]
+}

@@ -31,6 +31,16 @@ public static class BuildingFootprint
         return true;
     }
 
+    /// <summary>
+    /// Snap a world cursor position to the centre of the nearest grid cell.
+    /// Uses <see cref="GridSystem.WorldToGrid"/> and <see cref="GridSystem.GridToWorld"/>.
+    /// </summary>
+    public static Vector3 SnapToCellCenter(GridSystem grid, Vector3 worldPos)
+    {
+        grid.WorldToGrid(worldPos, out int x, out int y);
+        return grid.GridToWorld(x, y);
+    }
+
     /// <summary>Enumerate all grid cells covered by a footprint.</summary>
     public static IEnumerable<(int X, int Y)> EnumerateCells(
         GridSystem grid, Vector3 worldPos, int cols, int rows)
@@ -55,12 +65,16 @@ public static class BuildingFootprint
         }
     }
 
-    /// <summary>Collect distinct building types owned by a player.</summary>
+    /// <summary>
+    /// Collect distinct <em>completed</em> building types owned by a player.
+    /// Structures still under construction are excluded — prereq checks require finished buildings.
+    /// </summary>
     public static HashSet<string> GetBuiltTypes(World world, int playerId)
     {
         var built = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var (_, building) in world.Query<BuildingComponent>())
+        foreach (var (entity, building) in world.Query<BuildingComponent>())
         {
+            if (world.HasComponent<UnderConstructionComponent>(entity)) continue;
             if (building.PlayerId == playerId && !string.IsNullOrWhiteSpace(building.BuildingType))
                 built.Add(building.BuildingType);
         }

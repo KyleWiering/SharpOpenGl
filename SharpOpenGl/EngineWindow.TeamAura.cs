@@ -29,6 +29,7 @@ public partial class EngineWindow
         GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
         GL.DepthMask(false);
         GL.Uniform1(_uniformRaceTextureIndex, -1);
+        GL.Uniform1(_uniformComponentTextureIndex, -1);
 
         float pulse = 0.78f + 0.22f * MathF.Sin(_shieldRingPulse * 2.4f);
 

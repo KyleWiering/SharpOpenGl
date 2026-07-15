@@ -1,6 +1,9 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Build;
 using SharpOpenGl.Engine.Events;
 using SharpOpenGl.Engine.UI;
+using SharpOpenGl.Engine.UI.Screens;
+using SharpOpenGl.Engine.UI.Widgets;
 using Xunit;
 
 namespace SharpOpenGl.Tests.UI;
@@ -179,5 +182,161 @@ public class UIManagerTests
         Assert.NotNull(received);
         Assert.Equal("B", received!.Previous);
         Assert.Equal(UIScreenAction.Popped, received.Action);
+    }
+
+    // ── Tooltip integration ───────────────────────────────────────────────────
+
+    [Fact]
+    public void Draw_renders_tooltip_after_active_screen()
+    {
+        var mgr = CreateManager();
+        var hud = CreateHudWithBuildMapEntry();
+        mgr.Push(hud);
+
+        var hoverPoint = BuildMapFirstEntryHoverPoint(hud);
+        mgr.HandlePointerMove(hoverPoint, false, UIScaler.ReferenceSize);
+        mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+
+        var renderer = new DrawOrderRecordingRenderer(UIScaler.ReferenceSize);
+        mgr.Draw(renderer);
+
+        int screenMarkerIndex = renderer.TextDraws.FindIndex(draw => draw.Text == "Build Structures");
+        int tooltipIndex = renderer.TextDraws.FindIndex(draw => draw.Text.Contains("Defense Turret", StringComparison.Ordinal));
+
+        Assert.True(screenMarkerIndex >= 0, "HUD text should draw with the screen.");
+        Assert.True(tooltipIndex > screenMarkerIndex, "Tooltip should draw after all screens.");
+    }
+
+    [Fact]
+    public void HandlePointerMove_shows_build_map_tooltip_after_hover_delay()
+    {
+        var mgr = CreateManager();
+        var hud = CreateHudWithBuildMapEntry();
+        mgr.Push(hud);
+
+        var hoverPoint = BuildMapFirstEntryHoverPoint(hud);
+        mgr.HandlePointerMove(hoverPoint, false, UIScaler.ReferenceSize);
+        mgr.Update(0.1f);
+
+        var rendererEarly = new DrawOrderRecordingRenderer(UIScaler.ReferenceSize);
+        mgr.Draw(rendererEarly);
+        Assert.DoesNotContain(rendererEarly.TextDraws, draw => draw.Text.Contains("Defense Turret", StringComparison.Ordinal));
+
+        mgr.Update(0.15f);
+        var rendererLate = new DrawOrderRecordingRenderer(UIScaler.ReferenceSize);
+        mgr.Draw(rendererLate);
+        Assert.Contains(rendererLate.TextDraws, draw => draw.Text.Contains("Defense Turret", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HandlePointerMove_clears_tooltip_when_pointer_leaves_provider()
+    {
+        var mgr = CreateManager();
+        var hud = CreateHudWithBuildMapEntry();
+        mgr.Push(hud);
+
+        mgr.HandlePointerMove(BuildMapFirstEntryHoverPoint(hud), false, UIScaler.ReferenceSize);
+        mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+
+        mgr.HandlePointerMove(new Vector2(5f, 5f), false, UIScaler.ReferenceSize);
+        var renderer = new DrawOrderRecordingRenderer(UIScaler.ReferenceSize);
+        mgr.Draw(renderer);
+
+        Assert.DoesNotContain(renderer.TextDraws, draw => draw.Text.Contains("Defense Turret", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void HandlePointerMove_clears_tooltip_when_build_map_panel_closes()
+    {
+        var mgr = CreateManager();
+        var hud = CreateHudWithBuildMapEntry();
+        mgr.Push(hud);
+
+        var hoverPoint = BuildMapFirstEntryHoverPoint(hud);
+        mgr.HandlePointerMove(hoverPoint, false, UIScaler.ReferenceSize);
+        mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+
+        hud.BuildMapPanel.Visible = false;
+        mgr.HandlePointerMove(hoverPoint, false, UIScaler.ReferenceSize);
+
+        var renderer = new DrawOrderRecordingRenderer(UIScaler.ReferenceSize);
+        mgr.Draw(renderer);
+
+        Assert.DoesNotContain(renderer.TextDraws, draw => draw.Text.Contains("Defense Turret", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Push_clears_active_tooltip()
+    {
+        var mgr = CreateManager();
+        var hud = CreateHudWithBuildMapEntry();
+        mgr.Push(hud);
+
+        mgr.HandlePointerMove(BuildMapFirstEntryHoverPoint(hud), false, UIScaler.ReferenceSize);
+        mgr.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+
+        mgr.Push(new FakeScreen("Overlay", isOverlay: true));
+        var renderer = new DrawOrderRecordingRenderer(UIScaler.ReferenceSize);
+        mgr.Draw(renderer);
+
+        Assert.DoesNotContain(renderer.TextDraws, draw => draw.Text.Contains("Defense Turret", StringComparison.Ordinal));
+    }
+
+    private static GameplayHUD CreateHudWithBuildMapEntry()
+    {
+        var hud = new GameplayHUD { Visible = true };
+        hud.BuildMapPanel.Visible = true;
+        hud.BuildMapPanel.Categories =
+        [
+            new BuildMapCategoryView
+            {
+                DisplayName = "Defense",
+                Buildings =
+                [
+                    new BuildMapEntryView
+                    {
+                        Id = "defense_turret",
+                        Name = "Defense Turret",
+                        FootprintCols = 1,
+                        FootprintRows = 1,
+                        EnergyCost = 60,
+                        MineralsCost = 90,
+                        BuildTime = 18f,
+                        IsUnlocked = true,
+                        CanAfford = true,
+                        Icon = BuildIconCatalog.Get("defense_turret"),
+                    },
+                ],
+            },
+        ];
+
+        return hud;
+    }
+
+    private static Vector2 BuildMapFirstEntryHoverPoint(GameplayHUD hud)
+    {
+        var (pos, _) = hud.BuildMapPanel.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
+        const float tileSize = 64f;
+        const float padding = 10f;
+        const float titleHeight = 28f;
+        const float categoryHeaderHeight = 20f;
+        const float headerFontSize = 12f;
+        float contentTop = padding + titleHeight + headerFontSize * 2f + 10f;
+        float rowY = contentTop + categoryHeaderHeight;
+        return pos + new Vector2(padding + tileSize * 0.5f, rowY + tileSize * 0.5f);
+    }
+
+    private sealed class DrawOrderRecordingRenderer : IUIRenderer
+    {
+        public DrawOrderRecordingRenderer(Vector2 viewport) => ViewportSize = viewport;
+
+        public Vector2 ViewportSize { get; }
+        public List<(string Text, float FontSize, Vector2 Position)> TextDraws { get; } = new();
+
+        public void DrawRect(Vector2 position, Vector2 size, Vector4 color) { }
+        public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color) { }
+
+        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) =>
+            TextDraws.Add((text, fontSize, position));
     }
 }

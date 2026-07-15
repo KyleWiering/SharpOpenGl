@@ -59,7 +59,9 @@ public sealed class ObjectiveSystem : GameSystem
             "survive_time"    => EvalSurviveTime(obj, deltaTime),
             "reach_area"      => EvalReachArea(world, obj),
             "collect"         => EvalCollect(obj),
+            "construct"       => EvalConstruct(world, obj),
             "condition"       => EvalCondition(world, obj),
+            "repair_target"   => EvalRepairTarget(world, obj),
             _                 => false,
         };
     }
@@ -111,6 +113,7 @@ public sealed class ObjectiveSystem : GameSystem
     {
         if (_resources == null || string.IsNullOrEmpty(obj.Definition.Target)) return false;
 
+        // Canonical target: "{ResourceType}:{amount}" e.g. "Minerals:1000", "Energy:500".
         var parts = obj.Definition.Target.Split(':');
         if (parts.Length != 2) return false;
         if (!float.TryParse(parts[1], out float required)) return false;
@@ -119,6 +122,113 @@ public sealed class ObjectiveSystem : GameSystem
 
         var display = _resources.GetDisplay(PlayerId, rt);
         return display.Current >= required;
+    }
+
+    /// <summary>
+    /// Evaluates a <c>construct</c> objective.
+    /// <para>
+    /// Building count: <c>target = "{definitionId}:{count}"</c>
+    /// (e.g. <c>defense_turret:5</c>). Counts completed player-owned buildings
+    /// (<see cref="BuildingComponent.PlayerId"/> == <see cref="PlayerId"/>,
+    /// matching <see cref="BuildingComponent.BuildingType"/>, not under construction).
+    /// </para>
+    /// <para>
+    /// Unit production: <c>target = "unit:{definitionId}:{count}"</c>
+    /// (e.g. <c>unit:fighter_basic:1</c>). Counts living non-building entities with
+    /// matching <see cref="EntityNameComponent.DefinitionId"/> owned by the player
+    /// (<see cref="CombatTargetComponent.Faction"/> == <see cref="PlayerId"/>).
+    /// </para>
+    /// </summary>
+    private bool EvalConstruct(World world, ObjectiveProgress obj)
+    {
+        if (string.IsNullOrEmpty(obj.Definition.Target)) return false;
+
+        var parts = obj.Definition.Target.Split(':');
+        if (parts.Length < 2) return false;
+
+        // Unit form: "unit:{definitionId}:{count}"
+        if (parts.Length == 3
+            && parts[0].Equals("unit", StringComparison.OrdinalIgnoreCase))
+        {
+            string unitDefId = parts[1];
+            if (string.IsNullOrEmpty(unitDefId)) return false;
+            if (!int.TryParse(parts[2], out int unitCount) || unitCount < 1) return false;
+
+            int living = 0;
+            foreach (var (entity, name) in world.Query<EntityNameComponent>())
+            {
+                if (world.HasComponent<BuildingComponent>(entity)) continue;
+                if (!world.IsAlive(entity)) continue;
+                if (!string.Equals(name.DefinitionId, unitDefId, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                var ct = world.GetComponent<CombatTargetComponent>(entity);
+                if (ct == null || ct.Faction != PlayerId) continue;
+
+                var health = world.GetComponent<HealthComponent>(entity);
+                if (health != null && health.IsDead) continue;
+
+                living++;
+                if (living >= unitCount) return true;
+            }
+
+            return living >= unitCount;
+        }
+
+        // Building form: "{definitionId}:{count}"
+        if (parts.Length != 2) return false;
+
+        string buildingDefId = parts[0];
+        if (string.IsNullOrEmpty(buildingDefId)) return false;
+        if (!int.TryParse(parts[1], out int buildingCount) || buildingCount < 1) return false;
+
+        int completed = 0;
+        foreach (var (entity, building) in world.Query<BuildingComponent>())
+        {
+            if (building.PlayerId != PlayerId) continue;
+            if (!string.Equals(building.BuildingType, buildingDefId, StringComparison.OrdinalIgnoreCase))
+                continue;
+            if (world.HasComponent<UnderConstructionComponent>(entity)) continue;
+            if (!world.IsAlive(entity)) continue;
+
+            completed++;
+            if (completed >= buildingCount) return true;
+        }
+
+        return completed >= buildingCount;
+    }
+
+    private bool EvalRepairTarget(World world, ObjectiveProgress obj)
+    {
+        if (string.IsNullOrEmpty(obj.Definition.Target)) return false;
+        if (!_state.EntityTags.TryGetValue(obj.Definition.Target, out Entity target)) return false;
+        if (!world.IsAlive(target)) return false;
+
+        var health = world.GetComponent<HealthComponent>(target);
+        if (health == null || health.MaxHP <= 0f) return false;
+
+        float threshold = ParseHealthPercentThreshold(obj.Definition.Condition);
+        return health.CurrentHP / health.MaxHP >= threshold;
+    }
+
+    private static float ParseHealthPercentThreshold(string? condition)
+    {
+        const float defaultThreshold = 0.50f;
+        if (string.IsNullOrWhiteSpace(condition)) return defaultThreshold;
+
+        string trimmed = condition.Trim();
+        if (trimmed.StartsWith("healthPercent", StringComparison.OrdinalIgnoreCase))
+        {
+            int geIndex = trimmed.IndexOf(">=", StringComparison.Ordinal);
+            if (geIndex >= 0)
+            {
+                string valuePart = trimmed[(geIndex + 2)..].Trim();
+                if (float.TryParse(valuePart, out float parsed))
+                    return parsed;
+            }
+        }
+
+        return defaultThreshold;
     }
 
     private bool EvalCondition(World world, ObjectiveProgress obj)
@@ -157,6 +267,23 @@ public sealed class ObjectiveSystem : GameSystem
             {
                 _state.Phase        = MissionPhase.Defeat;
                 _state.DefeatReason = "Hero ship destroyed.";
+                _bus.Publish(new MissionDefeatEvent(_state.Definition.Id, _state.DefeatReason));
+            }
+        }
+
+        if (defeatType == "unit_destroyed")
+        {
+            string? tag = _state.Definition.Defeat?.Target;
+            if (string.IsNullOrEmpty(tag)) return;
+
+            bool destroyed = !_state.EntityTags.TryGetValue(tag, out Entity tagged) ||
+                             !world.IsAlive(tagged) ||
+                             world.GetComponent<HealthComponent>(tagged)?.IsDead == true;
+
+            if (destroyed)
+            {
+                _state.Phase        = MissionPhase.Defeat;
+                _state.DefeatReason = $"Critical unit '{tag}' destroyed.";
                 _bus.Publish(new MissionDefeatEvent(_state.Definition.Id, _state.DefeatReason));
             }
         }

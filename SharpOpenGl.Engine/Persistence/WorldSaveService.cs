@@ -18,7 +18,9 @@ public static class WorldSaveService
         var data = new SaveData
         {
             SlotName = ctx.SlotName,
-            MissionId = ctx.MissionState?.Definition.Id ?? string.Empty,
+            MissionId = ctx.IsSandboxSession
+                ? string.Empty
+                : ctx.MissionState?.Definition.Id ?? string.Empty,
             ElapsedMissionTime = ctx.MissionState?.ElapsedTime ?? 0f,
             CameraX = ctx.CameraX,
             CameraY = ctx.CameraY,
@@ -27,8 +29,15 @@ public static class WorldSaveService
             Entities = CaptureEntities(ctx.World, ctx.MissionState),
             CompletedObjectiveIds = CaptureCompletedObjectives(ctx.MissionState),
             FiredTriggerIds = CaptureFiredTriggers(ctx.MissionState),
-            FogStates = CaptureFog(ctx.GridSystem, ctx.FogPlayerId),
+            FogStates = CaptureFog(ctx.GridSystem, ctx.FogOfWar.PlayerCount),
         };
+
+        if (ctx.IsSandboxSession)
+        {
+            data.IsSandboxSession = true;
+            data.ProceduralMapSeed = ctx.ProceduralMapSeed;
+            data.SandboxSeedText = ctx.SandboxSeedText ?? string.Empty;
+        }
 
         return data;
     }
@@ -68,6 +77,8 @@ public static class WorldSaveService
                 Y = transform.Position.Z,
             };
 
+            // Resource nodes encode Amount → Health and MaxAmount → Shields.
+            // Depleted nodes persist with Health = 0 while Shields retains MaxAmount.
             ResourceNodeComponent? node = world.GetComponent<ResourceNodeComponent>(entity);
             if (node != null)
             {
@@ -95,6 +106,14 @@ public static class WorldSaveService
 
             if (tagByEntity.TryGetValue(entity, out string? tag))
                 record.Tag = tag;
+
+            UnderConstructionComponent? underConstruction =
+                world.GetComponent<UnderConstructionComponent>(entity);
+            if (underConstruction != null)
+            {
+                record.ConstructionBuildProgress = underConstruction.BuildProgress;
+                record.ConstructionTotalBuildTime = underConstruction.TotalBuildTime;
+            }
 
             records.Add(record);
         }
@@ -174,16 +193,19 @@ public static class WorldSaveService
             .ToList();
     }
 
-    private static Dictionary<string, int> CaptureFog(GridSystem grid, int playerId)
+    private static Dictionary<string, int> CaptureFog(GridSystem grid, int playerCount)
     {
         var fog = new Dictionary<string, int>();
-        foreach (GridCell cell in grid.AllCells())
+        for (int playerId = 0; playerId < playerCount; playerId++)
         {
-            FogState state = cell.GetFog(playerId);
-            if (state == FogState.Unexplored)
-                continue;
+            foreach (GridCell cell in grid.AllCells())
+            {
+                FogState state = cell.GetFog(playerId);
+                if (state == FogState.Unexplored)
+                    continue;
 
-            fog[FormatFogKey(playerId, cell.X, cell.Y)] = (int)state;
+                fog[FormatFogKey(playerId, cell.X, cell.Y)] = (int)state;
+            }
         }
 
         return fog;

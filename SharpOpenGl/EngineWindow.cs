@@ -12,6 +12,7 @@ using SharpOpenGl.Engine.ECS;
 using SharpOpenGl.Engine.Economy;
 using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.Events;
+using SharpOpenGl.Engine.Grid;
 using SharpOpenGl.Engine.Multiplayer;
 using SharpOpenGl.Engine.Persistence;
 using SharpOpenGl.Engine.Rendering;
@@ -48,6 +49,7 @@ public partial class EngineWindow : GameWindow
     private int _uniformColor;
     private int _uniformRaceTextureIndex;
     private int _uniformTeamTint;
+    private int _uniformComponentTextureIndex;
 
     // Scene & UI management
     private EventBus _eventBus = null!;
@@ -64,7 +66,10 @@ public partial class EngineWindow : GameWindow
     private MovementSystem? _movementSystem;
     private AIPlayerSystem? _aiSystem;
     private BuildSystem? _buildSystem;
+    private ConstructionSystem? _constructionSystem;
+    private StructureConstructionVisualSystem? _structureConstructionVisualSystem;
     private MiningVisualSystem? _miningVisualSystem;
+    private ArticulationSystem? _articulationSystem;
     private AbilitySystem? _abilitySystem;
     private SquadSystem? _squadSystem;
 
@@ -80,6 +85,13 @@ public partial class EngineWindow : GameWindow
     private const int GridRows = 200;
     private const float GridCellSize = 10f;
     private const float MapWorldSize = GridColumns * GridCellSize; // 2000 units
+
+    /// <summary>True when sandbox was started from setup screen — uses chunked procedural grid.</summary>
+    private bool _sandboxChunkedMode;
+    private int _sandboxChunkLoadRadius = 2;
+    private SandboxChunkGrid? _sandboxChunkGrid;
+    private PathFollowingSystem? _pathFollowingSystem;
+    private FogOfWarSystem? _fogOfWarSystem;
 
     // Ship meshes (initialized when gameplay starts)
     private int _heroVao, _heroVbo, _heroVertCount;
@@ -140,6 +152,8 @@ public partial class EngineWindow : GameWindow
 
     // Building placement mode
     private string? _placementBuildingId;
+    private Entity? _placementBuilderEntity;
+    private Entity? _builderPickEntity;
     private SupplySystem? _supplySystem;
 
     public EngineWindow(
@@ -180,6 +194,7 @@ public partial class EngineWindow : GameWindow
         _uniformColor = ShaderManager.GetUniform(_shaderProgram, "overrideColor");
         _uniformRaceTextureIndex = ShaderManager.GetUniform(_shaderProgram, "raceTextureIndex");
         _uniformTeamTint = ShaderManager.GetUniform(_shaderProgram, "teamTint");
+        _uniformComponentTextureIndex = ShaderManager.GetUniform(_shaderProgram, "componentTextureIndex");
 
 
 
@@ -201,24 +216,35 @@ public partial class EngineWindow : GameWindow
 
         // UI Renderer
         _uiRenderer = new GLUIRenderer();
-        _uiRenderer.Initialize(Size.X, Size.Y);
+        var uiViewport = UiViewportSize;
+        _uiRenderer.Initialize((int)uiViewport.X, (int)uiViewport.Y);
 
         // Event bus & managers
         _eventBus = new EventBus();
 
         InitializeExplosionVfx();
+        InitializeCombatRingOverlays();
         InitializeAudio();
 
         _sceneManager = new SceneManager(_eventBus);
         _uiManager = new UIManager(_eventBus);
-        _uiManager.Resize(new Vector2(Size.X, Size.Y));
+        _uiManager.Resize(UiViewportSize);
 
         // Register scenes
         _sceneManager.Register(SceneMainMenu, () => new MainMenuScene(this));
         _sceneManager.Register(SceneGameplay, () => new GameplayScene(this));
 
-        // Start at main menu (or skip to gameplay in screenshot / demo mode)
-        if (_screenshotMode || _demoRecordingMode)
+                if (_meshPreviewMode)
+            InitializeMeshPreview();
+        else if (SandboxLaunchOptions.Enabled)
+        {
+            _pendingSandboxSetup = new SandboxSetupResult(
+                SandboxLaunchOptions.SeedText,
+                ProceduralSeedHelper.ParseSeed(SandboxLaunchOptions.SeedText));
+            Console.WriteLine($"[Sandbox] Headless launch seed='{SandboxLaunchOptions.SeedText}'");
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+        }
+        else if (_screenshotMode || _demoRecordingMode)
         {
             if (_demoRecordingMode)
                 InitializeDemoRecording();
@@ -227,9 +253,7 @@ public partial class EngineWindow : GameWindow
             _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
         }
         else
-        {
             _sceneManager.TransitionTo(SceneMainMenu, GameState.MainMenu);
-        }
 
         Console.WriteLine("SharpOpenGL RTS Engine initialized.");
     }
@@ -243,6 +267,7 @@ public partial class EngineWindow : GameWindow
         bool hasSave = _saveManager!.ListSaveFiles().Length > 0;
         var menu = new MainMenuScreen(hasSave);
         menu.NewGameRequested += ShowMissionSelect;
+        menu.SandboxRequested += ShowSandboxSetup;
         menu.MultiplayerRequested += ShowMultiplayerSetup;
         menu.ContinueRequested += ContinueSavedGame;
         menu.LoadGameRequested += ShowLoadGameScreen;
@@ -255,11 +280,12 @@ public partial class EngineWindow : GameWindow
     /// <summary>Show mission selection screen with available scenarios.</summary>
     internal void ShowMissionSelect()
     {
+        EnsurePersistence();
         var missionSelect = new MissionSelectScreen();
 
         // Load available missions from GameData/Missions
         var missions = LoadMissionEntries();
-        missionSelect.SetMissions(missions);
+        missionSelect.SetMissions(missions, _campaignProgressManager!.CompletedMissionIds);
 
         missionSelect.MissionStartRequested += missionId =>
         {
@@ -275,6 +301,22 @@ public partial class EngineWindow : GameWindow
 
     private IEnumerable<MissionEntry> LoadMissionEntries() => LoadMissionEntriesFromData();
 
+    /// <summary>Show sandbox setup screen with optional world seed.</summary>
+    internal void ShowSandboxSetup()
+    {
+        var sandboxScreen = new SandboxSetupScreen();
+        sandboxScreen.StartRequested += result =>
+        {
+            _pendingSandboxSetup = result;
+            _pendingMissionId = null;
+            _pendingSkirmishSetup = null;
+            Console.WriteLine($"[Sandbox] Starting with seed text '{result.SeedText}' (parsed {result.ParsedSeed})");
+            _sceneManager.TransitionTo(SceneGameplay, GameState.Playing);
+        };
+        sandboxScreen.BackRequested += () => _uiManager.Pop();
+        _uiManager.Push(sandboxScreen);
+    }
+
     /// <summary>Show multiplayer setup screen with AI player option (issue #6).</summary>
     internal void ShowMultiplayerSetup()
     {
@@ -283,6 +325,7 @@ public partial class EngineWindow : GameWindow
         {
             _pendingSkirmishSetup = result;
             _pendingMissionId = null;
+            _pendingSandboxSetup = null;
             Console.WriteLine(
                 $"[Multiplayer] Starting skirmish on '{result.MapId}' with {result.ActivePlayerCount} factions " +
                 $"({result.HumanCount} human, {result.AiCount} AI)");
@@ -309,6 +352,7 @@ public partial class EngineWindow : GameWindow
         var hud = new GameplayHUD();
         hud.PauseRequested += ShowPauseMenu;
         hud.BuildPanel.BuildRequested += OnBuildPanelBuildRequested;
+        hud.BuildPanel.QueueCancelRequested += OnBuildPanelQueueCancelRequested;
         WireBuildMapHud(hud);
         hud.ShipControlBar.CommandActivated += HandleShipControlCommand;
         hud.ShipControlBar.StanceToggled += CycleSelectedStance;
@@ -328,12 +372,15 @@ public partial class EngineWindow : GameWindow
     {
         if (_sceneManager.State != GameState.Playing) return;
 
-        var pause = new PauseScreen();
+        EnsurePersistence();
+        bool hasSave = _saveManager!.ListSaveFiles().Length > 0;
+        var pause = new PauseScreen(hasSave);
         pause.ResumeRequested += () =>
         {
             _uiManager.Pop();
         };
         pause.SaveGameRequested += ShowSaveGameScreen;
+        pause.LoadGameRequested += ShowLoadGameScreen;
         pause.SettingsRequested += ShowSettings;
         pause.QuitToMenuRequested += () =>
         {
@@ -360,17 +407,17 @@ public partial class EngineWindow : GameWindow
         (_gunshipVao, _gunshipVbo, _gunshipVertCount) =
             ShipMeshExtensions.BuildGunshipMesh(new Vector3(0.85f, 0.45f, 0.35f), 3.2f);
         (_cruiserVao, _cruiserVbo, _cruiserVertCount) =
-            ShipMeshExtensions.BuildCruiserMesh(new Vector3(0.6f, 0.55f, 0.85f), 4.2f);
+            ShipMeshExtensions.BuildCruiserMesh(new Vector3(0.6f, 0.55f, 0.85f), 4.8f);
         (_transportVao, _transportVbo, _transportVertCount) =
             ShipMeshExtensions.BuildTransportMesh(new Vector3(0.55f, 0.75f, 0.95f), 3.8f);
         (_dreadnoughtVao, _dreadnoughtVbo, _dreadnoughtVertCount) =
-            ShipMeshExtensions.BuildDreadnoughtMesh(new Vector3(0.75f, 0.35f, 0.55f), 5.5f);
+            ShipMeshExtensions.BuildDreadnoughtMesh(new Vector3(0.75f, 0.35f, 0.55f), 6.3f);
         (_bomberVao, _bomberVbo, _bomberVertCount) =
             ShipMeshExtensions.BuildBomberMesh(new Vector3(0.9f, 0.5f, 0.2f), 2.5f);
         (_destroyerVao, _destroyerVbo, _destroyerVertCount) =
-            ShipMeshExtensions.BuildDestroyerMesh(new Vector3(0.7f, 0.2f, 0.9f), 3.5f);
+            ShipMeshExtensions.BuildDestroyerMesh(new Vector3(0.7f, 0.2f, 0.9f), 4.0f);
         (_carrierVao, _carrierVbo, _carrierVertCount) =
-            ShipMeshExtensions.BuildCarrierMesh(new Vector3(0.6f, 0.6f, 0.8f), 4f);
+            ShipMeshExtensions.BuildCarrierMesh(new Vector3(0.6f, 0.6f, 0.8f), 4.6f);
         (_engineTrailVao, _engineTrailVbo, _engineTrailVertCount) =
             ShipMeshBuilder.BuildEngineTrail(new Vector3(1.0f, 0.6f, 0.1f), 2.5f);
         (_selectionVao, _selectionVbo, _selectionVertCount) =
@@ -449,22 +496,63 @@ public partial class EngineWindow : GameWindow
         SaveData? saveData = _pendingSaveData;
         _pendingSaveData = null;
 
+        MultiplayerSetupResult? skirmishSetup = _pendingSkirmishSetup;
+
+        if (saveData != null && saveData.IsSandboxSession)
+        {
+            _isSandboxSession = true;
+            _sandboxChunkedMode = true;
+            _proceduralMapSeed = saveData.ProceduralMapSeed;
+            _lastSandboxSeedText = saveData.SandboxSeedText;
+        }
+        else
+        {
+            _isSandboxSession = _pendingSandboxSetup != null;
+        }
+
+        SandboxSetupResult? sandboxSetup = saveData?.IsSandboxSession == true
+            ? new SandboxSetupResult(saveData.SandboxSeedText, saveData.ProceduralMapSeed)
+            : _pendingSandboxSetup;
+
         string? missionId = saveData?.MissionId;
         if (string.IsNullOrWhiteSpace(missionId))
-            missionId = _pendingMissionId;
+            missionId = _isSandboxSession ? null : _pendingMissionId;
         _pendingMissionId = null;
         _pendingSkirmishSetup = null;
+        _pendingSandboxSetup = null;
 
-        if (saveData != null && !string.IsNullOrWhiteSpace(saveData.MissionId))
+        if (saveData != null && !string.IsNullOrWhiteSpace(saveData.MissionId) && !saveData.IsSandboxSession)
         {
             EnsureAssets();
             _missionController!.StartMission(saveData.MissionId);
         }
 
-        InitializeWorldCore(missionId, skipWorldSpawn: saveData != null);
+        InitializeWorldCore(
+            missionId,
+            skipWorldSpawn: saveData != null,
+            sandboxSetup: sandboxSetup,
+            skirmishSetup: skirmishSetup);
 
         if (saveData != null)
+        {
+            if (saveData.IsSandboxSession)
+            {
+                var cameraPos = new Vector3(saveData.CameraX, 0f, saveData.CameraY);
+                var entityPositions = saveData.Entities
+                    .Select(e => new Vector3(e.X, 0f, e.Y))
+                    .ToList();
+                EnsureSandboxChunksAround(cameraPos, entityPositions);
+            }
+
             ApplySaveData(saveData);
+
+            if (saveData.IsSandboxSession)
+            {
+                BindSandboxSessionHud(new SandboxSetupResult(
+                    _lastSandboxSeedText,
+                    _proceduralMapSeed));
+            }
+        }
     }
 
     private void SpawnAIPlayer(Random rng)
@@ -473,73 +561,64 @@ public partial class EngineWindow : GameWindow
         SpawnSkirmishAiFaction(2, new Vector3(600f, 0f, 600f));
     }
 
-    private void SpawnResourceNodes(Random rng)
+    private void SpawnResourceNodes(int seed)
     {
         if (_world == null) return;
 
-        // Scatter resource nodes across the map
-        var resourceTypes = new[] { ResourceType.Energy, ResourceType.Minerals, ResourceType.Data, ResourceType.Crew };
-        var nodeColors = new Dictionary<ResourceType, Vector4>
-        {
-            [ResourceType.Energy] = new Vector4(0.9f, 0.8f, 0.2f, 1f),
-            [ResourceType.Minerals] = new Vector4(0.4f, 0.8f, 1.0f, 1f),
-            [ResourceType.Data] = new Vector4(0.6f, 1.0f, 0.6f, 1f),
-            [ResourceType.Crew] = new Vector4(1.0f, 0.6f, 0.4f, 1f),
-        };
+        var existing = new HashSet<Entity>(
+            _world.Query<ResourceNodeComponent>().Select(q => q.Entity));
 
-        for (int i = 0; i < 16; i++)
+        var map = new MapGenerator(seed).Generate(new MapGeneratorConfig
         {
-            float x = (rng.NextSingle() - 0.5f) * MapWorldSize * 0.8f;
-            float z = (rng.NextSingle() - 0.5f) * MapWorldSize * 0.8f;
-            var resType = resourceTypes[i % 4];
+            Width = GridColumns,
+            Height = GridRows,
+            CellSize = GridCellSize,
+            ResourceNodeCount = 16,
+            SpawnPointCount = 2,
+        });
 
-            var node = _world.CreateEntity();
-            _world.AddComponent(node, new TransformComponent
-            {
-                Position = new Vector3(x, 1f, z),
-                Scale = new Vector3(6f, 6f, 6f),
-            });
-            _world.AddComponent(node, new RenderComponent
-            {
-                MeshId = _resourceNodeVao,
-                VertexCount = _resourceNodeVertCount,
-                Color = GameplayEntityDisplay.HarvestableColor,
-                Visible = true,
-                PrimitiveType = (int)PrimitiveType.Triangles,
-            });
-            _world.AddComponent(node, new ResourceNodeComponent
-            {
-                ResourceType = resType,
-                Amount = 5000f,
-                MaxAmount = 5000f,
-                HarvestRate = 10f,
-            });
-                        _world.AddComponent(node, new SelectionComponent { IsSelected = false, SelectionRadius = 14f });
-            RevealAreaAt(new Vector3(x, 0f, z), 6);
-            _resourceNodeEntities.Add(node);
+        MapFeatureSpawner.SpawnAll(_world, map, BuildMapFeatureMeshes(), RevealAreaAt);
+
+        foreach (var (entity, _) in _world.Query<ResourceNodeComponent>())
+        {
+            if (!existing.Contains(entity))
+                _resourceNodeEntities.Add(entity);
         }
     }
 
-    private void SpawnPlayerBase()
+    private void SpawnPlayerBase(bool includeDefaultShipyard = true, Stance stationStance = Stance.Defensive)
     {
         if (_world == null) return;
 
-        _baseEntity = _world.CreateEntity();
         var (ccMesh, ccCount, ccScale) = ResolveBuildingMesh("command_center", 1);
         _baseEntity = _world.CreateEntity();
         _world.AddComponent(_baseEntity, new TransformComponent { Position = new Vector3(-30f, 0f, -30f), Scale = ccScale });
         var baseRender = new RenderComponent { MeshId = ccMesh, VertexCount = ccCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles };
         ApplyRaceTexturing(baseRender, _playerRaceId, 1);
         _world.AddComponent(_baseEntity, baseRender);
-        _world.AddComponent(_baseEntity, new BuildingComponent { BuildingType = "command_center", ProductionRate = 1f, Footprint = [2, 2], PlayerId = 1, RallyPoint = new Vector3(-30f, 0f, 0f), Producible = ["drone_worker", "miner_basic"] });
+        _definitions.TryGetValue("command_center", out var commandCenterDef);
+        var commandCenterBuilding = commandCenterDef?.Components?.Building;
+        _world.AddComponent(_baseEntity, new BuildingComponent
+        {
+            BuildingType = "command_center",
+            ProductionRate = 1f,
+            Footprint = commandCenterBuilding?.Footprint ?? [2, 2],
+            Rotates = commandCenterBuilding?.Rotates ?? false,
+            PlayerId = 1,
+            RallyPoint = new Vector3(-30f, 0f, 0f),
+            Producible = ["drone_worker", "miner_basic"],
+        });
         _world.AddComponent(_baseEntity, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
         _world.AddComponent(_baseEntity, new HealthComponent { MaxHP = 2000f, CurrentHP = 2000f, Armor = 100f });
         _world.AddComponent(_baseEntity, new EntityNameComponent { DisplayName = "Command Center", DefinitionId = "command_center" });
         RegisterExistingBuildingOccupancy(_baseEntity, new Vector3(-30f, 0f, -30f),
             _world.GetComponent<BuildingComponent>(_baseEntity)!);
-        AttachStationWeapons(_baseEntity,
+        AttachStationWeapons(_baseEntity, stationStance,
             ("beam", 45f, 480f, 1.2f),
             ("missile", 95f, 620f, 0.35f));
+
+        if (!includeDefaultShipyard)
+            return;
 
         var shipyard = _world.CreateEntity();
         var (syMesh, syCount, syScale) = ResolveBuildingMesh("shipyard_medium", 1);
@@ -547,11 +626,14 @@ public partial class EngineWindow : GameWindow
         var yardRender = new RenderComponent { MeshId = syMesh, VertexCount = syCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles };
         ApplyRaceTexturing(yardRender, _playerRaceId, 1);
         _world.AddComponent(shipyard, yardRender);
+        _definitions.TryGetValue("shipyard_medium", out var shipyardDef);
+        var shipyardBuilding = shipyardDef?.Components?.Building;
         _world.AddComponent(shipyard, new BuildingComponent
         {
             BuildingType = "shipyard_medium",
             ProductionRate = 1f,
-            Footprint = [3, 3],
+            Footprint = shipyardBuilding?.Footprint ?? [3, 3],
+            Rotates = shipyardBuilding?.Rotates ?? false,
             PlayerId = 1,
             RallyPoint = new Vector3(80f, 0f, -50f),
             Producible = GetDefaultProducible("shipyard_medium"),
@@ -561,7 +643,7 @@ public partial class EngineWindow : GameWindow
         _world.AddComponent(shipyard, new EntityNameComponent { DisplayName = "Medium Shipyard", DefinitionId = "shipyard_medium" });
         RegisterExistingBuildingOccupancy(shipyard, new Vector3(50f, 0f, -50f),
             _world.GetComponent<BuildingComponent>(shipyard)!);
-        AttachStationWeapons(shipyard,
+        AttachStationWeapons(shipyard, stationStance,
             ("laser", 28f, 360f, 2.5f),
             ("cannon", 65f, 420f, 0.55f));
     }
@@ -614,6 +696,14 @@ public partial class EngineWindow : GameWindow
 
     private void CleanupGameplay()
     {
+        _isSandboxSession = false;
+        _sandboxChunkedMode = false;
+        _sandboxChunkGrid = null;
+        _gridSystem = null;
+        _fogOfWar = null;
+        _pathFollowingSystem = null;
+        _fogOfWarSystem = null;
+        _fogNebulaOverlay?.Clear();
         _world?.Dispose();
         _world = null;
         _movementSystem = null;
@@ -650,21 +740,30 @@ public partial class EngineWindow : GameWindow
         GL.UniformMatrix4(_uniformProjection, false, ref projection);
         GL.UniformMatrix4(_uniformView, false, ref view);
 
-        if (_sceneManager.State != GameState.Playing)
+        if (_meshPreviewMode || _sceneManager.State != GameState.Playing)
             _environment.Render(_shaderProgram, _uniformModel, _uniformColor);
 
-        // Render gameplay 3D content only when playing
-        if (_sceneManager.State == GameState.Playing && _world != null)
+        if (_meshPreviewMode)
         {
-            RenderGameplay(projection, view);
+            RenderMeshPreview(projection, (float)args.Time);
+        }
+        else
+        {
+            if (_uiManager.Current is ShipDesignerScreen designerScreen)
+                RenderShipDesignerPreview(designerScreen, projection, (float)args.Time);
+
+            if (_sceneManager.State == GameState.Playing && _world != null)
+                RenderGameplay(projection, view);
         }
 
-        // Render UI on top
-        _uiRenderer.Begin();
-        _uiManager.Draw(_uiRenderer);
-        if (_selectionBoxVisible)
-            DrawSelectionBox(_uiRenderer);
-        _uiRenderer.End();
+        if (!_meshPreviewMode)
+        {
+            _uiRenderer.Begin();
+            _uiManager.Draw(_uiRenderer);
+            if (_selectionBoxVisible)
+                DrawSelectionBox(_uiRenderer);
+            _uiRenderer.End();
+        }
 
         GL.BindVertexArray(0);
         SwapBuffers();
@@ -674,7 +773,7 @@ public partial class EngineWindow : GameWindow
         if (_demoRecordingMode && _demoRecorder != null && _frameCount >= 2)
             _demoRecorder.CaptureFrame(Size.X, Size.Y, _frameCount);
 
-        if (_screenshotMode && _frameCount >= 5)
+        if ((SandboxLaunchOptions.Enabled || _screenshotMode || _meshPreviewMode) && _frameCount >= 5)
         {
             CaptureScreenshot(_screenshotPath);
             Console.WriteLine($"Screenshot saved to: {_screenshotPath}");
@@ -697,15 +796,18 @@ public partial class EngineWindow : GameWindow
 
         UpdateGridMeshLod();
 
-        // Render grid (centered on origin for larger map)
-        float halfGrid = MapWorldSize * 0.5f;
-        var gridModel = Matrix4.CreateTranslation(-halfGrid, -0.5f, -halfGrid);
+        // Render grid aligned to active grid origin
+        Vector2 gridOrigin = _gridSystem!.Origin;
+        var gridModel = Matrix4.CreateTranslation(gridOrigin.X, -0.5f, gridOrigin.Y);
         GL.UniformMatrix4(_uniformModel, false, ref gridModel);
         GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
         GL.BindVertexArray(_gridVao);
         GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertCount);
 
+        RenderTerrainReadabilityOverlay();
+
         ResolveProjectileMeshes();
+        ResolveArticulatedPartMeshes();
         RenderTeamAuras();
 
         // Render all ships with engine trails
@@ -715,24 +817,27 @@ public partial class EngineWindow : GameWindow
             var transform = _world.GetComponent<TransformComponent>(entity);
             if (transform == null) continue;
 
-            if (!ShouldRenderEntity(entity, transform.Position)) continue;
+            Vector3 visibilityPos = ArticulationDrawHelper.GetVisibilityPosition(_world, entity, transform.Position);
+            if (!ShouldRenderEntity(entity, visibilityPos)) continue;
 
             bool isProjectile = _world.HasComponent<ProjectileComponent>(entity);
+            bool isArticulatedPart = ArticulationDrawHelper.IsArticulatedPartChild(_world, entity);
 
-            // Render engine trail behind moving ships
-            if (!isProjectile)
+            // Legacy mesh trail — skip when Terran particle nozzles are wired
+            if (!isProjectile && !isArticulatedPart && !EntityHasShipEngineNozzles(_world, entity))
             {
                 var movement = _world.GetComponent<MovementComponent>(entity);
                 if (movement != null && movement.Velocity.LengthSquared > 1f)
                 {
                     float speed = movement.Velocity.Length;
                     float trailScale = MathHelper.Clamp(speed / movement.Speed, 0.3f, 1.0f);
-                    // Trail sits behind the ship in its local space, then transforms to world
                     Matrix4 trailModel = Matrix4.CreateScale(trailScale) *
                                          Matrix4.CreateTranslation(0f, 0f, -0.5f) *
                                          transform.GetModelMatrix();
                     GL.UniformMatrix4(_uniformModel, false, ref trailModel);
-                    GL.Uniform4(_uniformColor, new Vector4(0, 0, 0, 0));
+                    GL.Uniform1(_uniformRaceTextureIndex, -1);
+                    GL.Uniform1(_uniformComponentTextureIndex, ComponentTextureIndex.Engine);
+                    GL.Uniform4(_uniformColor, Vector4.Zero);
                     GL.BindVertexArray(_engineTrailVao);
                     GL.DrawArrays(PrimitiveType.Triangles, 0, _engineTrailVertCount);
                 }
@@ -740,25 +845,36 @@ public partial class EngineWindow : GameWindow
 
             var projectile = _world.GetComponent<ProjectileComponent>(entity);
             var visual = _world.GetComponent<ProjectileVisualComponent>(entity);
-            Matrix4 model = isProjectile
-                ? BuildProjectileModelMatrix(transform, projectile, visual)
-                : transform.GetModelMatrix();
+            Matrix4 model;
+            if (!ArticulationDrawHelper.TryGetArticulatedModelMatrix(_world, entity, transform, out model))
+                model = isProjectile
+                    ? BuildProjectileModelMatrix(transform, projectile, visual)
+                    : transform.GetModelMatrix();
             GL.UniformMatrix4(_uniformModel, false, ref model);
 
             if (render.RaceTextureIndex >= 0)
             {
                 GL.Uniform1(_uniformRaceTextureIndex, render.RaceTextureIndex);
+                GL.Uniform1(_uniformComponentTextureIndex, -1);
                 GL.Uniform3(_uniformTeamTint, render.TeamTint);
                 GL.Uniform4(_uniformColor, Vector4.Zero);
             }
             else if (isProjectile)
             {
                 GL.Uniform1(_uniformRaceTextureIndex, -1);
-                GL.Uniform4(_uniformColor, render.Color);
+                GL.Uniform1(_uniformComponentTextureIndex, ComponentTextureIndex.Weapon);
+                GL.Uniform4(_uniformColor, Vector4.Zero);
+            }
+            else if (render.ComponentTextureIndex >= 0)
+            {
+                GL.Uniform1(_uniformRaceTextureIndex, -1);
+                GL.Uniform1(_uniformComponentTextureIndex, render.ComponentTextureIndex);
+                GL.Uniform4(_uniformColor, Vector4.Zero);
             }
             else
             {
                 GL.Uniform1(_uniformRaceTextureIndex, -1);
+                GL.Uniform1(_uniformComponentTextureIndex, -1);
                 var displayKind = GameplayEntityDisplay.Classify(_world, entity);
                 Vector4 tint = GameplayEntityDisplay.WorldTintColor(displayKind);
                 bool useOverride = tint.W > 0f || render.Color.W > 0f;
@@ -782,14 +898,17 @@ public partial class EngineWindow : GameWindow
             var ringModel = Matrix4.CreateTranslation(transform.Position);
             GL.UniformMatrix4(_uniformModel, false, ref ringModel);
             var ringKind = GameplayEntityDisplay.Classify(_world, entity);
-            GL.Uniform4(_uniformColor, GameplayEntityDisplay.SelectionRingColor(ringKind));
+            GL.Uniform4(_uniformColor, GameplayEntityDisplay.SelectionRingColor(_world, entity, ringKind));
             GL.BindVertexArray(_selectionVao);
             GL.DrawArrays(PrimitiveType.Lines, 0, _selectionVertCount);
         }
 
         RenderAttackHoverRing();
         RenderShieldCombatRings();
+        RenderShieldRegenShimmerRings();
+        RenderCombatRingOverlays();
         RenderMiningVfx();
+        RenderEngineTrailParticles();
         RenderExplosionVfx();
         RenderRoutePreviews();
         RenderPlacementPreview();
@@ -808,6 +927,13 @@ public partial class EngineWindow : GameWindow
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
+
+    private Vector3 GetGameplayCameraPosition()
+    {
+        float tiltRad = MathHelper.DegreesToRadians(_rtsCamera.TiltAngle);
+        float offsetZ = _rtsCamera.Height * MathF.Tan(tiltRad);
+        return _rtsCamera.Target + new Vector3(0f, _rtsCamera.Height, offsetZ);
+    }
 
     protected override void OnUpdateFrame(FrameEventArgs args)
     {
@@ -847,25 +973,35 @@ public partial class EngineWindow : GameWindow
         // Update UI
         _uiManager.Update(dt);
 
-        // Gameplay-specific updates
-        if (_sceneManager.State == GameState.Playing && _world != null)
+        // Gameplay-specific updates (paused while mission result overlay is visible)
+        if (_sceneManager.State == GameState.Playing && _world != null && !IsMissionResultOverlayActive())
         {
+            float gameplayDt = _demoRecordingMode ? dt * DemoSimulationTimeScale : dt;
+
             if (_demoRecordingMode)
-                UpdateDemoRecording(dt);
+                UpdateDemoRecording(gameplayDt, dt);
             else
                 UpdateCameraControls(dt);
-            _attackHoverPulse += dt;
-            _shieldRingPulse += dt;
+            UpdateSandboxChunks();
+            _attackHoverPulse += gameplayDt;
+            _shieldRingPulse += gameplayDt;
+
+            if (_articulationSystem != null)
+                _articulationSystem.CameraPosition = GetGameplayCameraPosition();
 
             // Update ECS world (issue #1: ensures movement system runs)
-            _world.Update(dt);
-            UpdateExplosionVfx(dt);
+            _world.Update(gameplayDt);
+            StationRotationSystem.UpdateStationRotations(_world, gameplayDt);
+            UpdateExplosionVfx(gameplayDt);
+            UpdateCombatRingOverlays(gameplayDt);
+            UpdateFogNebulaOverlay(gameplayDt);
 
             // Tick economy (issue #4: resources on HUD)
-            _resourceManager?.Tick(dt);
+            _resourceManager?.Tick(gameplayDt);
             BindResourceHUD();
             BindBuildPanel();
             BindBuildMapPanel();
+            TickPlacementHintFlash(dt);
             UpdatePlacementPreview();
             BindUnitInfoPanelExtended();
             BindObjectivePanel();
@@ -888,6 +1024,16 @@ public partial class EngineWindow : GameWindow
 
     private void HandleEscapePressed()
     {
+        if (_sceneManager.State == GameState.Playing &&
+            (_placementBuildingId != null || _harvestCommandMode))
+        {
+            CancelPlacementMode();
+            _harvestCommandMode = false;
+            if (_uiManager.Current is GameplayHUD placementHud)
+                placementHud.ShipControlBar.ClearActiveCommand();
+            return;
+        }
+
         switch (_sceneManager.State)
         {
             case GameState.MainMenu:
@@ -897,6 +1043,9 @@ public partial class EngineWindow : GameWindow
                     Close();
                 break;
             case GameState.Playing:
+                if (IsMissionResultOverlayActive())
+                    return;
+
                 // Check if pause menu is already showing
                 if (_uiManager.Current is PauseScreen)
                     _uiManager.Pop(); // Resume
@@ -911,16 +1060,21 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
         if (_sceneManager.State == GameState.Playing)
-            _rtsCamera.Zoom(e.OffsetY);
+        {
+            EnsurePersistence();
+            var settings = _settingsManager!.Current.Clamped();
+            _rtsCamera.ZoomSpeedMultiplier = settings.CameraZoomSpeed;
+            _rtsCamera.ZoomTowardScreenPoint(e.OffsetY, UiMousePosition, UiViewportSize);
+            ClampCameraTarget();
+        }
     }
 
     protected override void OnMouseDown(MouseButtonEventArgs e)
     {
         base.OnMouseDown(e);
 
-        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
-        var viewportSize = new Vector2(Size.X, Size.Y);
-        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, viewportSize))
+        var screenPoint = UiMousePosition;
+        if (_uiManager.HandlePointerTapped(screenPoint, (int)e.Button, UiViewportSize))
 
         {
 
@@ -935,7 +1089,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         if (e.Button == MouseButton.Left)
         {
-            if (_placementBuildingId != null || _attackMode || _attackMoveMode || _patrolMode || _moveCommandMode)
+            if (_placementBuildingId != null || _attackMode || _attackMoveMode || _patrolMode ||
+                _moveCommandMode || _harvestCommandMode)
             {
                 Vector3? commandPos = ScreenToWorldGround(MousePosition);
                 var clickPoint = new Vector2(MousePosition.X, MousePosition.Y);
@@ -944,7 +1099,17 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 {
                     if (commandPos == null) return;
                     if (HandlePlaceBuilding(commandPos.Value))
-                        _placementBuildingId = null;
+                        CancelPlacementMode(keepSuccessToast: true);
+                }
+                else if (_harvestCommandMode)
+                {
+                    if (commandPos == null) return;
+                    if (HandleHarvestCommand(commandPos.Value))
+                    {
+                        _harvestCommandMode = false;
+                        if (_uiManager.Current is GameplayHUD harvestHud)
+                            harvestHud.ShipControlBar.ClearActiveCommand();
+                    }
                 }
                 else if (_attackMode)
                 {
@@ -1113,6 +1278,16 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         }
     }
 
+    protected override void OnTextInput(TextInputEventArgs e)
+    {
+        base.OnTextInput(e);
+
+        if (string.IsNullOrEmpty(e.AsString))
+            return;
+
+        _uiManager.HandleChar(e.AsString[0]);
+    }
+
     private void HandleMoveCommand(Vector3 worldPos, bool appendWaypoint = false)
     {
         if (_world == null) return;
@@ -1200,6 +1375,28 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         return closest;
     }
 
+    private bool HandleHarvestCommand(Vector3 worldPos)
+    {
+        if (_world == null) return false;
+
+        Entity? targetNode = FindResourceNodeAt(worldPos);
+        if (!targetNode.HasValue) return false;
+
+        bool assigned = false;
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected || !IsPlayerSelectable(entity)) continue;
+
+            var collector = _world.GetComponent<ResourceCollectorComponent>(entity);
+            if (collector == null) continue;
+
+            AssignMinerToNode(entity, collector, targetNode.Value);
+            assigned = true;
+        }
+
+        return assigned;
+    }
+
     /// <summary>Assign a miner to harvest a resource node.</summary>
     private void AssignMinerToNode(Entity minerEntity, ResourceCollectorComponent collector, Entity nodeEntity)
     {
@@ -1213,9 +1410,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         Entity? depositTarget = FindNearestBase(minerEntity);
         collector.DepositTarget = depositTarget ?? _heroEntity;
 
-        var nodeTransform = _world.GetComponent<TransformComponent>(nodeEntity);
-        if (nodeTransform != null)
-            RouteCommands.AssignDestination(_world, minerEntity, nodeTransform.Position);
+        RouteCommands.ClearRoute(_world, minerEntity);
+        collector.OrbitAngle = HarvestOrbitHelper.AssignOrbitAngle(minerEntity, nodeEntity);
     }
 
     /// <summary>Find the nearest base/building entity for resource deposit.</summary>
@@ -1385,6 +1581,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             else
                 _world.AddComponent(entity, new StanceComponent { CurrentStance = stance });
         }
+
+        BindShipControlBar();
     }
 
     /// <summary>Activate hero ability at given slot index.</summary>
@@ -1490,6 +1688,34 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     }
 
     /// <summary>
+    /// Called when the player cancels a queued production item from the BuildPanel.
+    /// </summary>
+    private void OnBuildPanelQueueCancelRequested(int queueIndex)
+    {
+        if (_world == null || _resourceManager == null) return;
+
+        foreach (var (entity, sel) in _world.Query<SelectionComponent>())
+        {
+            if (!sel.IsSelected) continue;
+            var building = _world.GetComponent<BuildingComponent>(entity);
+            if (building == null || building.Producible.Count == 0) continue;
+
+            if (BuildingProductionQueue.TryCancelAtIndex(
+                    building,
+                    queueIndex,
+                    defId => _definitions.GetValueOrDefault(defId),
+                    _resourceManager,
+                    _supplySystem,
+                    building.PlayerId))
+            {
+                Console.WriteLine($"[Build] Cancelled queue item #{queueIndex} at {building.BuildingType}");
+            }
+
+            return;
+        }
+    }
+
+    /// <summary>
     /// Queue the first producible item from any selected building.
     /// Deducts resources immediately via ResourceManager.
     /// </summary>
@@ -1585,6 +1811,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             _gridSystem == null || _buildMapCatalog == null)
             return false;
 
+        worldPos = BuildingFootprint.SnapToCellCenter(_gridSystem, worldPos);
+
         if (!_definitions.TryGetValue(buildingId, out var def))
         {
             def = _assetManager?.Load<EntityDefinition>($"Bases/{buildingId}");
@@ -1603,8 +1831,20 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             _buildMapCatalog, _resourceManager, _supplySystem);
         if (!validation.IsValid)
         {
+            string message = validation.Reason.ToPlayerMessage();
             Console.WriteLine($"[Place] Invalid location for {def.DisplayName}: {validation.Reason}");
+            FlashPlacementFailure(message);
             return false;
+        }
+
+        if (_placementBuilderEntity is Entity builderEntity)
+        {
+            if (!IsBuilderInPlacementRange(builderEntity, worldPos, out string rangeReason))
+            {
+                Console.WriteLine($"[Place] Invalid location for {def.DisplayName}: {rangeReason}");
+                FlashPlacementFailure(rangeReason);
+                return false;
+            }
         }
 
         int energy = def.Cost?.Energy ?? 0;
@@ -1614,32 +1854,84 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         if (!_resourceManager.TrySpendCost(1, energy, minerals, data, crew))
         {
             Console.WriteLine($"[Place] Cannot afford {def.DisplayName}");
+            FlashPlacementFailure(PlacementFailureReason.CannotAfford.ToPlayerMessage());
             return false;
         }
 
         string buildingType = def.Components?.Building?.BuildingType ?? buildingId;
-        var (meshId, vertCount, scale) = ResolveBuildingMesh(buildingType, 1);
+        var buildingDef = def.Components?.Building;
+        string raceId = ResolveFactionRaceId(1, isEnemy: false);
+        var (_, _, scale) = ResolveBuildingMesh(buildingType, 1);
 
         var building = _world.CreateEntity();
         _world.AddComponent(building, new TransformComponent { Position = worldPos, Scale = scale });
-        var placedRender = new RenderComponent { MeshId = meshId, VertexCount = vertCount, Visible = true, PrimitiveType = (int)PrimitiveType.Triangles };
-        ApplyRaceTexturing(placedRender, ResolveFactionRaceId(1, isEnemy: false), 1);
+        var placedRender = new RenderComponent { Visible = true, MeshId = -1, PrimitiveType = (int)PrimitiveType.Triangles };
+        if (def.BuildTime > 0f)
+            ApplyStructureConstructionMesh(placedRender, buildingType, raceId, playerId: 1, buildFraction: 0f);
+        else
+        {
+            var (meshId, vertCount, _) = ResolveBuildingMesh(buildingType, 1);
+            placedRender.MeshId = meshId;
+            placedRender.VertexCount = vertCount;
+            ApplyRaceTexturing(placedRender, raceId, 1);
+        }
+
         _world.AddComponent(building, placedRender);
         _world.AddComponent(building, new SelectionComponent { IsSelected = false, SelectionRadius = 15f });
 
         var healthDef = def.Components?.Health;
-        _world.AddComponent(building, new HealthComponent { MaxHP = healthDef?.MaxHP ?? 1000f, CurrentHP = healthDef?.MaxHP ?? 1000f, Armor = healthDef?.Armor ?? 50f });
+        float maxHp = healthDef?.MaxHP ?? 1000f;
 
-        var buildingDef = def.Components?.Building;
-        _world.AddComponent(building, new BuildingComponent
+        if (def.BuildTime > 0f)
         {
-            BuildingType = buildingDef?.BuildingType ?? buildingId,
-            ProductionRate = buildingDef?.ProductionRate ?? 1f,
-            Footprint = buildingDef?.Footprint ?? [2, 2],
-            PlayerId = 1,
-            RallyPoint = worldPos + new Vector3(30f, 0f, 0f),
-            Producible = def.Producible?.ToList() ?? new List<string>(),
-        });
+            // Reduced HP during construction: targetable but less punishing than full health.
+            // True invulnerability would require ProjectileSystem damage guards (deferred to wo-sc-01-03).
+            _world.AddComponent(building, new HealthComponent
+            {
+                MaxHP = maxHp,
+                CurrentHP = maxHp * 0.25f,
+                Armor = healthDef?.Armor ?? 50f,
+            });
+
+            _world.AddComponent(building, new BuildingComponent
+            {
+                BuildingType = buildingDef?.BuildingType ?? buildingId,
+                ProductionRate = 0f,
+                Footprint = buildingDef?.Footprint ?? [2, 2],
+                Rotates = buildingDef?.Rotates ?? false,
+                PlayerId = 1,
+                RallyPoint = worldPos + new Vector3(30f, 0f, 0f),
+                Producible = def.Producible?.ToList() ?? new List<string>(),
+            });
+            _world.AddComponent(building, new UnderConstructionComponent
+            {
+                DefinitionId = def.Id,
+                BuildProgress = 0f,
+                TotalBuildTime = def.BuildTime,
+                PlayerId = 1,
+            });
+        }
+        else
+        {
+            _world.AddComponent(building, new HealthComponent
+            {
+                MaxHP = maxHp,
+                CurrentHP = maxHp,
+                Armor = healthDef?.Armor ?? 50f,
+            });
+
+            _world.AddComponent(building, new BuildingComponent
+            {
+                BuildingType = buildingDef?.BuildingType ?? buildingId,
+                ProductionRate = buildingDef?.ProductionRate ?? 1f,
+                Footprint = buildingDef?.Footprint ?? [2, 2],
+                Rotates = buildingDef?.Rotates ?? false,
+                PlayerId = 1,
+                RallyPoint = worldPos + new Vector3(30f, 0f, 0f),
+                Producible = def.Producible?.ToList() ?? new List<string>(),
+            });
+        }
+
         _world.AddComponent(building, new EntityNameComponent
         {
             DisplayName = string.IsNullOrWhiteSpace(def.DisplayName) ? buildingType.Replace("_", " ") : def.DisplayName,
@@ -1651,7 +1943,17 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         PlayBuildingPlaced(worldPos);
 
-        Console.WriteLine($"[Place] Built {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
+        if (_placementBuilderEntity is Entity placedBuilder)
+            RouteCommands.ClearRoute(_world, placedBuilder);
+
+        if (_uiManager.Current is GameplayHUD placementHud)
+            placementHud.DismissBuildFlowHint();
+
+        string displayName = string.IsNullOrWhiteSpace(def.DisplayName) ? buildingId : def.DisplayName;
+        FlashPlacementSuccess(PlacementFailureReasonExtensions.BuildPlacedMessage(displayName));
+
+        string placeStatus = def.BuildTime > 0f ? "Started construction of" : "Built";
+        Console.WriteLine($"[Place] {placeStatus} {def.DisplayName} at ({worldPos.X:F0}, {worldPos.Z:F0})");
         return true;
     }
 
@@ -1709,6 +2011,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             hud.BuildPanel.SupplyText = $"{used} / {cap}";
         }
 
+        var queuedDefIds = new HashSet<string>(selectedBuilding.BuildQueue, StringComparer.OrdinalIgnoreCase);
+
         // Available items
         var items = new List<BuildableItem>();
         foreach (string defId in selectedBuilding.Producible)
@@ -1732,6 +2036,8 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
                 CrewCost = def.Cost?.Crew ?? 0,
                 BuildTime = def.BuildTime,
                 CanAfford = canAfford,
+                IsQueued = queuedDefIds.Contains(def.Id),
+                Role = ShipRoleResolver.Resolve(def),
             });
         }
         hud.BuildPanel.AvailableItems = items;
@@ -1741,15 +2047,38 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         int qIdx = 0;
         foreach (string qItem in selectedBuilding.BuildQueue)
         {
+            bool isCurrent = qIdx == 0;
             float progress = 0f;
-            if (qIdx == 0 && selectedBuilding.BuildProgress > 0)
+            QueuedState state = QueuedState.Queued;
+
+            float totalTime = 0f;
+            float remainingSeconds = 0f;
+            if (isCurrent)
             {
+                state = QueuedState.Building;
                 var qDef = _definitions.GetValueOrDefault(qItem);
-                float totalTime = qDef?.BuildTime ?? 1f;
-                progress = selectedBuilding.BuildProgress / totalTime;
+                totalTime = qDef?.BuildTime ?? 1f;
+                progress = totalTime > 0f
+                    ? Math.Clamp(selectedBuilding.BuildProgress / totalTime, 0f, 1f)
+                    : 0f;
+                if (totalTime > 0f && selectedBuilding.ProductionRate > 0f)
+                {
+                    float remainingProgress = MathF.Max(0f, totalTime - selectedBuilding.BuildProgress);
+                    remainingSeconds = remainingProgress / selectedBuilding.ProductionRate;
+                }
             }
+
             string name = _definitions.TryGetValue(qItem, out var d) ? d.DisplayName : qItem;
-            queueItems.Add(new QueuedItem { Name = name, Progress = progress });
+            queueItems.Add(new QueuedItem
+            {
+                Name = name,
+                Progress = progress,
+                IsCurrent = isCurrent,
+                QueueIndex = qIdx + 1,
+                State = state,
+                TotalBuildTime = totalTime,
+                RemainingSeconds = remainingSeconds,
+            });
             qIdx++;
         }
         hud.BuildPanel.Queue = queueItems;
@@ -1819,9 +2148,10 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
     protected override void OnResize(ResizeEventArgs e)
     {
         base.OnResize(e);
-        GL.Viewport(0, 0, e.Width, e.Height);
-        _uiRenderer?.UpdateViewport(e.Width, e.Height);
-        _uiManager?.Resize(new Vector2(e.Width, e.Height));
+        var uiViewport = UiViewportSize;
+        GL.Viewport(0, 0, (int)uiViewport.X, (int)uiViewport.Y);
+        _uiRenderer?.UpdateViewport((int)uiViewport.X, (int)uiViewport.Y);
+        _uiManager?.Resize(uiViewport);
     }
 
     protected override void OnUnload()
@@ -1867,9 +2197,10 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
             Array.Copy(pixels, (height - 1 - y) * stride, flipped, y * stride, stride);
         }
 
-        using var stream = File.OpenWrite(path);
+        using var stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read);
         var writer = new ImageWriter();
         writer.WritePng(flipped, width, height, ColorComponents.RedGreenBlueAlpha, stream);
+        stream.Flush(true);
     }
 }
 

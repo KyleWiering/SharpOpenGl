@@ -1,12 +1,76 @@
 # SharpOpenGl — AI Agent Context
 
-> **Read this file first.** It is the canonical project map for AI assistants.
+> **Route from Agent Intake below** — do not re-scan the repo when this file already maps the area.
 > Update it whenever you change architecture, workflows, or key behavior.
 > See `.cursor/rules/ai-documentation.mdc` for maintenance rules.
 
 **Repo:** [KyleWiering/SharpOpenGl](https://github.com/KyleWiering/SharpOpenGl)  
 **Stack:** .NET 8 · OpenTK 4.8 · Blazor WASM · xUnit · WebGL2 (GitHub Pages)
 **Default window:** 1024×768 · **UI reference resolution:** 1920×1080
+
+---
+
+## Agent Intake (read this — avoid re-discovery)
+
+**Goal:** Answer and implement from **known paths**, not repeated repo exploration.
+
+### Intake tiers
+
+| Tier | When | Do |
+|------|------|-----|
+| **0 — Execute** | User gave a command, attached a file, or continues the same task | Run/build/test immediately; read **only** the attached file + symbols it references |
+| **1 — Route** | Task names a subsystem (UI, ships, missions, tests, CI) | Jump to the **Task router** row below; open ≤3 files |
+| **2 — Targeted** | Tier 1 insufficient | `Grep` the exact symbol/path; read the hit file and one neighbor |
+| **3 — Plan** | Ambiguous scope or architecture change | Read the relevant **Architecture** subsection here; ask one clarifying question if still blocked |
+
+**Do not** on routine requests: directory tree walks, broad `Glob **/*`, `GAME_PLAN.md` / `IMPLEMENTATION_PLAN.md`, `readme.md` (unless player-facing copy changes), Task/explore subagents for single-file questions, or re-reading this whole file when the needed section is already in context.
+
+### Task router
+
+| User intent | Start here (≤3 files) |
+|-------------|------------------------|
+| Build / run desktop | Command cheat sheet below → `SharpOpenGl/Program.cs` |
+| Build / run browser | `SharpOpenGl.Browser/` |
+| Run tests | `SharpOpenGl.Tests/` — filter by class name, not whole solution |
+| UI / menus / HUD | `EngineWindow.OnMouseDown`, `UIManager`, `SharpOpenGl.Engine/UI/Screens/` |
+| ECS / gameplay systems | `SharpOpenGl.Engine/ECS/`, `EngineWindow.Gameplay.cs` |
+| Ships / meshes / rendering | `RaceShipMeshes.cs`, `GameData/Meshes/`, `GameData/Config/mesh_manifest.json` |
+| Stations / buildings | `RaceStationMeshes.cs`, `GameData/Bases/` |
+| Missions / campaign | `GameData/Missions/`, `MissionLoader`, `MissionSelectScreen` |
+| Maps / fog / pathfinding | `GameData/Maps/`, `SharpOpenGl.Engine/Grid/` |
+| Save / load | `WorldSaveService`, `SaveGameScreen`, `EngineWindow.SaveLoad.cs` |
+| Multiplayer | `docs/MULTIPLAYER.md`, `MultiplayerSetupScreen` |
+| CI / deploy | `.github/workflows/` |
+| Model migration | `docs/MODEL_MIGRATION_PLAN.md`, `ModelMigrationExporter.cs` |
+| Articulation tests | `ArticulationMathTests`, `ArticulationSchemaTests`, `SpecialHullArticulationTests`, `FleetGalleryArticulationTests`, `BrowserArticulationTests`, `ShipTurretArticulationTests`, `UtilityArticulationTests`, `ArticulationIntegrationTests`; `StationArticulationTests` | pivot math, per-type spawn/aim, gallery/browser smoke |
+| Agent / docs maintenance | This section + `.cursor/rules/ai-documentation.mdc` |
+
+### Command cheat sheet
+
+```bash
+# Desktop app
+dotnet build && dotnet run --project SharpOpenGl
+
+# Browser
+dotnet run --project SharpOpenGl.Browser
+
+# All tests
+dotnet test SharpOpenGl.Tests
+
+# One test class (replace ClassName)
+dotnet test SharpOpenGl.Tests --filter "FullyQualifiedName~ClassName"
+
+# Screenshot / demo (CI)
+dotnet run --project SharpOpenGl -- --screenshot --screenshot-path out.png
+dotnet run --project SharpOpenGl -- --demo-recording --mission example_scenario
+```
+
+PowerShell: use `;` instead of `&&`.
+
+### Session carry-over
+
+- Same conversation + same subsystem → **do not** re-discover; continue from prior edits.
+- User `@`-references a file → that file is **primary scope**; expand only via imports or failing tests.
 
 ---
 
@@ -74,9 +138,10 @@ Gameplay + PauseScreen overlay
 - **World** — entity slots, sparse-set component pools, system registry
 - **~33 components** — Transform, Movement, Render, Health, Race, Weapon, Building, Projectile, Squad, etc.
 - **~20 systems** — Movement, Combat, ShieldRegen, Build, Resource, AI, FogOfWar, Supply, Squad, etc.
-- **Camera** — shared `RtsCameraController` in Engine (desktop + browser)
+- **Camera** — shared `RtsCameraController` in Engine (desktop + browser); edge-scroll band, zoom-to-cursor, height clamps
+- **Sandbox chunks** — `SandboxChunkGrid.EnsureChunksAround` lazy-loads 64×64 sectors on camera move (`chunkLoadRadius` in `GameData/Config/sandbox.json`); idempotent when stationary
 - **Squads** — `SquadSystem` + `SquadMemberComponent`; formations (line/wedge/box/column); G key / ShipControlBar
-- **Move routes** — `RouteCommands` → `WaypointQueueComponent` → `AutoMoveSystem` → `DestinationComponent` → `PathFollowingSystem` → `MovementSystem`; shift+right-click appends waypoints
+- **Move routes** — `RouteCommands` → `WaypointQueueComponent` → `AutoMoveSystem` → `DestinationComponent` → `PathFollowingSystem` → `MovementSystem`; shift+right-click appends waypoints; green line preview via `RoutePreviewHelper` (desktop + browser)
 - **Map:** 200×200 grid @ 10f cell = 2000-unit world (`GridColumns/Rows` in `EngineWindow`)
 
 ### UI system (`SharpOpenGl.Engine.UI`)
@@ -104,14 +169,16 @@ Loaded via `JsonLoader` (case-insensitive, comments allowed).
 
 | Path | Schema / DTO |
 |------|--------------|
-| `GameData/Ships/*.json` | `EntityDefinition` |
+| `GameData/Ships/*.json` | `EntityDefinition` (optional `shipRole`: `military` \| `engineering` \| `political`; omitted → infer from `category`: miner/freighter/transport/support → engineering, hero → political, else military) |
 | `GameData/Bases/*.json` | `EntityDefinition` (building) |
 | `GameData/Units/*.json` | `EntityDefinition` |
 | `GameData/Missions/*.json` | `MissionDefinition` |
 | `GameData/Maps/*.json` | `MapDefinition` |
-| `GameData/Config/*.json` | balance, controls, resources, race_visuals, race_shields, race_ultimates |
+| `GameData/Config/*.json` | balance, controls (`shipControlBar` shortcuts), resources, race_visuals, race_shields, race_ultimates, mesh_manifest |
 
 Ship types (19): `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_light`, `carrier_command`, `cruiser_heavy`, `hero_default`, `miner_basic`, `miner_eva`, `miner_tractor`, `transport_cargo`, `interceptor_mk2`, `corvette_fast`, `frigate_strike`, `gunship_heavy`, `dreadnought`, `drone_swarm`, `freighter_bulk`, `support_repair`.
+
+Meshes: procedural builders in `SharpOpenGl.Engine/Rendering/`; disk assets under `GameData/Meshes/{Ships,Designs,Stations,...}/`; manifest at `GameData/Config/mesh_manifest.json`.
 
 ### Economy
 
@@ -147,6 +214,7 @@ Ship types (19): `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_li
 | Grid | `SharpOpenGl.Tests/Grid/` | pathfinding, fog, map gen |
 | Economy | `SharpOpenGl.Tests/Economy/` | resources, build queue |
 | Missions | `SharpOpenGl.Tests/Missions/` | loader, objectives, triggers, star map, playthrough agent |
+| Rendering / meshes | `SharpOpenGl.Tests/Rendering/` | substrates, OBJ export, mesh manifest proof |
 | Config / shields | `SharpOpenGl.Tests/Config/RaceShieldDoctrineTests.cs` | race doctrine, spawn, regen |
 | Config / ultimates | `SharpOpenGl.Tests/Config/RaceUltimateTests.cs` | per-race ultimate lookup, hero slot 2 |
 | Multiplayer | `SharpOpenGl.Tests/Multiplayer/` | lobby, replay, commands |
@@ -187,6 +255,8 @@ Ship types (19): `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_li
 
 **Backlog item #12 (done):** Standard multiplayer skirmish maps with base areas.
 
+**Model migration (done):** 755 OBJ assets under `GameData/Meshes/`; see `docs/MODEL_MIGRATION_PLAN.md`.
+
 ---
 
 ## Documentation Index
@@ -202,6 +272,7 @@ Ship types (19): `fighter_basic`, `bomber_heavy`, `destroyer_assault`, `scout_li
 | `docs/WEBGL2_PARITY.md` | Developers — desktop vs browser |
 | `docs/MULTIPLAYER.md` | Developers — netcode design |
 | `docs/VISUAL_DESIGN.md` | Artists / developers |
+| `docs/MODEL_MIGRATION_PLAN.md` | Developers — mesh asset pipeline |
 
 ---
 
@@ -216,6 +287,7 @@ When making changes, update **AGENTS.md** if you touch:
 - [ ] CI workflows or build commands
 - [ ] Known issues / fixed bugs
 - [ ] Test locations for new subsystems
+- [ ] **Task router** (new subsystem → add one row)
 - [ ] Active branch goals or completion status
 
 Keep entries concise. Prefer tables and file paths over prose.

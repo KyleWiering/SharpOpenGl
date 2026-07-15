@@ -7,6 +7,8 @@ namespace SharpOpenGl.Tests.Rendering;
 
 public class ParticleSystemTests
 {
+    public ParticleSystemTests() => RaceVisualSchema.Load();
+
     // ── Particle lifecycle ────────────────────────────────────────────────────
 
     [Fact]
@@ -166,6 +168,24 @@ public class ParticleSystemTests
     {
         var e = ParticleEffects.CreateEngineTrail(Vector3.Zero, -Vector3.UnitZ);
         Assert.True(e.EmitRate > 0f);
+    }
+
+    [Fact]
+    public void EngineTrail_emitter_uses_terran_palette_color()
+    {
+        var e = ParticleEffects.CreateEngineTrail(Vector3.Zero, -Vector3.UnitZ);
+        const float epsilon = 0.05f;
+
+        Assert.InRange(e.StartColor.X, 0.55f - epsilon, 0.55f + epsilon);
+        Assert.InRange(e.StartColor.Y, 0.72f - epsilon, 0.72f + epsilon);
+        Assert.InRange(e.StartColor.Z, 0.92f - epsilon, 0.92f + epsilon);
+    }
+
+    [Fact]
+    public void EngineTrail_emitter_capacity_is_256_or_less()
+    {
+        var e = ParticleEffects.CreateEngineTrail(Vector3.Zero, -Vector3.UnitZ);
+        Assert.True(e.Capacity <= 256);
     }
 
     [Fact]

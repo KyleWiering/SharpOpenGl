@@ -1,0 +1,18 @@
+{
+  "id": "shield_generator_3",
+  "displayName": "Shield Generator Gamma",
+  "category": "shield_generator",
+  "componentTexture": "shield_generator",
+  "mesh": "meshes/units/shield_generator.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 800, "shields": 200, "armor": 40 },
+    "movement": { "speed": 0, "acceleration": 0, "turnRate": 0 },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 30, "range": 380, "fireRate": 0.8 }
+    ],
+    "sightRadius": 6
+  },
+  "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 0
+}

@@ -18,10 +18,12 @@ WebGL2 port and outlines the approach for each.
 | Feature | Desktop (OpenTK) | WebGL2 Status | Notes |
 |---------|-----------------|---------------|-------|
 | VAO / VBO | `GL.GenVertexArray` | ✅ Supported | `createVertexArray` (requires WebGL2) |
-| Vertex shaders | GLSL 330 core | ⚠️ Adapt | Must use GLSL ES 300, `in`/`out` instead of `attribute`/`varying` |
-| Fragment shaders | GLSL 330 core | ⚠️ Adapt | Add `precision mediump float;`, remove `layout(location)` on outputs |
+| Vertex shaders | GLSL 330 core | ✅ Adapted | `webgl-renderer.js` uses GLSL ES 300 `in`/`out` |
+| Fragment shaders | GLSL 330 core | ✅ Adapted | `precision mediump float;` in `webgl-renderer.js` |
 | Uniform mat4 | `GL.UniformMatrix4` | ✅ Supported | `uniformMatrix4fv(loc, false, mat)` |
 | DrawArrays | `GL.DrawArrays` | ✅ Supported | `gl.drawArrays` |
+| Line strip | `GL.LINE_STRIP` | ✅ Supported | `drawLineStrip` + `GlPrimitive.LineStrip` in `webgl-renderer.js` |
+| Waypoint route preview | `RenderRoutePreviews` (desktop) | ✅ Supported | `BrowserGameplayRenderer.RenderRoutePreviews` via `RoutePreviewHelper` |
 | Depth test | `GL.Enable(DepthTest)` | ✅ Supported | `gl.enable(gl.DEPTH_TEST)` |
 | Point size | `gl_PointSize` in shader | ✅ Supported | WebGL2 supports `gl_PointSize` |
 | Frame loop | `GameWindow.Run()` | ⚠️ Adapt | Use `requestAnimationFrame` |
@@ -99,4 +101,4 @@ CI (`deploy-pages.yml`) publishes `SharpOpenGl.Browser` to `docs/` on every push
 
 ---
 
-*Last updated: Blazor WASM browser build*
+*Last updated: 2026-07-14 — LineStrip + waypoint route preview parity (wo-core-52/53)*

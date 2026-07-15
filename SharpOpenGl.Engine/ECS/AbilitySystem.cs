@@ -94,6 +94,7 @@ public sealed class AbilitySystem : GameSystem
             ability.Activate();
             ApplyAbilityEffect(world, caster, ability);
             _bus.Publish(new AbilityActivatedEvent(caster.Index, slot, ability.Id));
+            PublishUltimateCastRing(world, caster, ability);
         }
     }
 
@@ -226,10 +227,7 @@ public sealed class AbilitySystem : GameSystem
             if ((pos - center).LengthSquared > radiusSq) continue;
 
             if (ultimate.Damage > 0f)
-            {
-                float final = DamageCalculator.Apply(ultimate.Damage, health);
-                _bus.Publish(new DamageDealtEvent(caster.Index, candidate.Index, ultimate.Damage, final));
-            }
+                CombatDamagePublisher.ApplyAndPublish(world, _bus, caster, candidate, ultimate.Damage);
 
             ApplyDisable(world, candidate, ultimate.DisableDuration);
         }
@@ -251,8 +249,7 @@ public sealed class AbilitySystem : GameSystem
             var pos = world.GetComponent<TransformComponent>(candidate)?.Position ?? center;
             if ((pos - center).LengthSquared > radiusSq) continue;
 
-            float final = DamageCalculator.Apply(damage, health);
-            _bus.Publish(new DamageDealtEvent(caster.Index, candidate.Index, damage, final));
+            CombatDamagePublisher.ApplyAndPublish(world, _bus, caster, candidate, damage);
         }
 
         _bus.Publish(new ExplosionVfxEvent(center, ExplosionVfxKind.Impact, MathF.Max(1f, radius * 0.12f)));
@@ -263,8 +260,26 @@ public sealed class AbilitySystem : GameSystem
         var health = world.GetComponent<HealthComponent>(target);
         if (health == null || health.IsDead) return;
 
-        float final = DamageCalculator.Apply(damage, health);
-        _bus.Publish(new DamageDealtEvent(caster.Index, target.Index, damage, final));
+        CombatDamagePublisher.ApplyAndPublish(world, _bus, caster, target, damage);
+    }
+
+    private void PublishUltimateCastRing(World world, Entity caster, AbilityComponent ability)
+    {
+        if (!RaceUltimateSchema.TryGetByAbilityId(ability.Id, out _)) return;
+
+        var transform = world.GetComponent<TransformComponent>(caster);
+        if (transform == null) return;
+
+        float radius = world.GetComponent<SelectionComponent>(caster)?.SelectionRadius ?? 8f;
+        string raceId = world.GetComponent<RaceComponent>(caster)?.RaceId ?? string.Empty;
+        Vector3 tint = CombatFeedbackSystem.ResolveUltimateCastTint(raceId, ability.Id);
+        var tintColor = new Vector4(tint, 1f);
+
+        _bus.Publish(new CombatRingVfxEvent(
+            transform.Position,
+            CombatRingVfxKind.UltimateCast,
+            radius * 1.35f,
+            tintColor));
     }
 
     private static void ApplyDisable(World world, Entity target, float duration)

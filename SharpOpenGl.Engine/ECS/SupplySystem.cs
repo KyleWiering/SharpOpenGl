@@ -55,6 +55,14 @@ public sealed class SupplySystem : GameSystem
         _used[playerId] = _used.GetValueOrDefault(playerId) + cost;
     }
 
+    /// <summary>Release supply reserved when a queued production order is cancelled.</summary>
+    public void ReleaseSupply(int playerId, int cost)
+    {
+        if (cost <= 0) return;
+        int used = _used.GetValueOrDefault(playerId);
+        _used[playerId] = Math.Max(0, used - cost);
+    }
+
     /// <inheritdoc/>
     public override void Update(World world, float deltaTime)
     {

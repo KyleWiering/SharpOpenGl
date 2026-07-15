@@ -110,23 +110,8 @@ public static class MeshBuilder
 
     /// <summary>Build vertex data for a world-space line strip on the XZ plane.</summary>
     public static float[] BuildLineStripVertices(
-        IReadOnlyList<Vector3> points, Vector3 color, float y = 0.25f)
-    {
-        if (points.Count == 0) return Array.Empty<float>();
-
-        var result = new float[points.Count * 6];
-        for (int i = 0; i < points.Count; i++)
-        {
-            result[i * 6 + 0] = points[i].X;
-            result[i * 6 + 1] = y;
-            result[i * 6 + 2] = points[i].Z;
-            result[i * 6 + 3] = color.X;
-            result[i * 6 + 4] = color.Y;
-            result[i * 6 + 5] = color.Z;
-        }
-
-        return result;
-    }
+        IReadOnlyList<Vector3> points, Vector3 color, float y = 0.25f) =>
+        ProceduralMeshes.BuildLineStripVertices(points, color, y);
 
     /// <summary>Upload or resize dynamic vertex data for a line strip.</summary>
     public static (int vao, int vbo, int vertexCount) CreateDynamicLineStrip()
@@ -162,6 +147,10 @@ public static class MeshBuilder
     /// <summary>Upload procedural vertex data (pos+col, stride 6).</summary>
     public static (int vao, int vbo, int vertexCount) UploadProcedural(float[] vertices, bool lines = false)
         => Upload(vertices, 6, lines ? PrimitiveType.Lines : PrimitiveType.Triangles);
+
+    /// <summary>Upload parsed OBJ data (pos+normal, stride 6).</summary>
+    public static (int vao, int vbo, int vertexCount) UploadObj(ObjMeshData data)
+        => Upload(data.Vertices, ObjMeshData.Stride, PrimitiveType.Triangles);
 
     /// <summary>Delete a previously built mesh's GPU resources.</summary>
     public static void DeleteMesh(int vao, int vbo)

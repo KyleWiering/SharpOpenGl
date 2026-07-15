@@ -4,6 +4,9 @@ namespace SharpOpenGl.Engine.UI.Widgets;
 
 /// <summary>
 /// Read-only text widget with optional word wrapping.
+/// When hosted in a <see cref="ScrollPanel"/>, callers should invoke
+/// <see cref="ScrollPanel.RecalculateContentHeight"/> after changing <see cref="Text"/>
+/// or other layout-affecting properties (see BriefingScreen / objectives panel rebuild).
 /// </summary>
 public sealed class Label : Widget
 {
@@ -19,6 +22,9 @@ public sealed class Label : Widget
     /// <summary>When greater than zero, text wraps to this width in logical pixels.</summary>
     public float WrapWidth { get; set; }
 
+    /// <summary>Maximum number of lines to render. Zero means unlimited (subject to height clip).</summary>
+    public int MaxLines { get; set; }
+
     /// <summary>Internal padding from the widget edge.</summary>
     public float Padding { get; set; } = 4f;
 
@@ -27,13 +33,11 @@ public sealed class Label : Widget
     {
         if (string.IsNullOrEmpty(Text)) return;
 
-        float wrap = WrapWidth > 0f ? WrapWidth : size.X - Padding * 2f;
-        UITextDrawing.DrawTextBlock(
-            renderer,
-            Text,
-            position + new Vector2(Padding, Padding),
-            FontSize,
-            TextColor,
-            wrap);
+        float contentWidth = UITextDrawing.ContentWrapWidth(size.X, Padding);
+        float wrap = WrapWidth > 0f ? Math.Min(WrapWidth, contentWidth) : 0f;
+        Vector2 textPos = position + new Vector2(Padding, Padding);
+        float maxHeight = Math.Max(0f, size.Y - Padding * 2f);
+
+        UITextDrawing.DrawTextBlock(renderer, Text, textPos, FontSize, TextColor, wrap, MaxLines, maxHeight);
     }
 }

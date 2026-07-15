@@ -40,10 +40,19 @@ public sealed class RenderSystem : GameSystem
             if (!render.Visible) continue;
 
             TransformComponent? transform = world.GetComponent<TransformComponent>(entity);
-            Matrix4 model = transform?.GetModelMatrix() ?? Matrix4.Identity;
+            Matrix4 model;
+            if (transform != null &&
+                ArticulationDrawHelper.TryGetArticulatedModelMatrix(world, entity, transform, out model))
+            {
+                // Composed pivot matrix for articulated sub-parts.
+            }
+            else
+            {
+                model = transform?.GetModelMatrix() ?? Matrix4.Identity;
+            }
 
             _renderer.DrawMesh(render.MeshId, render.VertexCount, model, render.Color, render.PrimitiveType,
-                render.RaceTextureIndex, render.TeamTint);
+                render.RaceTextureIndex, render.TeamTint, render.ComponentTextureIndex);
         }
 
         _renderer.EndFrame();

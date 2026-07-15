@@ -15,6 +15,12 @@ public sealed class PathComponent
     /// <summary>Index of the next waypoint to move toward.</summary>
     public int CurrentWaypointIndex { get; set; }
 
+    /// <summary>Seconds without meaningful progress toward the active waypoint.</summary>
+    public float StuckSeconds { get; set; }
+
+    /// <summary>Last recorded horizontal distance to the active path target.</summary>
+    public float LastProgressDistance { get; set; } = float.MaxValue;
+
     /// <summary>Returns true when all waypoints have been reached.</summary>
     public bool IsComplete => CurrentWaypointIndex >= Waypoints.Count;
 }

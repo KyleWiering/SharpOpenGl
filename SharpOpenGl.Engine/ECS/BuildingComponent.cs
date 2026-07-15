@@ -32,6 +32,9 @@ public sealed class BuildingComponent
     /// <summary>Grid-space footprint: [columns, rows].</summary>
     public int[] Footprint { get; set; } = [1, 1];
 
+    /// <summary>Whether this structure supports player rotation (copied from definition).</summary>
+    public bool Rotates { get; set; }
+
     /// <summary>
     /// Rally point where newly produced units move to after spawning.
     /// Null means units spawn in place without auto-move.

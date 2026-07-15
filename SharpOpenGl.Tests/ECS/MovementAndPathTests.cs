@@ -290,6 +290,50 @@ public class MovementAndPathTests
     }
 
     [Fact]
+    public void PathFollowingSystem_skips_stuck_waypoint_after_timeout()
+    {
+        var grid = new GridSystem(8, 8);
+        var world = new World();
+        var pathSystem = new PathFollowingSystem(grid);
+
+        Entity ship = world.CreateEntity();
+        world.AddComponent(ship, new TransformComponent
+        {
+            Position = Vector3.Zero,
+        });
+        world.AddComponent(ship, new MovementComponent
+        {
+            Speed = 0f,
+            Acceleration = 0f,
+            TurnRate = 0f,
+        });
+        world.AddComponent(ship, new DestinationComponent
+        {
+            Target = new Vector3(300f, 0f, 0f),
+            GridX = 7,
+            GridY = 0,
+        });
+        world.AddComponent(ship, new PathComponent
+        {
+            Waypoints =
+            [
+                new Vector3(100f, 0f, 0f),
+                new Vector3(200f, 0f, 0f),
+                new Vector3(300f, 0f, 0f),
+            ],
+        });
+
+        for (int i = 0; i < 90; i++)
+            pathSystem.Update(world, 0.05f);
+
+        var path = world.GetComponent<PathComponent>(ship);
+        bool recovered = path == null || path.CurrentWaypointIndex >= 1;
+        Assert.True(recovered, "Stuck recovery should advance or clear blocked path");
+
+        world.Dispose();
+    }
+
+    [Fact]
     public void AutoMoveSystem_patrol_loops()
     {
         var bus = new EventBus();

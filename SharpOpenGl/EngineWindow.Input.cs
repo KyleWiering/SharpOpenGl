@@ -29,8 +29,8 @@ public partial class EngineWindow
         if (_sceneManager.State != GameState.Playing)
             return;
 
-        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
-        var viewport = new Vector2(Size.X, Size.Y);
+        var screenPoint = UiMousePosition;
+        var viewport = UiViewportSize;
 
         if (_cameraPanDragActive && MouseState.IsButtonDown(MouseButton.Right))
         {
@@ -65,24 +65,21 @@ public partial class EngineWindow
         {
             if (_sceneManager.State == GameState.Playing && _world != null)
             {
-                _attackMoveMode = false;
-                _patrolMode = false;
-                _moveCommandMode = false;
-                _attackMode = false;
-                _placementBuildingId = null;
-                _placementPreviewValid = false;
-                if (_uiManager.Current is GameplayHUD cancelHud)
-                {
-                    cancelHud.ShipControlBar.ClearActiveCommand();
-                    cancelHud.BuildMapPanel.Visible = false;
-                }
+                CancelActiveCommandModes();
 
                 var releasePoint = new Vector2(MousePosition.X, MousePosition.Y);
-                Entity? attackTarget = HasSelectedUnits()
+                Entity? repairTarget = HasSelectedRepairers()
+                    ? FindRepairTargetAtScreen(releasePoint)
+                    : null;
+                Entity? attackTarget = repairTarget == null && HasSelectedUnits()
                     ? ResolveAttackTargetAt(releasePoint, preferHover: !_cameraPanDragMoved)
                     : null;
 
-                if (attackTarget.HasValue)
+                if (repairTarget.HasValue)
+                {
+                    HandleRepairCommand(repairTarget.Value);
+                }
+                else if (attackTarget.HasValue)
                 {
                     HandleAttackCommand(attackTarget.Value);
                 }
@@ -130,6 +127,8 @@ public partial class EngineWindow
             Keys.Up => UIKey.Up,
             Keys.Down => UIKey.Down,
             Keys.Enter => UIKey.Enter,
+            Keys.Escape => UIKey.Escape,
+            Keys.Backspace => UIKey.Backspace,
             _ => null,
         };
 
@@ -149,19 +148,61 @@ public partial class EngineWindow
     private void ProcessMouseDownRight()
     {
         CancelSelectionDrag();
+
+        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
+
+        // Issue commands immediately when units are selected — avoids mouse-up latency.
+        if (_sceneManager.State == GameState.Playing && _world != null &&
+            (HasSelectedUnits() || HasSelectedRepairers()))
+        {
+            CancelActiveCommandModes();
+
+            Entity? repairTarget = HasSelectedRepairers()
+                ? FindRepairTargetAtScreen(screenPoint)
+                : null;
+            Entity? attackTarget = repairTarget == null && HasSelectedUnits()
+                ? ResolveAttackTargetAt(screenPoint, preferHover: true)
+                : null;
+
+            if (repairTarget.HasValue)
+            {
+                HandleRepairCommand(repairTarget.Value);
+                return;
+            }
+
+            if (attackTarget.HasValue)
+            {
+                HandleAttackCommand(attackTarget.Value);
+                return;
+            }
+
+            Vector3? worldPos = ScreenToWorldGround(screenPoint);
+            if (worldPos != null)
+            {
+                bool shiftHeld = KeyboardState.IsKeyDown(Keys.LeftShift) ||
+                                 KeyboardState.IsKeyDown(Keys.RightShift);
+                HandleMoveCommand(worldPos.Value, appendWaypoint: shiftHeld);
+            }
+
+            return;
+        }
+
+        CancelActiveCommandModes();
+        BeginCameraPanDrag(screenPoint);
+    }
+
+    private void CancelActiveCommandModes()
+    {
         _attackMoveMode = false;
         _patrolMode = false;
         _moveCommandMode = false;
         _attackMode = false;
-        _placementBuildingId = null;
-        _placementPreviewValid = false;
+        _harvestCommandMode = false;
+        CancelPlacementMode();
         if (_uiManager.Current is GameplayHUD cancelHud)
         {
             cancelHud.ShipControlBar.ClearActiveCommand();
             cancelHud.BuildMapPanel.Visible = false;
         }
-
-        var screenPoint = new Vector2(MousePosition.X, MousePosition.Y);
-        BeginCameraPanDrag(screenPoint);
     }
 }

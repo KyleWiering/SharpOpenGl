@@ -10,10 +10,26 @@
       "buildingType": "supply_depot",
       "productionRate": 1.0,
       "buildQueue": [],
-      "footprint": [2, 2]
+      "footprint": [2, 2],
+      "rotates": false
     },
     "sightRadius": 6
   },
   "cost": { "energy": 90, "minerals": 120, "data": 0, "crew": 1 },
-  "buildTime": 25
+  "buildTime": 25,
+  "articulation": {
+    "parts": [
+      {
+        "id": "depot_crane",
+        "partType": "Crane",
+        "localPivot": [0, 5.04, 0.70],
+        "yawMin": -55,
+        "yawMax": 55,
+        "idleSweep": true,
+        "idleSweepSpeed": 18,
+        "slewRate": 60,
+        "meshKey": "station_part:depot_crane"
+      }
+    ]
+  }
 }

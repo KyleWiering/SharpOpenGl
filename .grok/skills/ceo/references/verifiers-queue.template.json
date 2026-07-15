@@ -1,0 +1,9 @@
+{
+  "project_slug": "{project_slug}",
+  "section_id": "{section_id}",
+  "iteration": 1,
+  "status": "pending",
+  "type": "build-test",
+  "updated_by": "manager",
+  "command": "dotnet test SharpOpenGl.Tests"
+}

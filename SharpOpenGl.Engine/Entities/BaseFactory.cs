@@ -51,6 +51,17 @@ public sealed class BaseFactory
             });
         }
 
+        string buildingType = def.Components?.Building?.BuildingType ?? def.Id;
+        TrySpawnArticulation(world, entity, buildingType, def);
+
         return entity;
     }
+
+    /// <summary>
+    /// Spawns articulated child entities for a building (turrets, sensor dish, shipyard crane/door).
+    /// Used by <see cref="Create"/> and skirmish spawn paths that assemble buildings manually.
+    /// </summary>
+    public static void TrySpawnArticulation(
+        World world, Entity owner, string buildingType, EntityDefinition? def = null) =>
+        BaseArticulationFactory.TrySpawnArticulation(world, owner, buildingType, def);
 }

@@ -39,14 +39,15 @@ public sealed class WebGlRenderer : IRenderer
     }
 
     public void DrawMesh(int vao, int vertexCount, Matrix4 model, Vector4 color, int primitiveType,
-        int raceTextureIndex = -1, Vector3 teamTint = default)
+        int raceTextureIndex = -1, Vector3 teamTint = default, int componentTextureIndex = -1)
     {
         if (!_inFrame || vao <= 0 || vertexCount <= 0) return;
         _ = _js.InvokeVoidAsync("sharpGl.drawMesh",
             vao, vertexCount, MatrixToArray(model),
             new[] { color.X, color.Y, color.Z, color.W }, primitiveType,
             raceTextureIndex,
-            new[] { teamTint.X, teamTint.Y, teamTint.Z });
+            new[] { teamTint.X, teamTint.Y, teamTint.Z },
+            componentTextureIndex);
     }
 
     public void DrawPoints(int meshId, float[] vertices, int pointCount, Matrix4 model, float pointSize = 5f)
@@ -54,6 +55,14 @@ public sealed class WebGlRenderer : IRenderer
         if (!_inFrame || meshId <= 0 || pointCount <= 0 || vertices.Length == 0) return;
         _ = _js.InvokeVoidAsync("sharpGl.drawPoints",
             meshId, vertices, pointCount, MatrixToArray(model), pointSize);
+    }
+
+    public void DrawLineStrip(int meshId, float[] vertices, int vertexCount, Matrix4 model, Vector4 color)
+    {
+        if (!_inFrame || meshId <= 0 || vertexCount <= 0 || vertices.Length == 0) return;
+        _ = _js.InvokeVoidAsync("sharpGl.drawLineStrip",
+            meshId, vertices, vertexCount, MatrixToArray(model),
+            new[] { color.X, color.Y, color.Z, color.W });
     }
 
     public void EndFrame() => _inFrame = false;

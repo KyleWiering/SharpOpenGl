@@ -1,0 +1,50 @@
+{
+  "id": "missile_battery",
+  "displayName": "Missile Battery",
+  "category": "base",
+  "mesh": "meshes/defense_turret.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 680, "shields": 0, "armor": 42 },
+    "building": {
+      "buildingType": "missile_battery",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [2, 2],
+      "rotates": true
+    },
+    "weapons": [
+      { "slot": 0, "type": "missile", "damage": 90, "range": 600, "fireRate": 0.4 }
+    ],
+    "sightRadius": 10
+  },
+  "articulation": {
+    "parts": [
+      {
+        "id": "launcher_pod",
+        "partType": "TurretYaw",
+        "localPivot": [0, 3.36, 0.84],
+        "yawMin": -120,
+        "yawMax": 120,
+        "slewRate": 45,
+        "meshKey": "station_part:missile_pod"
+      }
+    ]
+  },
+  "cost": { "energy": 110, "minerals": 200, "data": 10, "crew": 2 },
+  "buildTime": 30,
+  "articulation": {
+    "parts": [
+      {
+        "id": "missile_pod",
+        "partType": "TurretYaw",
+        "localPivot": [0, 3.36, 0.84],
+        "yawMin": -120,
+        "yawMax": 120,
+        "idleSweep": false,
+        "slewRate": 45,
+        "meshKey": "station_part:missile_pod"
+      }
+    ]
+  }
+}

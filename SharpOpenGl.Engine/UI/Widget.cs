@@ -5,7 +5,7 @@ namespace SharpOpenGl.Engine.UI;
 /// <summary>
 /// Abstract base class for all UI elements.
 /// </summary>
-public abstract class Widget
+public abstract class Widget : ITooltipProvider
 {
     private readonly List<Widget> _children = new();
     private Widget? _parent;
@@ -17,6 +17,9 @@ public abstract class Widget
     public bool Visible { get; set; } = true;
     public Widget? Parent => _parent;
     public IReadOnlyList<Widget> Children => _children;
+
+    /// <inheritdoc/>
+    public virtual TooltipContent? GetTooltipContent() => null;
 
     public void AddChild(Widget child)
     {
@@ -84,7 +87,24 @@ public abstract class Widget
             child.Update(deltaTime);
     }
 
-    public void Draw(IUIRenderer renderer, Vector2 containerPosition, Vector2 containerSize)
+    /// <summary>Handle a scroll-wheel delta. Return true when consumed.</summary>
+    public virtual bool HandleScroll(
+        Vector2 screenPoint, float deltaY,
+        Vector2 containerPosition, Vector2 containerSize)
+    {
+        if (!Visible) return false;
+
+        var (pos, size) = Resolve(containerPosition, containerSize);
+        for (int i = _children.Count - 1; i >= 0; i--)
+        {
+            if (_children[i].HandleScroll(screenPoint, deltaY, pos, size))
+                return true;
+        }
+
+        return false;
+    }
+
+    public virtual void Draw(IUIRenderer renderer, Vector2 containerPosition, Vector2 containerSize)
     {
         if (!Visible) return;
 

@@ -95,6 +95,18 @@ public sealed class GameSettings
     /// <summary>Whether the camera edge-scrolls when the pointer is near the viewport edge.</summary>
     public bool EdgeScrolling { get; set; } = true;
 
+    /// <summary>
+    /// Optional keyboard binding overrides keyed by <c>controls.json</c> action names.
+    /// Full remapping UI is deferred; JSON persistence enables future Settings integration (P11-D05).
+    /// </summary>
+    public Dictionary<string, string> KeyBindingOverrides { get; set; } = new();
+
+    /// <summary>Default skirmish difficulty persisted for Multiplayer Setup (Easy / Normal / Hard).</summary>
+    public string DefaultSkirmishDifficulty { get; set; } = "Normal";
+
+    /// <summary>When true, non-essential HUD chrome is hidden for lower cognitive load (P11-D07).</summary>
+    public bool HudMinimalMode { get; set; }
+
     // ── Accessibility ─────────────────────────────────────────────────────────
 
     /// <summary>Accessibility overrides.</summary>
@@ -118,6 +130,9 @@ public sealed class GameSettings
             CameraPanSpeed     = Math.Clamp(CameraPanSpeed,  0.1f, 5f),
             CameraZoomSpeed    = Math.Clamp(CameraZoomSpeed, 0.1f, 5f),
             EdgeScrolling      = EdgeScrolling,
+            KeyBindingOverrides = new Dictionary<string, string>(KeyBindingOverrides),
+            DefaultSkirmishDifficulty = DefaultSkirmishDifficulty,
+            HudMinimalMode     = HudMinimalMode,
             Accessibility      = new AccessibilitySettings
             {
                 ColorblindMode         = Accessibility.ColorblindMode,

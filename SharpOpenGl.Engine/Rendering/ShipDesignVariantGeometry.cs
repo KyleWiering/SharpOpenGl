@@ -7,8 +7,10 @@ namespace SharpOpenGl.Engine.Rendering;
 internal static class ShipDesignVariantGeometry
 {
     public static void Apply(RaceMeshWriter w, ShipDesignSpec spec, ShipDesignVariant v,
-        float len, float wid, float hgt, string raceStyle)
+        float len, float wid, float hgt, string raceStyle, string? hullKey = null)
     {
+        if (hullKey is "miner_basic" or "miner_eva" or "miner_tractor" or "transport_cargo" or "freighter_bulk" or "support_repair")
+            return;
         if (spec.HullClass is "transport" or "freighter" or "miner")
             AddCargoPods(w, len, wid, hgt, Math.Min(v.CargoPodCount, 3), spec.HullClass);
     }

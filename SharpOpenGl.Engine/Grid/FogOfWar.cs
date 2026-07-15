@@ -17,6 +17,9 @@ public sealed class FogOfWar
         _playerCount = Math.Clamp(playerCount, 1, 8);
     }
 
+    /// <summary>Number of 0-based fog player layers tracked by this instance.</summary>
+    public int PlayerCount => _playerCount;
+
     // ── Per-frame update ──────────────────────────────────────────────────────
 
     /// <summary>

@@ -28,7 +28,7 @@ public static class PlayerColorPalette
     public static Vector3 GetTint(int playerId)
     {
         if (playerId < 1) return Vector3.One;
-        return Tints[(playerId - 1) % MaxPlayers];
+        return ColorblindFilter.Filter(Tints[(playerId - 1) % MaxPlayers]);
     }
 
     public static Vector4 GetTintVector4(int playerId)

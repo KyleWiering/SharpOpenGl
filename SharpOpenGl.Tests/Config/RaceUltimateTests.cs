@@ -51,6 +51,21 @@ public class RaceUltimateTests
         Assert.Equal(raceId, byAbility!.RaceId);
     }
 
+    [Fact]
+    public void Each_ultimate_defines_distinct_castTint_in_config()
+    {
+        RaceUltimateSchema.ResetForTests();
+
+        var tints = RaceUltimateSchema.AllUltimates
+            .Select(u => u.ResolveCastTint())
+            .ToList();
+
+        Assert.Equal(8, tints.Count);
+        Assert.Equal(8, tints.Distinct().Count());
+        foreach (var ultimate in RaceUltimateSchema.AllUltimates)
+            Assert.NotNull(ultimate.CastTint);
+    }
+
     [Theory]
     [InlineData("terran", "terran_orbital_salvo")]
     [InlineData("vesper", "vesper_precision_beam")]

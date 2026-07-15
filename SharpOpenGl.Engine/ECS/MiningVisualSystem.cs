@@ -41,6 +41,9 @@ public sealed class MiningVisualSystem : GameSystem
         }
 
         var state = GetOrCreateState(world, collectorEntity);
+        RegisterNodeVisual(world, collectorEntity, collector, state, deltaTime);
+        EnsureHarvestBeamVisual(world, collectorEntity, collector);
+        TickHarvestBeamPulse(world, collectorEntity, deltaTime);
 
         switch (collector.HarvestMode)
         {
@@ -318,7 +321,196 @@ public sealed class MiningVisualSystem : GameSystem
         var beam = world.GetComponent<TractorBeamVisualComponent>(collectorEntity)!;
         beam.NodeEntity = collector.AssignedNode;
         beam.PulsePhase += deltaTime * 4f;
-        collector.TractorPulseTimer += deltaTime;
+    }
+
+    private static void RegisterNodeVisual(
+        World world,
+        Entity collectorEntity,
+        ResourceCollectorComponent collector,
+        MiningVisualStateComponent state,
+        float deltaTime)
+    {
+        Entity node = collector.AssignedNode;
+        if (!state.NodeVisualRegistered)
+        {
+            var nodeVisual = GetOrCreateNodeVisual(world, node);
+            nodeVisual.ActiveCollectorCount++;
+            IncrementModeCount(nodeVisual, collector.HarvestMode);
+            RecalculateDominantMode(nodeVisual);
+            state.NodeVisualRegistered = true;
+            state.RegisteredNodeEntity = node;
+            state.LastTractorPulseTimer = collector.TractorPulseTimer;
+        }
+
+        UpdateNodeSurfaceEffects(world, node, collector, state, deltaTime);
+    }
+
+    private static MiningNodeVisualComponent GetOrCreateNodeVisual(World world, Entity node)
+    {
+        var nodeVisual = world.GetComponent<MiningNodeVisualComponent>(node);
+        if (nodeVisual != null) return nodeVisual;
+
+        nodeVisual = new MiningNodeVisualComponent();
+        world.AddComponent(node, nodeVisual);
+        return nodeVisual;
+    }
+
+    private static void UpdateNodeSurfaceEffects(
+        World world,
+        Entity node,
+        ResourceCollectorComponent collector,
+        MiningVisualStateComponent state,
+        float deltaTime)
+    {
+        var nodeVisual = world.GetComponent<MiningNodeVisualComponent>(node);
+        if (nodeVisual == null) return;
+
+        nodeVisual.PulsePhase += deltaTime * 5f;
+        Vector3 origin = GetNodeSurfaceOrigin(world, node);
+
+        if (collector.HarvestMode == HarvestMode.TractorBeam)
+        {
+            if (state.LastTractorPulseTimer > collector.TractorPulseTimer &&
+                state.LastTractorPulseTimer >= TractorPulseInterval * 0.4f)
+            {
+                nodeVisual.PulsePhase = 0f;
+                nodeVisual.LastPulseTime += 1f;
+                TriggerNodeBurst(world, node, origin, HarvestMode.TractorBeam);
+            }
+
+            state.LastTractorPulseTimer = collector.TractorPulseTimer;
+            return;
+        }
+
+        HarvestMode surfaceMode = ResolveSurfaceEmitterMode(nodeVisual);
+        EnsureNodeSurfaceEmitter(world, node, origin, surfaceMode);
+    }
+
+    private static HarvestMode ResolveSurfaceEmitterMode(MiningNodeVisualComponent nodeVisual)
+    {
+        if (nodeVisual.DroneCollectors > 0) return HarvestMode.Drones;
+        if (nodeVisual.EvaCollectors > 0) return HarvestMode.Eva;
+        return nodeVisual.DominantHarvestMode;
+    }
+
+    private static Vector3 GetNodeSurfaceOrigin(World world, Entity node)
+    {
+        var nodeTf = world.GetComponent<TransformComponent>(node);
+        Vector3 pos = nodeTf?.Position ?? Vector3.Zero;
+        return pos with { Y = pos.Y + 1.2f };
+    }
+
+    private static void EnsureNodeSurfaceEmitter(
+        World world, Entity node, Vector3 origin, HarvestMode mode)
+    {
+        if (!world.HasComponent<ParticleEmitterComponent>(node))
+        {
+            world.AddComponent(node, new ParticleEmitterComponent
+            {
+                Emitter = ParticleEffects.CreateMiningNodeSurfaceEmitter(origin, mode),
+            });
+            return;
+        }
+
+        var emitter = world.GetComponent<ParticleEmitterComponent>(node)!;
+        emitter.Emitter.Origin = origin;
+        emitter.Emitter.IsEmitting = true;
+    }
+
+    private static void TriggerNodeBurst(
+        World world, Entity node, Vector3 origin, HarvestMode mode)
+    {
+        var burst = ParticleEffects.CreateMiningNodeBurst(origin, mode);
+        if (!world.HasComponent<ParticleEmitterComponent>(node))
+        {
+            world.AddComponent(node, new ParticleEmitterComponent { Emitter = burst });
+            return;
+        }
+
+        var emitter = world.GetComponent<ParticleEmitterComponent>(node)!;
+        emitter.Emitter = burst;
+    }
+
+    private static void IncrementModeCount(MiningNodeVisualComponent nodeVisual, HarvestMode mode)
+    {
+        switch (mode)
+        {
+            case HarvestMode.Drones:
+                nodeVisual.DroneCollectors++;
+                break;
+            case HarvestMode.Eva:
+                nodeVisual.EvaCollectors++;
+                break;
+            case HarvestMode.TractorBeam:
+                nodeVisual.TractorCollectors++;
+                break;
+        }
+    }
+
+    private static void DecrementModeCount(MiningNodeVisualComponent nodeVisual, HarvestMode mode)
+    {
+        switch (mode)
+        {
+            case HarvestMode.Drones:
+                nodeVisual.DroneCollectors = Math.Max(0, nodeVisual.DroneCollectors - 1);
+                break;
+            case HarvestMode.Eva:
+                nodeVisual.EvaCollectors = Math.Max(0, nodeVisual.EvaCollectors - 1);
+                break;
+            case HarvestMode.TractorBeam:
+                nodeVisual.TractorCollectors = Math.Max(0, nodeVisual.TractorCollectors - 1);
+                break;
+        }
+    }
+
+    private static void RecalculateDominantMode(MiningNodeVisualComponent nodeVisual)
+    {
+        int max = Math.Max(nodeVisual.DroneCollectors,
+            Math.Max(nodeVisual.EvaCollectors, nodeVisual.TractorCollectors));
+        if (max <= 0)
+        {
+            nodeVisual.DominantHarvestMode = HarvestMode.Drones;
+            return;
+        }
+
+        if (nodeVisual.TractorCollectors == max)
+            nodeVisual.DominantHarvestMode = HarvestMode.TractorBeam;
+        else if (nodeVisual.EvaCollectors == max)
+            nodeVisual.DominantHarvestMode = HarvestMode.Eva;
+        else
+            nodeVisual.DominantHarvestMode = HarvestMode.Drones;
+    }
+
+    private static void UnregisterNodeVisual(World world, Entity collectorEntity)
+    {
+        var state = world.GetComponent<MiningVisualStateComponent>(collectorEntity);
+        if (state == null || !state.NodeVisualRegistered) return;
+
+        Entity node = state.RegisteredNodeEntity;
+        var collector = world.GetComponent<ResourceCollectorComponent>(collectorEntity);
+        if (world.IsAlive(node))
+        {
+            var nodeVisual = world.GetComponent<MiningNodeVisualComponent>(node);
+            if (nodeVisual != null && collector != null)
+            {
+                DecrementModeCount(nodeVisual, collector.HarvestMode);
+                nodeVisual.ActiveCollectorCount = Math.Max(0, nodeVisual.ActiveCollectorCount - 1);
+                RecalculateDominantMode(nodeVisual);
+
+                if (nodeVisual.ActiveCollectorCount <= 0)
+                    RemoveNodeVisual(world, node);
+            }
+        }
+
+        state.NodeVisualRegistered = false;
+        state.RegisteredNodeEntity = Entity.Null;
+        state.LastTractorPulseTimer = 0f;
+    }
+
+    private static void RemoveNodeVisual(World world, Entity node)
+    {
+        world.RemoveComponent<MiningNodeVisualComponent>(node);
+        world.RemoveComponent<ParticleEmitterComponent>(node);
     }
 
     private static bool IsEvaEligibleNode(World world, Entity nodeEntity)
@@ -341,8 +533,42 @@ public sealed class MiningVisualSystem : GameSystem
         return state;
     }
 
+    private static void EnsureHarvestBeamVisual(
+        World world, Entity collectorEntity, ResourceCollectorComponent collector)
+    {
+        if (!world.IsAlive(collector.AssignedNode))
+        {
+            world.RemoveComponent<HarvestBeamVisualComponent>(collectorEntity);
+            return;
+        }
+
+        if (!world.HasComponent<HarvestBeamVisualComponent>(collectorEntity))
+        {
+            world.AddComponent(collectorEntity, new HarvestBeamVisualComponent
+            {
+                NodeEntity = collector.AssignedNode,
+                Mode = collector.HarvestMode,
+            });
+            return;
+        }
+
+        var beam = world.GetComponent<HarvestBeamVisualComponent>(collectorEntity)!;
+        beam.NodeEntity = collector.AssignedNode;
+        beam.Mode = collector.HarvestMode;
+    }
+
+    private static void TickHarvestBeamPulse(World world, Entity collectorEntity, float deltaTime)
+    {
+        var beam = world.GetComponent<HarvestBeamVisualComponent>(collectorEntity);
+        if (beam != null)
+            beam.PulsePhase += deltaTime * 4f;
+    }
+
     private static void CleanupCollectorVisuals(World world, Entity collectorEntity, bool keepState = false)
     {
+        if (!keepState)
+            UnregisterNodeVisual(world, collectorEntity);
+
         var state = world.GetComponent<MiningVisualStateComponent>(collectorEntity);
         if (state != null)
         {
@@ -357,6 +583,8 @@ public sealed class MiningVisualSystem : GameSystem
         }
 
         world.RemoveComponent<TractorBeamVisualComponent>(collectorEntity);
+        if (!keepState)
+            world.RemoveComponent<HarvestBeamVisualComponent>(collectorEntity);
     }
 
     private static void PruneOrphanedVisuals(World world)

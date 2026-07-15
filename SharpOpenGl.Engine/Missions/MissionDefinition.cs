@@ -14,7 +14,26 @@ public sealed class StartConditionsDefinition
 {
     public int[] PlayerSpawn { get; set; } = [0, 0];
     public string[] StartingUnits { get; set; } = [];
+
+    /// <summary>
+    /// Building definition ids to spawn completed at mission start near <see cref="PlayerSpawn"/>.
+    /// When non-empty, the default free CC/shipyard base is not spawned.
+    /// </summary>
+    public string[] StartingBuildings { get; set; } = [];
+
+    /// <summary>
+    /// When true (default), spawn the free command center (+ optional shipyard) if
+    /// <see cref="StartingBuildings"/> is empty. Set false for builder-only starts (e.g. training HQ).
+    /// </summary>
+    public bool SpawnDefaultBase { get; set; } = true;
+
     public ResourceAmounts? StartingResources { get; set; }
+
+    /// <summary>
+    /// When true, spend operations always succeed without draining the player pool
+    /// (training / tutorial missions that must not soft-lock on economy).
+    /// </summary>
+    public bool UnlimitedResources { get; set; }
 }
 
 /// <summary>Resource amounts keyed by type name.</summary>
@@ -34,7 +53,17 @@ public sealed class AreaDefinition
     public float Radius { get; set; }
 }
 
-/// <summary>A single mission objective.</summary>
+/// <summary>
+/// A single mission objective.
+/// <para>
+/// Supported <see cref="Type"/> values include:
+/// <c>destroy_target</c>, <c>survive_time</c>, <c>reach_area</c>,
+/// <c>collect</c> (<c>Target</c> = <c>ResourceType:amount</c>, e.g. <c>Minerals:1000</c>),
+/// <c>construct</c> (building: <c>definitionId:count</c> e.g. <c>defense_turret:5</c>;
+/// unit: <c>unit:definitionId:count</c> e.g. <c>unit:fighter_basic:1</c>),
+/// <c>condition</c>, <c>repair_target</c>.
+/// </para>
+/// </summary>
 public sealed class ObjectiveDefinition
 {
     public string Id { get; set; } = string.Empty;
@@ -77,6 +106,18 @@ public sealed class TriggerActionDefinition
     public string? Speaker { get; set; }
     public string? Text { get; set; }
     public float[]? CameraTarget { get; set; }
+
+    /// <summary>Optional spawn HP fraction (0–1) applied after unit creation.</summary>
+    public float? HealthPercent { get; set; }
+
+    /// <summary>When true, spawned units receive <see cref="ECS.DisabledComponent"/> until repaired.</summary>
+    public bool Disabled { get; set; }
+
+    /// <summary>
+    /// Combat faction for <c>spawn_units</c>. When omitted, defaults to <c>2</c>
+    /// (hostile / P2 red via <c>PlayerColorPalette.GetTint(2)</c>). Use <c>1</c> for allied scripted spawns.
+    /// </summary>
+    public int? Faction { get; set; }
 }
 
 /// <summary>A trigger that fires actions when its condition is met.</summary>
@@ -92,6 +133,9 @@ public sealed class TriggerDefinition
 public sealed class EndConditionDefinition
 {
     public string Type { get; set; } = string.Empty;
+
+    /// <summary>Optional entity tag for tag-based defeat conditions (e.g. unit_destroyed).</summary>
+    public string? Target { get; set; }
 }
 
 /// <summary>Rewards granted on mission completion.</summary>

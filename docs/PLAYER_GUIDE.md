@@ -11,7 +11,7 @@ Command your hero ship, build a fleet, gather resources, and complete missions a
 2. [Controls](#2-controls)
 3. [Resources](#3-resources)
 4. [Units & Ships](#4-units--ships)
-5. [Buildings](#5-buildings)
+5. [Buildings & Tech Tree](#5-buildings--tech-tree)
 6. [Combat](#6-combat)
 7. [Missions](#7-missions)
 8. [Settings & Accessibility](#8-settings--accessibility)
@@ -37,28 +37,68 @@ No installation required — runs in any modern browser with WebGL2 support.
 
 ## 2. Controls
 
-### Desktop (Keyboard + Mouse)
+Full binding reference: [`docs/CONTROLS.md`](CONTROLS.md).
+
+### Camera (desktop)
 
 | Action | Input |
 |--------|-------|
-| Select unit | Left-click on a unit |
-| Move selected unit | Right-click on map |
-| Box-select multiple units | Left-click drag |
-| Camera pan | WASD or arrow keys |
-| Camera zoom | Mouse wheel |
-| Camera edge-scroll | Move pointer to screen edge |
-| Pause | Escape |
-| Ability 1 | Q |
-| Ability 2 | W |
-| Ability 3 | E |
+| Pan forward / back | W / S (also ↑ / ↓) |
+| Strafe left / right | Q / E |
+| Pan left / right (no units selected) | A / D |
+| Camera override with units selected | Hold **Shift** + WASD / Q E Z X |
+| Zoom | Mouse wheel |
+| Pan (empty map) | Right-drag |
+| Camera height | Z (up) / X (down) |
 
-### Touch (Mobile / Tablet)
+### Selection & movement
+
+| Action | Input |
+|--------|-------|
+| Select unit | Left-click |
+| Box-select | Left-drag |
+| Move / attack / repair | Right-click *(fires on press when units are selected)* |
+| Append waypoint | Shift + right-click ground |
+| Select all friendly | Ctrl + A |
+| Control group assign | Ctrl + 1–9 |
+| Control group recall | 5–9 *(1–4 are abilities)* |
+
+### Ship Control Bar (with units selected)
+
+When military or worker ships are selected, the **Ship Control Bar** (bottom-right) exposes command modes. Keyboard shortcuts mirror the bar:
+
+| Command | Key | How to use |
+|---------|-----|------------|
+| Move | **M** | Enter move mode, then left-click destination |
+| Stop | **S** or **X** | Halt immediately |
+| Patrol | **P** | Enter patrol mode, then left-click loop point |
+| Attack | **T** | Enter attack mode, then click enemy |
+| Attack-move | **F** or **A** | Enter attack-move, then click destination |
+| Cycle stance | Stance button | Passive → Defensive → Aggressive |
+| Hold position | **H** *(non-harvesters)* | Sets passive stance |
+| Formation | **G** | Cycle line / wedge / box / column *(multi-select)* |
+| Build | **B** | Open build map for builder ships |
+| Harvest | **H** *(collectors only)* | Enter harvest assignment mode |
+
+> **Note:** **H** assigns harvest mode when a resource collector is selected; otherwise it sets **hold position** (passive stance).
+
+### Production & abilities
+
+| Action | Input |
+|--------|-------|
+| Build map panel | **B** or click **Build** on a station |
+| Set rally point | **R**, then right-click |
+| Ability 1–4 | **1** / **2** / **3** / **4** or HUD buttons |
+| Pause | Escape |
+
+### Touch (mobile / tablet)
 
 | Action | Gesture |
 |--------|---------|
-| Select unit | Tap |
+| Select | Tap |
 | Move | Double-tap on map |
-| Camera pan | One-finger drag on empty space |
+| Attack | Long-press on enemy |
+| Camera pan | Two-finger drag or virtual joystick |
 | Camera zoom | Pinch |
 | Ability | Tap ability button in HUD |
 
@@ -78,8 +118,20 @@ The game tracks four resource types displayed in the top bar:
 ### Gathering Resources
 
 - Fly a **Resource Collector** unit near a **Resource Node** to begin harvesting.
-- Nodes deplete over time and respawn after ~2 minutes.
+- Nodes deplete over time and **respawn after ~2 minutes** — a comeback lever when you lose map control.
 - Building additional harvesters increases income rate.
+- Use **H** or the **Harvest** button to assign collectors to a node.
+- The unit info panel shows harvest mode and state (**harvesting**, **returning**, **depositing**) plus cargo fill.
+
+### Comeback mechanics (skirmish & sandbox)
+
+Trailing players can recover when:
+
+| Mechanic | Effect |
+|----------|--------|
+| **Node respawn** | Depleted mineral/energy nodes refill after their countdown, reopening income routes |
+| **Difficulty tiers** | Easy skirmish grants AI fewer starting resources; Hard grants more — tune in Settings → Skirmish |
+| **AI retreat** | Enemy ships below 25% HP path home, giving breathing room to rebuild |
 
 ---
 
@@ -131,7 +183,60 @@ Unlocked after completing Mission 04.
 
 ---
 
-## 5. Buildings
+## 5. Buildings & Tech Tree
+
+Structures are placed from the **Build Map** panel (**B** key or station **Build** button). Each building requires prerequisites from earlier tiers — locked entries show what you still need.
+
+Data source: `GameData/Config/build_map.json` (16 structures across five branches).
+
+### Production branch
+
+| Building | Prerequisites | Role |
+|----------|---------------|------|
+| **Command Center** | *(starting base)* | Economy hub, light defense, unlocks all branches |
+| **Small Shipyard** | Command Center + Power Reactor | Builds scouts, fighters, interceptors, drones, miners |
+| **Medium Shipyard** | CC + Small Shipyard + Resource Refinery | Adds bombers, corvettes, frigates, destroyers, gunships, transports |
+| **Large Shipyard** | CC + Medium Shipyard + Power Reactor | Capital ships: cruiser, carrier, dreadnought, freighter, support |
+
+### Economy branch
+
+| Building | Prerequisites | Role |
+|----------|---------------|------|
+| **Power Reactor** | Command Center | Gates shipyard tiers and powers advanced structures |
+| **Resource Refinery** | Command Center | Boosts mineral throughput; required for medium shipyard |
+| **Supply Depot** | Command Center | Extends supply range for distant operations |
+| **Fabrication Hub** | CC + Refinery + Reactor | Advanced production bonuses |
+
+### Defense branch
+
+| Building | Prerequisites | Role |
+|----------|---------------|------|
+| **Defense Turret** | Command Center | Cheap point defense |
+| **Sensor Array** | CC + Power Reactor | Extends vision; gates shield and missile tech |
+| **Shield Emitter** | CC + Reactor + Sensor Array | Area shield coverage for nearby structures |
+| **Missile Battery** | CC + Turret + Sensor Array | Long-range missile defense |
+
+### Support branch
+
+| Building | Prerequisites | Role |
+|----------|---------------|------|
+| **Repair Bay** | CC + Small Shipyard | Repairs docked ships between waves |
+| **Comms Relay** | CC + Sensor Array | Coordination buffs; gates orbital uplink |
+
+### Capstone branch
+
+| Building | Prerequisites | Role |
+|----------|---------------|------|
+| **Orbital Uplink** | CC + Medium Shipyard + Sensor + Comms | Strategic tech capstone |
+| **Fortress Core** | CC + Large Shipyard + Shield + Missile + Repair Bay | Ultimate defensive anchor |
+
+### Typical build order
+
+1. **Power Reactor** + **Resource Refinery** for economy.
+2. **Small Shipyard** for fighters and miners.
+3. **Sensor Array** + **Defense Turret** before the first attack wave.
+4. Upgrade to **Medium** / **Large Shipyard** as missions unlock heavier hulls.
+5. Capstones when the full prerequisite chain is satisfied.
 
 ### Command Center
 
@@ -143,9 +248,33 @@ Your starting structure.  Loss of the command center is not immediately fatal bu
 
 ### Basics
 
-- Units attack the nearest enemy automatically within their **weapon range**.
-- Select units and right-click an enemy to **assign a target manually**.
+- Units attack the nearest enemy automatically within their **weapon range** when set to **Aggressive** stance.
+- Select units and right-click an enemy to **assign a target manually** *(command fires on mouse press)*.
 - Units move to within weapon range before firing.
+- **Focus fire** by attack-clicking the same target with multiple selected units.
+
+### Stances
+
+| Stance | Behavior |
+|--------|----------|
+| **Passive** | Hold position; do not chase |
+| **Defensive** | Attack enemies in range; do not pursue far |
+| **Aggressive** | Pursue and engage hostiles |
+
+Cycle stances with the **Stance** button on the Ship Control Bar, or press **H** (hold) / **V** (defensive) for quick overrides.
+
+### Command modes
+
+| Mode | Best for |
+|------|----------|
+| **Attack** (**T**) | Burst down a single priority target |
+| **Attack-move** (**F** / **A**) | Advance while engaging along the path |
+| **Patrol** (**P**) | Guard a lane between two points |
+| **Stop** (**S** / **X**) | Cancel orders instantly |
+
+### Formations
+
+Select multiple ships and press **G** to cycle **Line → Wedge → Box → Column**. Formations keep escorts spaced while the group moves.
 
 ### Damage Formula
 
@@ -154,12 +283,12 @@ Final Damage = Base Damage × (100 / (100 + Armor)) − Shield Absorption
 Minimum damage is always 1.
 ```
 
-- **Shields** absorb damage first and do not regenerate automatically.
+- **Shields** absorb damage first and regenerate slowly out of combat.
 - **Armor** reduces incoming damage proportionally.
 
 ### Abilities
 
-Abilities are activated with Q/W/E (keyboard) or by tapping the HUD buttons.
+Abilities are activated with **1–4** (keyboard) or by tapping the HUD buttons.
 Each ability has a cooldown shown in the HUD.
 
 | Ability | Effect | Cooldown |
@@ -186,6 +315,20 @@ Each ability has a cooldown shown in the HUD.
 - **Primary** objectives must all be completed for victory.
 - **Secondary** objectives are optional but award bonus XP and resources.
 
+### Victory & defeat overlay
+
+When a mission ends, the **Mission Complete** (or **Mission Failed**) card shows:
+
+| Field | Description |
+|-------|-------------|
+| Mission name | Display title from the briefing |
+| Elapsed time | Minutes:seconds or seconds for short runs |
+| XP earned | Victory only — from mission rewards |
+| **Run stats** | Enemies destroyed, units lost, structures built/lost |
+| Primary objectives | Checklist with ✓ / — markers |
+
+Use **Replay Mission** to retry immediately or **Return to Menu** to exit.
+
 ### Triggers
 
 Certain in-mission events spawn reinforcements, display dialogue, or pan the camera.
@@ -195,18 +338,43 @@ Pay attention to the **event log** on the left side of the HUD.
 
 ## 8. Settings & Accessibility
 
-Open **Settings** from the main menu or pause screen.
+Open **Settings** from the main menu or pause screen. Options are grouped into four sections:
+
+### Audio
+
+| Control | Description |
+|---------|-------------|
+| Master / Music / SFX volume | Adjust each channel independently (± buttons) |
+
+### Graphics
+
+| Control | Description |
+|---------|-------------|
+| Quality Cycle | **High** / **Medium** / **Low** — effects and LOD budget |
+| VSync Toggle | Reduce tearing on desktop displays |
+
+### Controls
+
+| Control | Description |
+|---------|-------------|
+| Pan / Zoom speed | Camera responsiveness multipliers |
+| Edge Scroll | Enable pointer-at-screen-edge camera pan *(desktop)* |
 
 ### Accessibility
 
 | Option | Description |
 |--------|-------------|
-| Colorblind Mode | None / Red-Green / Blue-Yellow / Monochrome |
 | Font Scale | Increase UI text size (0.5 × – 3.0 ×) |
+| Colorblind | None / Red-Green / Blue-Yellow / Monochrome — also adjusts team aura/insignia colors in gameplay |
 | Visual Alerts | Screen-edge flash on critical events (no audio required) |
-| High-Contrast Selections | Thick white outlines on selected units |
+| Hi-Contrast | Thick white outlines on selected units |
+| HUD Minimal | Hides non-essential HUD chrome for lower cognitive load |
+| Skirmish difficulty | Default Easy / Normal / Hard for multiplayer setup |
+| Key Rebind | Stub override counter — full remapping UI planned; overrides persist in settings JSON |
 
-### Graphics Quality
+**HUD tooltips:** Hover over resource bar slots, minimap, build-map entries, and command buttons for contextual help (desktop). Touch layouts use tap-and-hold where supported.
+
+### Graphics quality tiers
 
 - **High**: All effects, maximum draw distance (desktop GPU).
 - **Medium**: Reduced particles, shorter LOD — suitable for mid-range devices.
@@ -233,6 +401,12 @@ Open **Settings** from the main menu or pause screen.
 - **Scout early**: send a fighter ahead to reveal fog of war before committing your hero.
 - **Protect harvesters**: resource collectors are weak — assign a fighter escort.
 - **Focus fire**: manually target the same enemy with multiple units to burst it down before it can retreat.
+- **Attack-move into bases**: use **F** to advance through turret range while auto-engaging.
 - **Use terrain**: asteroids and debris act as line-of-sight blockers; use them for ambushes.
 - **Save often**: manual saves before high-risk engagements let you retry without replaying the whole mission.
 - **Secondary objectives** are worth completing — the extra XP accelerates unit unlocks.
+- **Report bugs**: open a [GitHub Issue](https://github.com/KyleWiering/SharpOpenGl/issues) with steps to reproduce.
+
+---
+
+*Last updated: 2026-07-14*

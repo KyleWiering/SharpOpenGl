@@ -1,4 +1,5 @@
 using System.Text.Json;
+using SharpOpenGl.Engine.Rendering;
 
 namespace SharpOpenGl.Engine.Assets;
 
@@ -20,6 +21,7 @@ public class AssetManager
     private readonly IAssetTextSource _textSource;
     private readonly Dictionary<string, object> _cache = new();
     private readonly HashSet<string> _proceduralMeshes = new(StringComparer.OrdinalIgnoreCase);
+    private MeshManifest? _meshManifest;
 
     public AssetManager(string rootPath, IAssetTextSource? textSource = null)
     {
@@ -29,6 +31,8 @@ public class AssetManager
 
     /// <summary>Root path for GameData (filesystem path or URL prefix).</summary>
     public string RootPath => _rootPath;
+
+    public MeshManifest MeshManifest => _meshManifest ??= MeshManifest.Load(_rootPath);
 
     /// <summary>
     /// Load a JSON asset by relative key (without extension).
@@ -80,12 +84,7 @@ public class AssetManager
     }
 
     public string ResolveMeshPath(string meshKey)
-    {
-        string fileName = NormalizeMeshKey(meshKey);
-        if (!fileName.EndsWith(".obj", StringComparison.OrdinalIgnoreCase))
-            fileName += ".obj";
-        return Path.Combine(_rootPath, "Meshes", fileName);
-    }
+        => MeshManifest.ResolveMeshPath(_rootPath, meshKey);
 
     /// <summary>Returns mission ids discovered under Missions/ (desktop only).</summary>
     public IEnumerable<string> ListMissionIds()

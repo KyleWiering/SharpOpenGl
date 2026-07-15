@@ -11,6 +11,16 @@ public class UIScalerIntegrationTests
 {
     private static readonly Vector2 PhysicalViewport = new(1024f, 768f);
 
+    private static Vector2 MainMenuButtonCenter(int buttonIndex)
+    {
+        const float btnH = 58f;
+        const float gap = 10f;
+        float totalH = 8 * btnH + 7 * gap;
+        float startY = MathF.Max(248f, (1080f - totalH) * 0.5f);
+        float centerY = startY + buttonIndex * (btnH + gap) + btnH * 0.5f;
+        return new Vector2(960f, centerY);
+    }
+
     [Fact]
     public void UIManager_scales_main_menu_New_Game_click_at_1024x768()
     {
@@ -20,9 +30,9 @@ public class UIScalerIntegrationTests
         menu.NewGameRequested += () => clicked = true;
         mgr.Push(menu);
 
-        // "New Game" is the first button at reference 1920×1080 → centre ≈ (960, 330).
+        // "New Game" is the first button at reference 1920×1080 → centre ≈ (960, 306).
         var scaler = new UIScaler(PhysicalViewport);
-        Vector2 logicalCenter = new(960f, 330f);
+        Vector2 logicalCenter = new(960f, 306f);
         Vector2 physicalTap = scaler.ScalePosition(logicalCenter);
 
         bool consumed = mgr.HandlePointerTapped(physicalTap, 0, PhysicalViewport);
@@ -39,14 +49,15 @@ public class UIScalerIntegrationTests
         mgr.Push(menu);
 
         var scaler = new UIScaler(PhysicalViewport);
-        Vector2 logicalCenter = new(960f, 330f);
+        Vector2 logicalCenter = new(960f, 306f);
         Vector2 physicalPoint = scaler.ScalePosition(logicalCenter);
 
         mgr.HandlePointerMove(physicalPoint, false, PhysicalViewport);
 
-        Button? newGame = menu.FindButton("NewGame");
+        IconButton? newGame = menu.FindNavButton("NewGame");
         Assert.NotNull(newGame);
         Assert.True(newGame.IsHovered);
+        Assert.Equal(MenuIconKind.NavNewGame, newGame.Icon);
         Assert.Equal(newGame, mgr.FindHoveredButton());
     }
 
@@ -59,14 +70,14 @@ public class UIScalerIntegrationTests
         menu.ContinueRequested += () => continued = true;
         mgr.Push(menu);
 
-        Button? continueBtn = menu.FindButton("Continue");
+        IconButton? continueBtn = menu.FindNavButton("Continue");
         Assert.NotNull(continueBtn);
         Assert.False(continueBtn.IsEnabled);
+        Assert.Equal(MenuIconKind.NavContinue, continueBtn.Icon);
         Assert.False(menu.HasSave);
 
         var scaler = new UIScaler(PhysicalViewport);
-        // Continue is the third button: centre ≈ (960, 486).
-        Vector2 physicalTap = scaler.ScalePosition(new Vector2(960f, 486f));
+        Vector2 physicalTap = scaler.ScalePosition(MainMenuButtonCenter(buttonIndex: 3));
         bool consumed = mgr.HandlePointerTapped(physicalTap, 0, PhysicalViewport);
 
         Assert.False(consumed);
@@ -82,12 +93,13 @@ public class UIScalerIntegrationTests
         menu.ContinueRequested += () => continued = true;
         mgr.Push(menu);
 
-        Button? continueBtn = menu.FindButton("Continue");
+        IconButton? continueBtn = menu.FindNavButton("Continue");
         Assert.NotNull(continueBtn);
         Assert.True(continueBtn.IsEnabled);
+        Assert.Equal(MenuIconKind.NavContinue, continueBtn.Icon);
 
         var scaler = new UIScaler(PhysicalViewport);
-        Vector2 physicalTap = scaler.ScalePosition(new Vector2(960f, 486f));
+        Vector2 physicalTap = scaler.ScalePosition(MainMenuButtonCenter(buttonIndex: 3));
         bool consumed = mgr.HandlePointerTapped(physicalTap, 0, PhysicalViewport);
 
         Assert.True(consumed);
@@ -104,9 +116,11 @@ public class UIScalerIntegrationTests
         mgr.Push(menu);
 
         Assert.True(mgr.HandleKey(UIKey.Down));
-        Button? multiplayerBtn = menu.FindButton("Multiplayer");
+        Assert.True(mgr.HandleKey(UIKey.Down));
+        IconButton? multiplayerBtn = menu.FindNavButton("Multiplayer");
         Assert.NotNull(multiplayerBtn);
         Assert.True(multiplayerBtn.IsKeyboardFocused);
+        Assert.Equal(MenuIconKind.NavMultiplayer, multiplayerBtn.Icon);
 
         Assert.True(mgr.HandleKey(UIKey.Enter));
         Assert.True(multiplayer);

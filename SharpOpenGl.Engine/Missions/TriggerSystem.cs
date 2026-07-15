@@ -64,6 +64,14 @@ public sealed class TriggerSystem : GameSystem
             ExecuteActions(world, triggerProgress);
             triggerProgress.HasFired = true;
             _bus.Publish(new TriggerFiredEvent(_state.Definition.Id, triggerProgress.Definition.Id));
+
+            // Repeating timers: condition.seconds is the interval between fires.
+            // Reset so the condition does not re-fire every subsequent frame.
+            if (!triggerProgress.Definition.OneShot
+                && string.Equals(triggerProgress.Definition.Condition?.Type, "timer", StringComparison.OrdinalIgnoreCase))
+            {
+                triggerProgress.ElapsedSeconds = 0f;
+            }
         }
     }
 
@@ -179,9 +187,51 @@ public sealed class TriggerSystem : GameSystem
 
             if (!string.IsNullOrEmpty(action.Tag))
                 _state.RegisterEntityTag(action.Tag, spawned);
+            else if (!string.IsNullOrEmpty(unitId))
+                _state.RegisterEntityTag(unitId, spawned);
 
+            // Apply faction/overrides first so host OnUnitSpawned can read CombatTargetComponent.Faction
+            // for mesh tint (P2 red via PlayerColorPalette.GetTint(2)).
+            ApplySpawnOverrides(world, spawned, action);
             OnUnitSpawned?.Invoke(world, spawned, def, action.Tag);
         }
+    }
+
+    /// <summary>
+    /// Faction for <c>spawn_units</c>: explicit <see cref="TriggerActionDefinition.Faction"/>, else <c>2</c> (hostile red).
+    /// </summary>
+    public static int ResolveSpawnFaction(TriggerActionDefinition action) =>
+        action.Faction ?? 2;
+
+    private static void ApplySpawnOverrides(World world, Entity spawned, TriggerActionDefinition action)
+    {
+        if (action.HealthPercent is float healthPercent)
+        {
+            var health = world.GetComponent<HealthComponent>(spawned);
+            if (health != null)
+            {
+                float clamped = Math.Clamp(healthPercent, 0f, 1f);
+                health.CurrentHP = health.MaxHP * clamped;
+                if (health.MaxShields > 0f)
+                    health.CurrentShields = health.MaxShields * clamped;
+            }
+        }
+
+        if (action.Disabled)
+        {
+            world.AddComponent(spawned, new DisabledComponent
+            {
+                // Long duration until repair clears disabled at the reactivation threshold.
+                RemainingSeconds = 1_000_000f,
+            });
+        }
+
+        int faction = ResolveSpawnFaction(action);
+        var combat = world.GetComponent<CombatTargetComponent>(spawned);
+        if (combat != null)
+            combat.Faction = faction;
+        else
+            world.AddComponent(spawned, new CombatTargetComponent { Faction = faction });
     }
 
     private void ExecuteDialog(TriggerActionDefinition action)

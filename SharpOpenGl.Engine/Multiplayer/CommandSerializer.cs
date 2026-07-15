@@ -28,6 +28,7 @@ public static class CommandSerializer
             CommandType.Build      => JsonSerializer.Serialize((BuildCommand)command,      _options),
             CommandType.Stop       => JsonSerializer.Serialize((StopCommand)command,       _options),
             CommandType.UseAbility => JsonSerializer.Serialize((UseAbilityCommand)command, _options),
+            CommandType.Repair     => JsonSerializer.Serialize((RepairCommand)command,     _options),
             _ => throw new NotSupportedException($"Unknown command type: {command.Type}")
         };
     }
@@ -56,6 +57,7 @@ public static class CommandSerializer
             CommandType.Build      => JsonSerializer.Deserialize<BuildCommand>(json, _options)!,
             CommandType.Stop       => JsonSerializer.Deserialize<StopCommand>(json, _options)!,
             CommandType.UseAbility => JsonSerializer.Deserialize<UseAbilityCommand>(json, _options)!,
+            CommandType.Repair     => JsonSerializer.Deserialize<RepairCommand>(json, _options)!,
             _ => throw new NotSupportedException($"Unknown command type: {type}")
         };
     }

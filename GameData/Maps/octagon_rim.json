@@ -43,80 +43,72 @@
       "player": 1,
       "position": [100, 22],
       "layer": "surface",
-      "baseArea": [92, 14, 108, 30],
+      "baseArea": [84, 0, 116, 32],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 2,
       "position": [155, 45],
       "layer": "surface",
-      "baseArea": [147, 37, 163, 53],
+      "baseArea": [139, 29, 171, 61],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 3,
       "position": [178, 100],
       "layer": "surface",
-      "baseArea": [170, 92, 186, 108],
+      "baseArea": [162, 84, 194, 116],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 4,
       "position": [155, 155],
       "layer": "surface",
-      "baseArea": [147, 147, 163, 163],
+      "baseArea": [139, 139, 171, 171],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 5,
       "position": [100, 178],
       "layer": "surface",
-      "baseArea": [92, 170, 108, 186],
+      "baseArea": [84, 146, 116, 178],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 6,
       "position": [45, 155],
       "layer": "surface",
-      "baseArea": [37, 147, 53, 163],
+      "baseArea": [13, 139, 45, 171],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 7,
       "position": [22, 100],
       "layer": "surface",
-      "baseArea": [14, 92, 30, 108],
+      "baseArea": [0, 84, 32, 116],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     },
     {
       "player": 8,
       "position": [45, 45],
       "layer": "surface",
-      "baseArea": [37, 37, 53, 53],
+      "baseArea": [13, 13, 45, 45],
       "starterBuildings": [
-        { "id": "command_center", "offset": [4, 6] },
-        { "id": "shipyard_small", "offset": [12, 6] }
+        { "id": "command_center", "offset": [4, 6] }
       ]
     }
   ],
@@ -124,7 +116,7 @@
     { "type": "energy",   "position": [100, 32], "amount": 4200 },
     { "type": "minerals", "position": [94, 26],  "amount": 3600 },
     { "type": "data",     "position": [106, 26], "amount": 2600 },
-    { "type": "crew",     "position": [100, 38], "amount": 2000 },
+    { "type": "crew",     "position": [100, 28], "amount": 2000 },
     { "type": "energy",   "position": [162, 45], "amount": 4200 },
     { "type": "minerals", "position": [168, 40], "amount": 3600 },
     { "type": "data",     "position": [156, 40], "amount": 2600 },
@@ -148,14 +140,14 @@
     { "type": "energy",   "position": [32, 100], "amount": 4200 },
     { "type": "minerals", "position": [26, 94],  "amount": 3600 },
     { "type": "data",     "position": [26, 106], "amount": 2600 },
-    { "type": "crew",     "position": [38, 106], "amount": 2000 },
+    { "type": "crew",     "position": [28, 106], "amount": 2000 },
     { "type": "energy",   "position": [38, 45],  "amount": 4200 },
     { "type": "minerals", "position": [32, 40],  "amount": 3600 },
     { "type": "data",     "position": [44, 40],  "amount": 2600 },
-    { "type": "crew",     "position": [38, 52],  "amount": 2000 },
-    { "type": "minerals", "position": [100, 100], "amount": 7000 },
-    { "type": "energy",   "position": [96, 104],  "amount": 5200 },
-    { "type": "data",     "position": [104, 96],  "amount": 4200 }
+    { "type": "crew",     "position": [38, 40],  "amount": 2000 },
+    { "type": "minerals", "position": [100, 100], "amount": 8000 },
+    { "type": "energy",   "position": [96, 104],  "amount": 5600 },
+    { "type": "data",     "position": [104, 96],  "amount": 4600 }
   ],
   "mapFeatures": [
     {

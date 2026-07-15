@@ -31,6 +31,9 @@ public sealed class MiningVisualStateComponent
 {
     public readonly List<Entity> SpawnedVisuals = new();
     public float EvaAnimPhase { get; set; }
+    public bool NodeVisualRegistered { get; set; }
+    public Entity RegisteredNodeEntity { get; set; } = Entity.Null;
+    public float LastTractorPulseTimer { get; set; }
 }
 
 /// <summary>Active tractor beam VFX from node to collector.</summary>
@@ -38,6 +41,32 @@ public sealed class TractorBeamVisualComponent
 {
     public Entity NodeEntity { get; set; }
     public float PulsePhase { get; set; }
+}
+
+/// <summary>
+/// Harvest beam line primitive from collector to assigned node while extracting.
+/// Tagged by <see cref="ResourceSystem"/> for all harvest modes.
+/// </summary>
+public sealed class HarvestBeamVisualComponent
+{
+    public Entity NodeEntity { get; set; }
+    public HarvestMode Mode { get; set; }
+    public float PulsePhase { get; set; }
+}
+
+/// <summary>
+/// Surface mining VFX state on a resource node while collectors are extracting.
+/// Attached to <c>collector.AssignedNode</c>, not the collector.
+/// </summary>
+public sealed class MiningNodeVisualComponent
+{
+    public int ActiveCollectorCount { get; set; }
+    public int DroneCollectors { get; set; }
+    public int EvaCollectors { get; set; }
+    public int TractorCollectors { get; set; }
+    public HarvestMode DominantHarvestMode { get; set; }
+    public float PulsePhase { get; set; }
+    public float LastPulseTime { get; set; }
 }
 
 /// <summary>Optional GPU mesh handles for mining visual entities.</summary>

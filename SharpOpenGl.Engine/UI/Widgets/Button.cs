@@ -2,17 +2,35 @@ using OpenTK.Mathematics;
 
 namespace SharpOpenGl.Engine.UI.Widgets;
 
+/// <summary>Shared contract for clickable buttons discovered by <see cref="UIScreen"/>.</summary>
+public interface IUIButton
+{
+    /// <summary>Whether the pointer is currently hovering over this button.</summary>
+    bool IsHovered { get; }
+
+    /// <summary>Whether the button can receive input.</summary>
+    bool IsEnabled { get; }
+
+    /// <summary>Whether keyboard navigation has highlighted this button.</summary>
+    bool IsKeyboardFocused { get; }
+
+    /// <summary>Programmatically activate the button (keyboard / accessibility).</summary>
+    void Activate();
+}
+
 /// <summary>
 /// A clickable button widget with a label and optional hover-state colour.
 /// </summary>
-public sealed class Button : Widget
+public sealed class Button : Widget, IUIButton
 {
-    private const float TextPadding = 20f;
-    private const float HitPaddingTop = 10f;
-    private const float HitPaddingBottom = 4f;
+    /// <summary>Horizontal inset reserved on each side of button face text.</summary>
+    public const float TextPadding = 20f;
 
     /// <summary>Text displayed on the button face.</summary>
     public string Label { get; set; } = string.Empty;
+
+    /// <summary>Full command name shown in a tooltip when the face label is abbreviated.</summary>
+    public string? TooltipHint { get; set; }
 
     /// <summary>Background colour in the normal state.</summary>
     public Vector4 NormalColor { get; set; } = new Vector4(0.2f, 0.2f, 0.3f, 1f);
@@ -59,11 +77,32 @@ public sealed class Button : Widget
     /// <summary>Whether the button can receive input.</summary>
     public bool IsEnabled { get; set; } = true;
 
+    /// <summary>Invisible padding expanding the pointer hit rect beyond <see cref="Size"/>.</summary>
+    public float HitPadding { get; set; }
+
+    /// <summary>When true, hit rect is clamped to at least 44×44 logical pixels.</summary>
+    public bool RequireMinimumHitExtent { get; set; }
+
+    /// <summary>Minimum touch-target extent used with <see cref="RequireMinimumHitExtent"/>.</summary>
+    public const float MinimumHitExtent = 44f;
+
     /// <summary>Raised when the pointer first enters the button bounds.</summary>
     public event Action? HoverEntered;
 
     /// <summary>Raised when the button is clicked (pointer tap within bounds).</summary>
     public event Action? Clicked;
+
+    /// <summary>Usable text width inside a button after horizontal padding.</summary>
+    public static float GetInnerTextMaxWidth(Vector2 size) =>
+        MathF.Max(0f, size.X - TextPadding);
+
+    /// <inheritdoc/>
+    public override TooltipContent? GetTooltipContent()
+    {
+        if (!IsHovered && !IsKeyboardFocused) return null;
+        if (string.IsNullOrWhiteSpace(TooltipHint)) return null;
+        return new TooltipContent(Title: TooltipHint.Trim());
+    }
 
     /// <summary>Programmatically activate the button (keyboard / accessibility).</summary>
     public void Activate()
@@ -98,12 +137,31 @@ public sealed class Button : Widget
             HoverEntered?.Invoke();
     }
 
+    /// <summary>Returns the expanded logical hit rect for diagnostics and tests.</summary>
+    public static (Vector2 Position, Vector2 Size) GetExpandedHitRect(
+        Vector2 visualPosition, Vector2 visualSize, float hitPadding = 0f, bool requireMinimumExtent = false)
+    {
+        float hitW = visualSize.X + hitPadding * 2f;
+        float hitH = visualSize.Y + hitPadding * 2f;
+        if (requireMinimumExtent)
+        {
+            hitW = MathF.Max(hitW, MinimumHitExtent);
+            hitH = MathF.Max(hitH, MinimumHitExtent);
+        }
+
+        float expandX = (hitW - visualSize.X) * 0.5f;
+        float expandY = (hitH - visualSize.Y) * 0.5f;
+        return (visualPosition - new Vector2(expandX, expandY), new Vector2(hitW, hitH));
+    }
+
     private bool PointInHitArea(Vector2 point, Vector2 containerPosition, Vector2 containerSize)
     {
         var (pos, size) = Resolve(containerPosition, containerSize);
-        return point.X >= pos.X && point.X < pos.X + size.X
-            && point.Y >= pos.Y - HitPaddingTop && point.Y < pos.Y + size.Y + HitPaddingBottom;
+        var (hitPos, hitSize) = GetExpandedHitRect(pos, size, HitPadding, RequireMinimumHitExtent);
+        return point.X >= hitPos.X && point.X < hitPos.X + hitSize.X
+            && point.Y >= hitPos.Y && point.Y < hitPos.Y + hitSize.Y;
     }
+
     /// <inheritdoc/>
     protected override void OnDraw(IUIRenderer renderer, Vector2 position, Vector2 size)
     {
@@ -143,7 +201,11 @@ public sealed class Button : Widget
         float fittedPhysical = UIFontMetrics.FitFontSize(Label, preferredPhysical, maxWidth, minPhysical);
         float logicalDrawSize = fittedPhysical / physicalScale;
 
-        var lines = UITextDrawing.WrapText(Label, maxWidth, fittedPhysical);
+        string displayText = Label;
+        if (UIFontMetrics.MeasureTextWidth(Label, fittedPhysical) > maxWidth)
+            displayText = UITextDrawing.TruncateWithEllipsis(Label, maxWidth, fittedPhysical);
+
+        var lines = UITextDrawing.WrapText(displayText, maxWidth, fittedPhysical);
         float lineHeight = fittedPhysical * UITextDrawing.LineHeightFactor;
         float blockHeight = lines.Count * lineHeight;
         float startY = position.Y + (size.Y - blockHeight / physicalScale) * 0.5f;

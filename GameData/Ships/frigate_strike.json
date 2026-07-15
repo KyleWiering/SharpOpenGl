@@ -2,6 +2,7 @@
   "id": "frigate_strike",
   "displayName": "Strike Frigate",
   "category": "frigate",
+  "shipRole": "military",
   "mesh": "meshes/frigate_strike.obj",
   "fallbackMesh": "default",
   "components": {
@@ -11,8 +12,19 @@
       { "slot": 0, "type": "cannon", "damage": 45, "range": 340, "fireRate": 1.0 },
       { "slot": 1, "type": "torpedo", "damage": 90, "range": 400, "fireRate": 0.35 }
     ],
+    "weaponSkill": {
+      "accuracyBonus": 0.07,
+      "reloadModifier": 0.90,
+      "rangeTier": "medium"
+    },
     "sightRadius": 6
   },
   "cost": { "energy": 180, "minerals": 240, "data": 35, "crew": 5 },
-  "buildTime": 38
+  "buildTime": 38,
+  "articulation": {
+    "parts": [
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.38, 0.5], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/frigate_strike" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/frigate_strike" }
+    ]
+  }
 }

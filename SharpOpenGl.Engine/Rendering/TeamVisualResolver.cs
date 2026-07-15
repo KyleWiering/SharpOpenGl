@@ -1,3 +1,4 @@
+using OpenTK.Mathematics;
 using SharpOpenGl.Engine.ECS;
 
 namespace SharpOpenGl.Engine.Rendering;
@@ -24,4 +25,13 @@ public static class TeamVisualResolver
 
     public static bool HasTeamVisuals(World world, Entity entity) =>
         world.GetComponent<RenderComponent>(entity)?.RaceTextureIndex >= 0;
+
+    /// <summary>Applies race substrate index and per-player team tint to a render component.</summary>
+    public static void ApplyRaceTexturing(RenderComponent render, string raceId, int playerId)
+    {
+        render.RaceTextureIndex = RaceTextureIndex.Resolve(raceId);
+        render.TeamTint = PlayerColorPalette.GetTint(playerId);
+        render.ComponentTextureIndex = -1;
+        render.Color = Vector4.Zero;
+    }
 }

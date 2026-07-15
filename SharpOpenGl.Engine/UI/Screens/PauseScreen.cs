@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Widgets;
 
 namespace SharpOpenGl.Engine.UI.Screens;
@@ -28,63 +29,88 @@ public sealed class PauseScreen : UIScreen
     /// <summary>Fired when the player opens the save-game slot picker.</summary>
     public event Action? SaveGameRequested;
 
+    /// <summary>Fired when the player opens the load-game slot picker.</summary>
+    public event Action? LoadGameRequested;
+
     /// <summary>Fired when the player quits to the main menu.</summary>
     public event Action? QuitToMenuRequested;
+
+    /// <summary>Whether at least one save file exists (gates Load Game).</summary>
+    public bool HasSave { get; }
 
     // ── Construction ──────────────────────────────────────────────────────────
 
     /// <summary>Build the pause-menu layout.</summary>
-    public PauseScreen()
+    /// <param name="hasSave">When <c>false</c>, the Load Game button is disabled.</param>
+    public PauseScreen(bool hasSave = true)
     {
-        // Semi-transparent backdrop
+        HasSave = hasSave;
+
         var backdrop = new Panel
         {
             Name = "Backdrop",
             Anchor = Anchor.Stretch,
             Position = Vector2.Zero,
-            BackgroundColor = new Vector4(0f, 0f, 0f, 0.55f),
+            BackgroundColor = MenuTheme.OverlayBackdrop,
             DrawBorder = false,
         };
         AddWidget(backdrop);
 
-        // Centre card
         var card = new Panel
         {
             Name = "PauseCard",
             Anchor = Anchor.Center,
             Position = Vector2.Zero,
-            Size = new Vector2(360f, 390f),
-            BackgroundColor = new Vector4(0.08f, 0.08f, 0.14f, 0.97f),
+            Size = new Vector2(380f, 460f),
         };
+        MenuTheme.ApplyPanel(card);
         AddWidget(card);
 
-        // Buttons inside the card
-        float btnW = 280f;
+        card.AddChild(new Label
+        {
+            Name = "Title",
+            Text = "Paused",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(-160f, 18f),
+            Size = new Vector2(320f, 40f),
+            FontSize = 26f,
+            TextColor = MenuTheme.TitleColor,
+        });
+
+        float btnW = 320f;
         float btnH = 56f;
         float gap = 14f;
-        float startY = 80f;  // relative to card top-left
+        float startY = 80f;
 
-        (string Label, Action Raise)[] items =
+        (MenuIconKind Icon, string Name, string Label, string Tooltip, Action? Raise, bool Enabled)[] items =
         [
-            ("Resume",        () => ResumeRequested?.Invoke()),
-            ("Save Game",     () => SaveGameRequested?.Invoke()),
-            ("Settings",      () => SettingsRequested?.Invoke()),
-            ("Quit to Menu",  () => QuitToMenuRequested?.Invoke()),
+            (MenuIconKind.NavResume, "Resume", "Resume", "Return to gameplay", () => ResumeRequested?.Invoke(), true),
+            (MenuIconKind.NavSave, "SaveGame", "Save Game", "Save progress", () => SaveGameRequested?.Invoke(), true),
+            (MenuIconKind.NavLoadGame, "LoadGame", "Load Game", "Choose a save slot", () => LoadGameRequested?.Invoke(), hasSave),
+            (MenuIconKind.NavSettings, "Settings", "Settings", "Game settings", () => SettingsRequested?.Invoke(), true),
+            (MenuIconKind.NavQuit, "QuitToMenu", "Quit to Menu", "Return to main menu", () => QuitToMenuRequested?.Invoke(), true),
         ];
 
         for (int i = 0; i < items.Length; i++)
         {
-            var (label, raise) = items[i];
-            var btn = new Button
+            (MenuIconKind icon, string name, string label, string tooltip, Action? raise, bool enabled) = items[i];
+            var btn = new IconButton
             {
-                Name = label.Replace(" ", ""),
+                Name = name,
+                Icon = icon,
                 Label = label,
+                TooltipHint = tooltip,
+                Layout = IconButtonLayout.IconLeftOfLabel,
+                IconSize = IconButton.TitleNavIconSize,
+                FontSize = 20f,
+                RequireMinimumHitExtent = true,
                 Anchor = Anchor.TopCenter,
                 Position = new Vector2(-btnW / 2f, startY + i * (btnH + gap)),
                 Size = new Vector2(btnW, btnH),
-                FontSize = 20f,
+                IsEnabled = enabled,
             };
-            btn.Clicked += raise;
+            IconButton.ApplyMenuTheme(btn, showGlow: true);
+            btn.Clicked += () => raise?.Invoke();
             card.AddChild(btn);
         }
     }

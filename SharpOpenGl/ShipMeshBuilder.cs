@@ -147,7 +147,7 @@ public static class ShipMeshBuilder
     /// Build a destroyer mesh — long, sleek body with forward-swept wings.
     /// </summary>
     public static (int vao, int vbo, int vertexCount) BuildDestroyerMesh(
-        Vector3 color, float size = 3.5f)
+        Vector3 color, float size = 4.0f)
     {
         float r = color.X, g = color.Y, b = color.Z;
         float s = size;
@@ -199,7 +199,7 @@ public static class ShipMeshBuilder
     /// Build a carrier mesh — large, boxy with hangar bay opening.
     /// </summary>
     public static (int vao, int vbo, int vertexCount) BuildCarrierMesh(
-        Vector3 color, float size = 4f)
+        Vector3 color, float size = 4.6f)
     {
         float r = color.X, g = color.Y, b = color.Z;
         float s = size;

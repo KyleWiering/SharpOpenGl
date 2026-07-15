@@ -14,7 +14,8 @@ public sealed class SaveManager
         PropertyNameCaseInsensitive = true,
     };
 
-    private readonly string _saveDirectory;
+    private readonly string? _saveDirectory;
+    private readonly Dictionary<string, SaveData>? _memorySlots;
 
     // ── Construction ──────────────────────────────────────────────────────────
 
@@ -27,10 +28,23 @@ public sealed class SaveManager
         _saveDirectory = saveDirectory;
     }
 
+    private SaveManager(Dictionary<string, SaveData> memorySlots)
+    {
+        _memorySlots = memorySlots;
+    }
+
+    /// <summary>
+    /// Create an in-memory save manager for platforms without writable filesystem (browser / WASM).
+    /// </summary>
+    public static SaveManager CreateInMemory() => new(new Dictionary<string, SaveData>());
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     /// <summary>Returns <c>true</c> when a save file exists for <paramref name="slotName"/>.</summary>
-    public bool SlotExists(string slotName) => File.Exists(SlotPath(slotName));
+    public bool SlotExists(string slotName) =>
+        _memorySlots != null
+            ? _memorySlots.ContainsKey(slotName)
+            : File.Exists(SlotPath(slotName));
 
     /// <summary>
     /// Return metadata for every supported slot, including empty manual slots.
@@ -43,22 +57,21 @@ public sealed class SaveManager
 
         foreach (string slot in SaveSlotNames.AllSlots)
         {
-            string path = SlotPath(slot);
-            if (!File.Exists(path))
+            SaveData? data = Load(slot);
+            if (data == null)
             {
                 empty.Add(new SaveSlotInfo { SlotName = slot, HasData = false });
                 continue;
             }
 
-            SaveData? data = Load(slot);
             populated.Add(new SaveSlotInfo
             {
                 SlotName = slot,
-                FilePath = path,
-                SavedAt = data?.SavedAt ?? string.Empty,
-                MissionId = data?.MissionId ?? string.Empty,
-                ElapsedMissionTime = data?.ElapsedMissionTime ?? 0f,
-                HasData = data != null,
+                FilePath = _memorySlots != null ? string.Empty : SlotPath(slot),
+                SavedAt = data.SavedAt ?? string.Empty,
+                MissionId = data.MissionId ?? string.Empty,
+                ElapsedMissionTime = data.ElapsedMissionTime,
+                HasData = true,
             });
         }
 
@@ -74,7 +87,15 @@ public sealed class SaveManager
     /// </summary>
     public string[] ListSaveFiles()
     {
-        if (!Directory.Exists(_saveDirectory))
+        if (_memorySlots != null)
+        {
+            return _memorySlots.Keys
+                .OrderByDescending(slot => _memorySlots[slot].SavedAt, StringComparer.Ordinal)
+                .Select(slot => $"{slot}.sav.json")
+                .ToArray();
+        }
+
+        if (_saveDirectory == null || !Directory.Exists(_saveDirectory))
             return Array.Empty<string>();
 
         return Directory.GetFiles(_saveDirectory, "*.sav.json")
@@ -93,8 +114,14 @@ public sealed class SaveManager
     {
         try
         {
-            EnsureDirectory();
             data.SavedAt = DateTime.UtcNow.ToString("o");
+            if (_memorySlots != null)
+            {
+                _memorySlots[data.SlotName] = data;
+                return true;
+            }
+
+            EnsureDirectory();
             string path = SlotPath(data.SlotName);
             string json = JsonSerializer.Serialize(data, _jsonOptions);
             File.WriteAllText(path, json);
@@ -114,6 +141,9 @@ public sealed class SaveManager
     /// </summary>
     public SaveData? Load(string slotName)
     {
+        if (_memorySlots != null)
+            return _memorySlots.TryGetValue(slotName, out SaveData? data) ? data : null;
+
         string path = SlotPath(slotName);
         if (!File.Exists(path)) return null;
 
@@ -148,6 +178,9 @@ public sealed class SaveManager
     /// <returns><c>true</c> if the file was deleted; <c>false</c> if it did not exist.</returns>
     public bool Delete(string slotName)
     {
+        if (_memorySlots != null)
+            return _memorySlots.Remove(slotName);
+
         string path = SlotPath(slotName);
         if (!File.Exists(path)) return false;
         File.Delete(path);
@@ -157,10 +190,13 @@ public sealed class SaveManager
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private string SlotPath(string slotName) =>
-        Path.Combine(_saveDirectory, $"{slotName}.sav.json");
+        Path.Combine(_saveDirectory!, $"{slotName}.sav.json");
 
     private void EnsureDirectory()
     {
+        if (_saveDirectory == null)
+            return;
+
         if (!Directory.Exists(_saveDirectory))
             Directory.CreateDirectory(_saveDirectory);
     }

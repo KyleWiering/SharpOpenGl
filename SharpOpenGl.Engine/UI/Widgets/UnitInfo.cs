@@ -1,6 +1,7 @@
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.Config;
 using SharpOpenGl.Engine.ECS;
+using SharpOpenGl.Engine.Entities;
 
 namespace SharpOpenGl.Engine.UI.Widgets;
 
@@ -36,6 +37,12 @@ public sealed class UnitInfo
     /// <summary>HUD classification for label color.</summary>
     public EntityDisplayKind DisplayKind { get; init; } = EntityDisplayKind.Friendly;
 
+    /// <summary>Resolved ship hull role when an entity definition is available.</summary>
+    public ShipRole? Role { get; init; }
+
+    /// <summary>Optional header glyph override; panels may derive from <see cref="DisplayKind"/> and <see cref="Role"/>.</summary>
+    public MenuIconKind? HeaderIcon { get; init; }
+
     /// <summary>Optional subtitle (resource amount, faction, etc.).</summary>
     public string Subtitle { get; init; } = string.Empty;
 
@@ -54,6 +61,9 @@ public sealed class UnitInfo
     /// <summary>Cargo fill fraction 0–1.</summary>
     public float CargoFraction =>
         CargoCapacity > 0f ? Math.Clamp(CargoAmount / CargoCapacity, 0f, 1f) : 0f;
+
+    /// <summary>HP bar pulse intensity 0–1 after a heavy damage hit.</summary>
+    public float HpBarPulse { get; init; }
 
     /// <summary>Build a <see cref="UnitInfo"/> from a <see cref="HealthComponent"/> and entity name.</summary>
     public static UnitInfo FromHealth(

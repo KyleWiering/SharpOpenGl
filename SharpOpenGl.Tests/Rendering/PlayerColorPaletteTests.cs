@@ -26,6 +26,16 @@ public class PlayerColorPaletteTests
     }
 
     [Fact]
+    public void GetTint_player_2_is_red_hostile_for_training_spawns()
+    {
+        Vector3 tint = PlayerColorPalette.GetTint(2);
+        Assert.True(tint.X > tint.Y && tint.X > tint.Z);
+        Assert.Equal(1.00f, tint.X, precision: 2);
+        Assert.Equal(0.32f, tint.Y, precision: 2);
+        Assert.Equal(0.28f, tint.Z, precision: 2);
+    }
+
+    [Fact]
     public void RaceTextureIndex_resolves_all_races()
     {
         foreach (string raceId in RaceTextureIndex.AllRaceIds)

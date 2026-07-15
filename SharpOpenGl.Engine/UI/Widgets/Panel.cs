@@ -9,7 +9,7 @@ namespace SharpOpenGl.Engine.UI.Widgets;
 /// Children are positioned according to their own <see cref="Widget.Anchor"/> and
 /// <see cref="Widget.Position"/> values relative to this panel's resolved bounds.
 /// </remarks>
-public sealed class Panel : Widget
+public class Panel : Widget
 {
     // ── Visual ────────────────────────────────────────────────────────────────
 

@@ -12,4 +12,14 @@ public class UIFontMetricsTests
         Assert.True(size < 20f);
         Assert.True(UIFontMetrics.MeasureTextWidth("Attack-Move", size) <= 90f);
     }
+
+    [Theory]
+    [InlineData(8f, 1.5f)]
+    [InlineData(9f, 1.5f)]
+    [InlineData(12f, 1.5f)]
+    [InlineData(16f, 1.5f)]
+    public void GetLineThickness_clamps_to_minimum(float fontSize, float minimum)
+    {
+        Assert.True(UIFontMetrics.GetLineThickness(fontSize) >= minimum);
+    }
 }

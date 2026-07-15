@@ -15,5 +15,15 @@
     }
   },
   "cost":      { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
-  "buildTime": 30
+  "buildTime": 30,
+  "_comment_articulation": "Optional articulation block for station parts (turrets, sensor dish, crane, bay door). Use ownerPartId to nest parts (e.g. pitch owned by yaw). Station localPivot values use pre-scaled world units (PivotScale 7f baked in, e.g. yaw at [0, 2.94, 0] for s*0.42).",
+  "_comment_articulation_example": {
+    "articulation": {
+      "parts": [
+        { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 2.94, 0], "yawMin": -180, "yawMax": 180, "idleSweep": true, "idleSweepSpeed": 25, "slewRate": 90 },
+        { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.7, 2.94], "pitchMin": -10, "pitchMax": 45, "slewRate": 90, "meshKey": "articulated/station/turret_barrel" },
+        { "id": "sensor_dish", "partType": "SensorDish", "localPivot": [0, 3.5, 0.84], "idleSweep": true, "idleSweepSpeed": 12, "meshKey": "articulated/station/sensor_dish" }
+      ]
+    }
+  }
 }

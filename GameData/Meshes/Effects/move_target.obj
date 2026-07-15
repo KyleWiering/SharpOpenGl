@@ -1,0 +1,10 @@
+# Exported from SharpOpenGl procedural mesh
+o move_target
+# vertices 3
+v -2 0.1 -2
+v 2 0.1 2
+v 2 0.1 -2
+vn 0 1 0
+vn 0 1 0
+vn 0 1 0
+f 1//1 2//2 3//3

@@ -1,0 +1,14 @@
+{
+  "project_slug": "{project_slug}",
+  "section_id": "{section_id}",
+  "iteration": 1,
+  "updated_by": "manager",
+  "orders": [
+    {
+      "order_id": "wo-01-01",
+      "status": "pending",
+      "role": "implementer",
+      "work_order_path": ".grok/org/{project_slug}/work-orders/wo-01-01.md"
+    }
+  ]
+}

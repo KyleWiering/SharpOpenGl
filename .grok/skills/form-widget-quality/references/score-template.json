@@ -1,0 +1,52 @@
+{
+  "project_slug": "superior-menu-skills",
+  "target": "<target>",
+  "score_number": 1,
+  "scored_at": "2026-07-14T00:00:00Z",
+  "scorer": "worker",
+  "mode": "checklist",
+  "categories": {
+    "textFit": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "legibility": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "buttonSizing": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "formLayout": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    },
+    "visualHierarchy": {
+      "score": 0,
+      "max": 20,
+      "notes": ""
+    }
+  },
+  "deductions": [
+    {
+      "issue": "",
+      "points": 0,
+      "category": ""
+    }
+  ],
+  "overallScore": 0,
+  "passThreshold": 80,
+  "passed": false,
+  "topBlockers": [],
+  "testsRun": "dotnet test SharpOpenGl.Tests --filter FullyQualifiedName~ScreenTextBounds|ButtonScaledText|UITextDrawing",
+  "testsPassed": null,
+  "nextActions": [],
+  "evidence": {
+    "screenshots": []
+  }
+}

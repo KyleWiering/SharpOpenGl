@@ -17,7 +17,7 @@ public static class WorldLoadService
     {
         RestoreResources(ctx.ResourceManager, data.PlayerResources);
         RestoreMissionProgress(ctx.MissionState, data);
-        RestoreFog(ctx.GridSystem, ctx.FogOfWar, ctx.FogPlayerId, data.FogStates);
+        RestoreFog(ctx.GridSystem, ctx.FogOfWar, data.FogStates);
 
         var idMap = new Dictionary<int, Entity>();
         Entity hero = Entity.Null;
@@ -46,6 +46,9 @@ public static class WorldLoadService
             HeroEntity = hero,
             CommandCenterEntity = commandCenter,
             EntityIdMap = idMap,
+            IsSandboxSession = data.IsSandboxSession,
+            ProceduralMapSeed = data.ProceduralMapSeed,
+            SandboxSeedText = data.SandboxSeedText ?? string.Empty,
         };
     }
 
@@ -89,24 +92,21 @@ public static class WorldLoadService
     private static void RestoreFog(
         GridSystem grid,
         FogOfWar fog,
-        int playerId,
         Dictionary<string, int> fogStates)
     {
+        int maxPlayers = fog.PlayerCount;
         foreach (var (key, ordinal) in fogStates)
         {
             if (!TryParseFogKey(key, out int keyPlayer, out int x, out int y))
                 continue;
-            if (keyPlayer != playerId)
+            if ((uint)keyPlayer >= (uint)maxPlayers)
                 continue;
             if (!Enum.IsDefined(typeof(FogState), ordinal))
                 continue;
 
             GridCell? cell = grid.GetCell(x, y);
-            cell?.SetFog(playerId, (FogState)ordinal);
+            cell?.SetFog(keyPlayer, (FogState)ordinal);
         }
-
-        // Ensure saved explored cells remain at least explored even if fog system resets them.
-        _ = fog;
     }
 
     private static Entity SpawnEntity(WorldLoadContext ctx, EntitySaveRecord record)
@@ -125,6 +125,7 @@ public static class WorldLoadService
         ApplyTransform(ctx.World, entity, record);
         ApplyHealth(ctx.World, entity, record);
         ApplyStance(ctx.World, entity, record);
+        ApplyConstructionState(ctx, entity, def, record);
         ctx.FinalizeUnit?.Invoke(entity, def, record.PlayerId, isEnemy);
 
         return entity;
@@ -138,8 +139,11 @@ public static class WorldLoadService
             Position = new Vector3(record.X, 1f, record.Y),
             Scale = new Vector3(6f, 6f, 6f),
         });
-        float amount = record.Health > 0f ? record.Health : 5000f;
-        float maxAmount = record.Shields > 0f ? record.Shields : amount;
+        // Shields stores MaxAmount; Health stores Amount (including 0 for depleted nodes).
+        float maxAmount = record.Shields > 0f
+            ? record.Shields
+            : record.Health > 0f ? record.Health : 5000f;
+        float amount = record.Health;
         ctx.World.AddComponent(entity, new ResourceNodeComponent
         {
             ResourceType = type,
@@ -195,6 +199,78 @@ public static class WorldLoadService
 
         health.CurrentHP = record.Health;
         health.CurrentShields = record.Shields;
+    }
+
+    private static void ApplyConstructionState(
+        WorldLoadContext ctx, Entity entity, EntityDefinition? def, EntitySaveRecord record)
+    {
+        if (def == null || record.ConstructionTotalBuildTime <= 0f)
+            return;
+
+        var world = ctx.World;
+        var building = world.GetComponent<BuildingComponent>(entity);
+        if (building == null)
+            return;
+
+        if (record.ConstructionBuildProgress >= record.ConstructionTotalBuildTime)
+        {
+            CompleteLoadedConstruction(world, entity, def, record.PlayerId);
+            return;
+        }
+
+        building.ProductionRate = 0f;
+        world.RemoveComponent<WeaponListComponent>(entity);
+        world.RemoveComponent<CombatTargetComponent>(entity);
+        world.RemoveComponent<SightRadiusComponent>(entity);
+
+        world.AddComponent(entity, new UnderConstructionComponent
+        {
+            DefinitionId = def.Id,
+            BuildProgress = record.ConstructionBuildProgress,
+            TotalBuildTime = record.ConstructionTotalBuildTime,
+            PlayerId = record.PlayerId,
+        });
+    }
+
+    private static void CompleteLoadedConstruction(
+        World world, Entity entity, EntityDefinition def, int playerId)
+    {
+        var building = world.GetComponent<BuildingComponent>(entity);
+        if (building != null)
+        {
+            var buildingDef = def.Components?.Building;
+            building.ProductionRate = buildingDef?.ProductionRate ?? 1f;
+        }
+
+        if (def.Components?.Weapons is { Length: > 0 } &&
+            world.GetComponent<WeaponListComponent>(entity) == null)
+        {
+            FactoryHelpers.ApplyWeapons(world, entity, def.Components.Weapons);
+            world.AddComponent(entity, new CombatTargetComponent
+            {
+                Faction = playerId,
+                TargetingMode = TargetPriority.Closest,
+                Priority = 50,
+            });
+        }
+
+        if (world.GetComponent<SightRadiusComponent>(entity) == null)
+        {
+            int sight = def.Components?.SightRadius > 0 ? def.Components.SightRadius : 10;
+            world.AddComponent(entity, new SightRadiusComponent { Radius = sight });
+        }
+
+        var health = world.GetComponent<HealthComponent>(entity);
+        if (health != null)
+        {
+            var healthDef = def.Components?.Health;
+            float maxHp = healthDef?.MaxHP ?? health.MaxHP;
+            health.MaxHP = maxHp;
+            health.CurrentHP = maxHp;
+            health.Armor = healthDef?.Armor ?? health.Armor;
+        }
+
+        world.RemoveComponent<UnderConstructionComponent>(entity);
     }
 
     private static void ApplyStance(World world, Entity entity, EntitySaveRecord record)

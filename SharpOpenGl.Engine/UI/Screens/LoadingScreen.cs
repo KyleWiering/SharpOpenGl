@@ -20,7 +20,7 @@ public sealed class LoadingScreen : UIScreen
     // ── Widgets ───────────────────────────────────────────────────────────────
 
     private readonly ProgressBar _bar;
-    private readonly Panel _statusPanel;
+    private readonly Label _statusLabel;
 
     // ── Properties ───────────────────────────────────────────────────────────
 
@@ -41,71 +41,62 @@ public sealed class LoadingScreen : UIScreen
     /// <summary>Short text displayed above the progress bar (e.g. "Loading assets…").</summary>
     public string StatusText
     {
-        get => _statusLabel;
-        set
-        {
-            _statusLabel = value;
-            // The label is painted by OnDraw via the Panel; just store it.
-        }
+        get => _statusLabel.Text;
+        set => _statusLabel.Text = value;
     }
-    private string _statusLabel = "Loading…";
 
     // ── Construction ──────────────────────────────────────────────────────────
 
     /// <summary>Build the loading-screen layout.</summary>
     public LoadingScreen()
     {
-        // Opaque dark backdrop
         var backdrop = new Panel
         {
             Name = "LoadingBackdrop",
             Anchor = Anchor.Stretch,
             Position = Vector2.Zero,
-            BackgroundColor = new Vector4(0.04f, 0.04f, 0.08f, 1f),
+            BackgroundColor = new Vector4(0.02f, 0.03f, 0.08f, 0.92f),
             DrawBorder = false,
         };
         AddWidget(backdrop);
 
-        // Status panel (centre, above bar)
-        _statusPanel = new Panel
+        var panel = new Panel
         {
-            Name = "StatusPanel",
+            Name = "LoadingPanel",
             Anchor = Anchor.Center,
-            Position = new Vector2(-300f, -40f),
-            Size = new Vector2(600f, 32f),
-            BackgroundColor = Vector4.Zero,
-            DrawBorder = false,
+            Position = new Vector2(-340f, -72f),
+            Size = new Vector2(680f, 144f),
         };
-        AddWidget(_statusPanel);
+        MenuTheme.ApplyPanel(panel);
+        AddWidget(panel);
 
-        // Progress bar (centred, 600 × 28)
+        _statusLabel = new Label
+        {
+            Name = "StatusLabel",
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(20f, 16f),
+            Size = new Vector2(640f, 48f),
+            FontSize = 20f,
+            WrapWidth = 620f,
+            MaxLines = 2,
+            TextColor = MenuTheme.BodyTextColor,
+            Text = "Loading…",
+        };
+        panel.AddChild(_statusLabel);
+
         _bar = new ProgressBar
         {
             Name = "LoadingBar",
-            Anchor = Anchor.Center,
-            Position = new Vector2(-300f, 8f),
-            Size = new Vector2(600f, 28f),
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(20f, 84f),
+            Size = new Vector2(640f, 28f),
             Value = 0f,
             Label = "0 %",
+            TrackColor = MenuTheme.ButtonDisabled,
+            FillColor = MenuTheme.ButtonHover,
+            BorderColor = MenuTheme.ButtonBorder,
+            LabelColor = MenuTheme.ButtonText,
         };
-        AddWidget(_bar);
-    }
-
-    // ── Per-frame ─────────────────────────────────────────────────────────────
-
-    /// <inheritdoc/>
-    public override void Draw(IUIRenderer renderer)
-    {
-        base.Draw(renderer);
-
-        // Draw the status text manually at a fixed position in reference coordinates.
-        Vector2 viewport = UIScaler.ReferenceSize;
-        float textX = viewport.X / 2f - 290f;
-        float textY = viewport.Y / 2f - 40f;
-        renderer.DrawText(
-            _statusLabel,
-            new Vector2(textX, textY),
-            fontSize: 20f,
-            color: new Vector4(0.75f, 0.85f, 1f, 1f));
+        panel.AddChild(_bar);
     }
 }

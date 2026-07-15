@@ -31,6 +31,12 @@ public sealed class EntitySaveRecord
 
     /// <summary>Combat stance for this entity (null if entity has no stance).</summary>
     public string? Stance { get; set; }
+
+    /// <summary>Elapsed construction seconds when saved mid-build (0 when not under construction).</summary>
+    public float ConstructionBuildProgress { get; set; }
+
+    /// <summary>Total construction seconds required when saved mid-build (0 when not under construction).</summary>
+    public float ConstructionTotalBuildTime { get; set; }
 }
 
 /// <summary>
@@ -70,6 +76,15 @@ public sealed class SaveData
 
     /// <summary>ID of the mission currently in progress (empty when in free-play).</summary>
     public string MissionId { get; set; } = string.Empty;
+
+    /// <summary>True when save was taken from menu sandbox (no active mission).</summary>
+    public bool IsSandboxSession { get; set; }
+
+    /// <summary>Deterministic procedural seed used for chunk/node generation.</summary>
+    public int ProceduralMapSeed { get; set; }
+
+    /// <summary>Original seed text from SandboxSetupScreen (display only; may be empty for legacy saves).</summary>
+    public string SandboxSeedText { get; set; } = string.Empty;
 
     /// <summary>Total in-game seconds elapsed since the mission began.</summary>
     public float ElapsedMissionTime { get; set; }

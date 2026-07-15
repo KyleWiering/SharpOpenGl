@@ -1,0 +1,12 @@
+{
+  "project_slug": "{project_slug}",
+  "updated_by": "director",
+  "sections": [
+    {
+      "section_id": "section-01",
+      "status": "pending",
+      "priority": 1,
+      "playbook": "general"
+    }
+  ]
+}

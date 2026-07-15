@@ -33,8 +33,20 @@ public class UnitInfoPanelMiningTests
         panel.Draw(renderer, new Vector2(0f, 0f), new Vector2(320f, 120f));
 
         Assert.Contains(renderer.Rects, r => r.Color == panel.CargoColor);
-        Assert.Contains(renderer.Texts, t => t.Text.Contains("Harvest: Drones"));
-        Assert.Contains(renderer.Texts, t => t.Text.Contains("Cargo 45/100"));
+        Assert.Contains(renderer.Texts, t => t.Text == "Drones");
+        Assert.Contains(renderer.Texts, t => t.Text == "45/100");
+
+        float headerIcon = UnitInfoPanel.IsCompactLayout(panel.Size)
+            ? UnitInfoPanel.CompactHeaderIconSize
+            : UnitInfoPanel.HeaderIconSize;
+        float statColumnX = 8f + headerIcon + 6f;
+        int harvestCargoIconRects = renderer.Rects.Count(rect =>
+            rect.Position.X >= statColumnX - 0.5f
+            && rect.Position.X <= statColumnX + 16f
+            && rect.Size.X <= 16f
+            && rect.Size.Y <= 16f);
+        Assert.True(harvestCargoIconRects >= 2,
+            "Harvest and cargo stat rows should emit micro-glyph icon-slot rects.");
     }
 
     private sealed class RecordingUIRenderer : IUIRenderer
