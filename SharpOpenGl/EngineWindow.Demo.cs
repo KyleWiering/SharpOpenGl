@@ -12,11 +12,14 @@ public partial class EngineWindow
     private DemoVideoRecorder? _demoRecorder;
     private float _demoElapsed;
     private bool _demoFinalizePending;
-    private const float DemoMaxDurationSeconds = 120f;
+    private const float DemoMaxDurationSeconds = 45f;
+    private const float DemoScriptDoneHoldSeconds = 1.5f;
     private const float DemoVictoryHoldSeconds = 2f;
+    private const int DemoCaptureTargetFps = 20;
     /// <summary>Speeds simulation during recording so CI finishes near the advertised ~45s runtime.</summary>
-    internal const float DemoSimulationTimeScale = 2.5f;
+    internal const float DemoSimulationTimeScale = 4f;
     private float _demoVictoryHold;
+    private float _demoScriptDoneHold;
 
     public const string GameplayDemoFileName = "gameplay-demo.mp4";
     public const string GameplayDemoPosterFileName = "gameplay-demo-poster.png";
@@ -69,7 +72,7 @@ public partial class EngineWindow
 
         _missionController!.StartMission(_demoMissionId);
         _pendingMissionId = _demoMissionId;
-        _demoRecorder = new DemoVideoRecorder(_demoVideoPath);
+        _demoRecorder = new DemoVideoRecorder(_demoVideoPath, targetFps: DemoCaptureTargetFps, maxFrames: 1000);
         Console.WriteLine($"[Demo] Recording mission '{_demoMissionId}' → {_demoVideoPath}");
     }
 
@@ -128,20 +131,29 @@ public partial class EngineWindow
         if (_playthroughAgent.MissionObjectivesComplete)
             _demoVictoryHold += simDt;
 
+        if (_playthroughAgent.ScriptFinished)
+            _demoScriptDoneHold += wallDt;
+
         bool timedOut = _demoElapsed >= DemoMaxDurationSeconds;
-        bool scriptDone = _playthroughAgent.ScriptFinished;
+        bool scriptDone = _playthroughAgent.ScriptFinished &&
+                          _demoScriptDoneHold >= DemoScriptDoneHoldSeconds;
         bool victoryReady = _playthroughAgent.MissionObjectivesComplete &&
                             _demoVictoryHold >= DemoVictoryHoldSeconds;
 
-        if (!_demoFinalizePending && (victoryReady || (scriptDone && _demoElapsed > 5f) || timedOut))
+        if (!_demoFinalizePending && (victoryReady || scriptDone || timedOut))
+        {
             _demoFinalizePending = true;
+            Console.WriteLine(
+                $"[Demo] Finalizing after {_demoElapsed:F1}s " +
+                $"(scriptDone={_playthroughAgent.ScriptFinished}, step={_playthroughAgent.StepIndex}/{_playthroughAgent.StepCount}, timedOut={timedOut})");
+        }
     }
 
     private void FinalizeDemoRecording()
     {
         if (_demoRecorder == null) return;
 
-        var result = _demoRecorder.Finalize();
+        var result = _demoRecorder.Finalize(DemoCaptureTargetFps);
         Console.WriteLine($"[Demo] {result.Message}");
         Console.WriteLine($"[Demo] Poster: {result.PosterPath}");
         if (result.Encoded)

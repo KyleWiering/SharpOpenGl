@@ -72,9 +72,8 @@ public class MissionPlaythroughTests
         Assert.Contains(mission.DemoScript, s => s.Type == "camera_pan");
         Assert.Contains(mission.DemoScript, s => s.Type == "wait");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_move");
-        Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "reach_waypoint");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_target");
-        Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "destroy_scouts");
+        Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_objective");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "power_reactor");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
         Assert.Contains(mission.DemoScript, s => s.Type == "build_unit");

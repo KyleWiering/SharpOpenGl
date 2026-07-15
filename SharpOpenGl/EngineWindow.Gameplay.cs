@@ -161,6 +161,9 @@ public partial class EngineWindow
         if (!evt.MissionId.Equals(_missionController.CurrentMission.Definition.Id, StringComparison.Ordinal))
             return;
 
+        if (_demoRecordingMode)
+            return;
+
         if (!_victoryRewardsApplied)
         {
             _missionController.DistributeRewards(1);
@@ -178,6 +181,9 @@ public partial class EngineWindow
         if (_sceneManager.State != GameState.Playing) return;
         if (_missionController?.CurrentMission == null) return;
         if (!evt.MissionId.Equals(_missionController.CurrentMission.Definition.Id, StringComparison.Ordinal))
+            return;
+
+        if (_demoRecordingMode)
             return;
 
         ShowMissionResultOverlay(isVictory: false, defeatReason: evt.Reason);

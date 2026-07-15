@@ -24,7 +24,8 @@ public sealed class MissionPlaythroughAgent
     private long _tick;
 
     /// <summary>Skip stuck placement steps so headless demo recording does not hit the max-duration cap.</summary>
-    private const float PlaceBuildingStepTimeoutSeconds = 90f;
+    private const float PlaceBuildingStepTimeoutSeconds = 20f;
+    private const float WaitConstructionTimeoutSeconds = 120f;
     private bool _placeBuildingIssued;
     private bool _harvestWired;
     private int[]? _lastMoveGridPosition;
@@ -110,7 +111,8 @@ public sealed class MissionPlaythroughAgent
                 break;
 
             case "wait_for_construction":
-                if (IsPlacedStructureComplete(step))
+                _stepElapsed += deltaTime;
+                if (IsPlacedStructureComplete(step) || _stepElapsed >= WaitConstructionTimeoutSeconds)
                     Advance();
                 break;
 
