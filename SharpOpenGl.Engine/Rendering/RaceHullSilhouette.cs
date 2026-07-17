@@ -636,7 +636,6 @@ internal static class RaceHullSilhouette
         const float zStart = -0.36f;
         const float zEnd = 0.66f;
         const float bowPush = 1.22f;
-        const float splitT = 0.56f;
         AddTerranTwoBoxFuselage(w, l, bw, bh, zStart, zEnd, beamScale: 1.00f, bowPush: bowPush);
         AddTerranBowWedge(w, bw, bh, l, 0.82f, 0.10f, extendedProw: true, dorsalCap: false);
         AddBox(w, -bw * 0.20f, bw * 0.20f, bh * 0.24f, bh * 0.52f, l * 0.28f, l * 0.46f);
@@ -5585,7 +5584,6 @@ internal static class RaceHullSilhouette
 
     private static void AddRadiantBulkSolarBands(RaceMeshWriter w, float hw, float hgt, float len)
     {
-        var hull = RaceMeshWriter.HullMaterial.Hull;
         var solar = RaceMeshWriter.HullMaterial.Solar;
         var panel = RaceMeshWriter.HullMaterial.Radiator;
         for (int b = 0; b < 2; b++)
@@ -6027,7 +6025,6 @@ internal static class RaceHullSilhouette
     private static void BuildVoidbornBomberHeavy(RaceMeshWriter w, float len, float wid, float hgt)
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
-        var panel = RaceMeshWriter.HullMaterial.Truss;
         var accent = RaceMeshWriter.HullMaterial.Solar;
         var engine = RaceMeshWriter.HullMaterial.Engine;
         var weapon = RaceMeshWriter.HullMaterial.Weapon;
@@ -6060,9 +6057,7 @@ internal static class RaceHullSilhouette
     /// <summary>Heavy gunship — chin weapon pod mass, lateral spines, assault carapace frame.</summary>
     private static void BuildVoidbornGunshipHeavy(RaceMeshWriter w, float len, float wid, float hgt)
     {
-        var hull = RaceMeshWriter.HullMaterial.Hull;
         var panel = RaceMeshWriter.HullMaterial.Truss;
-        var accent = RaceMeshWriter.HullMaterial.Solar;
         var engine = RaceMeshWriter.HullMaterial.Engine;
         var weapon = RaceMeshWriter.HullMaterial.Weapon;
         float l = len * 1.04f;
@@ -6379,7 +6374,6 @@ internal static class RaceHullSilhouette
     {
         var hull = RaceMeshWriter.HullMaterial.Hull;
         var panel = RaceMeshWriter.HullMaterial.Truss;
-        var accent = RaceMeshWriter.HullMaterial.Solar;
         var weapon = RaceMeshWriter.HullMaterial.Weapon;
         float l = len;
         float hw = wid * 0.50f;
@@ -7093,7 +7087,6 @@ internal static class RaceHullSilhouette
         var hull = RaceMeshWriter.HullMaterial.Hull;
         var accent = RaceMeshWriter.HullMaterial.Solar;
         var engine = RaceMeshWriter.HullMaterial.Engine;
-        var weapon = RaceMeshWriter.HullMaterial.Weapon;
 
         float widthScale = hullKey is "freighter_bulk" ? 0.96f : hullKey is "miner_eva" ? 0.96f : 0.98f;
         float l = len;

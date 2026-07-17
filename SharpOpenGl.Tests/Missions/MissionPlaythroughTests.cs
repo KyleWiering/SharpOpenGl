@@ -90,7 +90,7 @@ public class MissionPlaythroughTests
             .Where(s => s.Type == "wait")
             .Sum(s => s.Seconds);
 
-        // Fixed waits only; sum ~8.5 sim-s → wall ≈ 8.5/4 + DemoScriptDoneHold (~1–1.5s) ≪ DemoMaxDurationSeconds 45
+        // Fixed waits only; sum ~8.5 sim-s → wall ≈ 8.5/4 + DemoScriptDoneHold (~1s) ≪ DemoMaxDurationSeconds 20
         Assert.True(waitSum <= 10f, $"example_scenario wait sum {waitSum} exceeds CI cap of 10 sim-seconds (hard max 12).");
         Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_objective");
         Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_for_construction");

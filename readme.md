@@ -9,7 +9,7 @@ The GitHub Pages site runs the **same C# game** as the desktop build (`SharpOpen
 
 ### Gameplay demo (mobile-friendly)
 
-Watch a ~45s scripted playthrough without installing the app — fleet selection, move orders, combat, HUD resources, and base building:
+Watch a short scripted playthrough (typically under ~10s of recording wall time in CI) without installing the app — fleet selection, move orders, combat, HUD resources, and base building:
 
 <p align="center">
   <video controls playsinline preload="metadata"
