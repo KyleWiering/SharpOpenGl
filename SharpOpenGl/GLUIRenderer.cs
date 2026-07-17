@@ -205,7 +205,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                     break;
                 case UIFontGlyphSegments.Segment.TopPeakLeft:
                 {
-                    float peakStep = MathF.Max(t * 1.3f, h * 0.14f);
+                    float peakStep = MathF.Max(t * 1.5f, h * 0.18f);
                     DrawRect(new Vector2(x + t, y), new Vector2(t, peakStep), color);
                     DrawRect(new Vector2(x + w * 0.22f, y), new Vector2(t, peakStep * 1.55f), color);
                     DrawRect(new Vector2(x + w * 0.38f, y), new Vector2(t, peakStep * 2.1f), color);
@@ -213,7 +213,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                 }
                 case UIFontGlyphSegments.Segment.TopPeakRight:
                 {
-                    float peakStep = MathF.Max(t * 1.3f, h * 0.14f);
+                    float peakStep = MathF.Max(t * 1.5f, h * 0.18f);
                     DrawRect(new Vector2(x + w - t * 2f, y), new Vector2(t, peakStep), color);
                     DrawRect(new Vector2(x + w * 0.62f, y), new Vector2(t, peakStep * 1.55f), color);
                     DrawRect(new Vector2(x + w * 0.46f, y), new Vector2(t, peakStep * 2.1f), color);
@@ -221,7 +221,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                 }
                 case UIFontGlyphSegments.Segment.BottomValleyLeft:
                 {
-                    float valleyStep = MathF.Max(t * 1.3f, h * 0.14f);
+                    float valleyStep = MathF.Max(t * 1.5f, h * 0.18f);
                     DrawRect(new Vector2(x + t, y + h - valleyStep), new Vector2(t, valleyStep), color);
                     DrawRect(new Vector2(x + w * 0.22f, y + h - valleyStep * 1.55f), new Vector2(t, valleyStep * 1.55f), color);
                     DrawRect(new Vector2(x + w * 0.38f, y + h - valleyStep * 2.1f), new Vector2(t, valleyStep * 2.1f), color);
@@ -229,7 +229,7 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                 }
                 case UIFontGlyphSegments.Segment.BottomValleyRight:
                 {
-                    float valleyStep = MathF.Max(t * 1.3f, h * 0.14f);
+                    float valleyStep = MathF.Max(t * 1.5f, h * 0.18f);
                     DrawRect(new Vector2(x + w - t * 2f, y + h - valleyStep), new Vector2(t, valleyStep), color);
                     DrawRect(new Vector2(x + w * 0.62f, y + h - valleyStep * 1.55f), new Vector2(t, valleyStep * 1.55f), color);
                     DrawRect(new Vector2(x + w * 0.46f, y + h - valleyStep * 2.1f), new Vector2(t, valleyStep * 2.1f), color);
@@ -261,8 +261,12 @@ public sealed class GLUIRenderer : IUIRenderer, IDisposable
                     DrawRect(new Vector2(x + w - t, y + h - t), new Vector2(t, t), color);
                     break;
                 case UIFontGlyphSegments.Segment.TopHalfLeft:
-                    DrawRect(new Vector2(x, y), new Vector2(w * 0.5f, t), color);
+                {
+                    float shelfStep = MathF.Max(t * 1.2f, h * 0.12f);
+                    DrawRect(new Vector2(x, y), new Vector2(w * 0.34f, t), color);
+                    DrawRect(new Vector2(x + w * 0.28f, y), new Vector2(t, shelfStep), color);
                     break;
+                }
                 case UIFontGlyphSegments.Segment.BottomHalfRight:
                     DrawRect(new Vector2(x + w * 0.5f, y + h - t), new Vector2(w * 0.5f, t), color);
                     break;

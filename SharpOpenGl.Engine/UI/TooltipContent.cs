@@ -9,6 +9,7 @@ public sealed record TooltipContent(
     string? Footprint = null,
     string? BuildTime = null,
     string? RoleLine = null,
+    string? CategoryLockHint = null,
     IReadOnlyList<string>? Prerequisites = null,
     string? LockReason = null,
     string? AffordReason = null)
@@ -35,6 +36,9 @@ public sealed record TooltipContent(
 
         if (!string.IsNullOrWhiteSpace(RoleLine))
             lines.Add(RoleLine.Trim());
+
+        if (!string.IsNullOrWhiteSpace(CategoryLockHint))
+            lines.Add(CategoryLockHint.Trim());
 
         if (Prerequisites is { Count: > 0 })
         {

@@ -82,5 +82,12 @@ window.sharpGameInput = {
                 active.delete(touch.identifier);
             emitTouches();
         }, { passive: false });
+
+        canvas.addEventListener('wheel', (e) => {
+            if (!window.__sharpGameRef) return;
+            const p = rectOffset(e.clientX, e.clientY);
+            e.preventDefault();
+            window.__sharpGameRef.invokeMethodAsync('OnScroll', p.x, p.y, e.deltaY);
+        }, { passive: false });
     }
 };

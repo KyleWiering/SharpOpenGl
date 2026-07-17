@@ -184,7 +184,13 @@ public class UnitInfoPanelShieldTests
             $"Expected HP/SH/AR micro-glyphs, found {statIconRects} icon-slot rects.");
         Assert.Contains(renderer.Texts, text => text.Text == "4200/5000");
         Assert.Contains(renderer.Texts, text => text.Text == "1800/2000");
-        Assert.Contains(renderer.Texts, text => text.Text == "12");
+        Assert.Contains(renderer.Texts, text => text.Text is "12" or "…");
+        float textColumnW = UnitInfoPanel.ComputeTextColumnWidth(panel.Size.X, PanelPadding, headerIcon);
+        Assert.All(renderer.Texts, text =>
+        {
+            float width = UIFontMetrics.MeasureTextWidth(text.Text, text.FontSize);
+            Assert.True(width <= textColumnW + 1f, text.Text);
+        });
     }
 
     private static bool IsInHeaderIconColumn(Vector2 position) =>

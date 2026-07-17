@@ -38,6 +38,10 @@
     [JSInvokable]
     public void OnKey(string key) => _host?.HandleKey(key);
 
+    [JSInvokable]
+    public void OnScroll(double x, double y, double deltaY) =>
+        _host?.HandleScroll((int)x, (int)y, (float)deltaY);
+
     private void OnMouseDown(MouseEventArgs e) =>
         _host?.HandlePointer((int)e.OffsetX, (int)e.OffsetY, true);
 

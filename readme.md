@@ -30,7 +30,7 @@ A C# space RTS game engine built with [OpenTK 4.x](https://opentk.net/) on .NET 
 
 ### AI org pipeline (`/ceo`)
 
-Multi-phase work uses a **recursive delegation chain**: CEO → Director → Manager → Worker. The Director spawns Managers; Managers spawn Workers. When the platform blocks nested subagents (typical in Cursor/Grok), the **CEO proxies** those waves — triggering and orchestrating Managers and Workers **on behalf of** the Director and Manager who already queued the work. Skills: `.grok/skills/ceo/`, `director/`, `manager/`, `worker/`. Protocol: `.grok/skills/org-pipeline/references/delegation-protocol.md`.
+Multi-phase work uses a **role hierarchy**: CEO → Director → Manager → Worker. Grok Build and Cursor **hard-cap nesting at depth 1** — only the root session can spawn subagents — so true recursive trees (Director spawns Manager spawns Worker) do not work. Instead, the pipeline uses **flat fan-out**: the CEO spawns every tier as **sibling subagents in concert** (parallel waves), while Director/Manager still author plans and JSON queues. **Global skills:** `~/.grok/skills/org-pipeline/` (overview), `~/.grok/skills/{ceo,director,manager,worker}/`. Protocol: `~/.grok/skills/org-pipeline/references/delegation-protocol.md`. Concert pattern: `~/.grok/skills/org-pipeline/references/flat-fanout.md`. Project tickets live under `.grok/org/<project-slug>/`; project playbooks stay in `.grok/skills/` here (e.g. `mesh-improvement-loop`).
 
 - **.NET 8** SDK-style project
 - **OpenTK 4.8** with GameWindow (cross-platform desktop)

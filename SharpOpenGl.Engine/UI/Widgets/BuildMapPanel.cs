@@ -36,7 +36,7 @@ public sealed class BuildMapPanel : Widget
     private const float LockedMicroLabelBandHeight = 14f;
     private const float LockedMicroLabelFontSize = 9f;
     private const float LockedMicroLabelMinFontSize = 8f;
-    private const int LockedMicroLabelMaxNameChars = 10;
+
     private const float TierBadgeWidth = 22f;
     private const float TierBadgeHeight = 12f;
     private const float TierBadgeFontSize = 8f;
@@ -186,7 +186,17 @@ public sealed class BuildMapPanel : Widget
         if (!Visible || _hoveredEntry == null)
             return null;
 
-        return TooltipContent.FromBuildEntry(_hoveredEntry);
+        TooltipContent content = TooltipContent.FromBuildEntry(_hoveredEntry);
+        BuildMapCategoryView? category = FindCategoryForEntry(_hoveredEntry);
+        if (category != null && !_hoveredEntry.IsUnlocked && IsCategoryTierLocked(category))
+        {
+            content = content with
+            {
+                CategoryLockHint = $"Tier locked: {CategoryLockedHintText.ToLowerInvariant()}",
+            };
+        }
+
+        return content;
     }
 
     /// <inheritdoc/>
@@ -374,28 +384,6 @@ public sealed class BuildMapPanel : Widget
         renderer.DrawText(badge, textPos, TierBadgeFontSize, textColor);
     }
 
-    private static void DrawPrerequisiteMicroLabel(
-        IUIRenderer renderer, Vector2 tilePos, BuildMapEntryView entry)
-    {
-        string? label = FormatPrerequisiteMicroLabel(entry);
-        if (label == null)
-            return;
-
-        var bandPos = tilePos + new Vector2(0f, TileSize - LockedMicroLabelBandHeight);
-        var bandSize = new Vector2(TileSize, LockedMicroLabelBandHeight);
-        renderer.DrawRect(bandPos, bandSize, new Vector4(0.04f, 0.05f, 0.08f, 0.92f));
-
-        float maxLabelWidth = TileSize - 4f;
-        float fittedSize = UIFontMetrics.FitFontSize(
-            label, LockedMicroLabelFontSize, maxLabelWidth, LockedMicroLabelMinFontSize);
-        string fitted = UITextDrawing.TruncateWithEllipsis(label, maxLabelWidth, fittedSize);
-        float labelW = UIFontMetrics.MeasureTextWidth(fitted, fittedSize);
-        var textPos = bandPos + new Vector2(
-            MathF.Max(2f, (bandSize.X - labelW) * 0.5f),
-            (bandSize.Y - fittedSize) * 0.5f);
-        renderer.DrawText(fitted, textPos, fittedSize, LockedMicroLabelColor);
-    }
-
     internal static string FormatCategoryHeader(
         string displayName, int tierIndex, int unlockedCount, int totalCount) =>
         $"{displayName} — Tier {tierIndex} ({unlockedCount}/{totalCount})";
@@ -467,8 +455,6 @@ public sealed class BuildMapPanel : Widget
             progress = $"{entry.PrerequisiteMetCount}/{entry.PrerequisiteTotalCount}";
 
         string? missing = ExtractFirstMissingPrerequisite(entry);
-        if (!string.IsNullOrWhiteSpace(missing) && missing.Length > LockedMicroLabelMaxNameChars)
-            missing = missing[..LockedMicroLabelMaxNameChars] + "…";
 
         if (!string.IsNullOrWhiteSpace(progress) && !string.IsNullOrWhiteSpace(missing))
             return $"{progress} · Needs {missing}";
@@ -480,6 +466,27 @@ public sealed class BuildMapPanel : Widget
             return $"Needs: {missing}";
 
         return null;
+    }
+
+    private BuildMapCategoryView? FindCategoryForEntry(BuildMapEntryView entry)
+    {
+        foreach (var category in Categories)
+        {
+            foreach (var building in category.Buildings)
+            {
+                if (ReferenceEquals(building, entry))
+                    return category;
+            }
+        }
+
+        return null;
+    }
+
+    private bool IsCategoryTierLocked(BuildMapCategoryView category)
+    {
+        int tierIndex = ResolveTierIndex(category);
+        int unlockedCount = category.Buildings.Count(static entry => entry.IsUnlocked);
+        return unlockedCount == 0 && tierIndex > 1;
     }
 
     private static string? ExtractFirstMissingPrerequisite(BuildMapEntryView entry)
@@ -504,14 +511,57 @@ public sealed class BuildMapPanel : Widget
         + FontSize
         + (compactHeader ? 6f : FontSize + 12f);
 
+    /// <summary>Inner text column width inside the panel after horizontal padding.</summary>
+    internal static float ComputeInnerTextWidth(float panelWidth) =>
+        MathF.Max(0f, panelWidth - Padding * 2f);
+
+    private static (string Text, float LogicalDrawSize) FitLabel(
+        IUIRenderer renderer, string text, float maxLogicalWidth,
+        float preferredLogicalSize, float minLogicalSize = 8f)
+    {
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float minPhysical = renderer.ResolveFontSize(minLogicalSize);
+        if (physicalScale < 0.999f)
+            minPhysical = MathF.Max(ScaledUIRenderer.MinPhysicalFontSize, minPhysical);
+        float fittedPhysical = UIFontMetrics.FitFontSize(
+            text, preferredPhysical, maxPhysicalWidth, minPhysical);
+        string display = UITextDrawing.TruncateWithEllipsis(text, maxPhysicalWidth, fittedPhysical);
+        float logicalDrawSize = fittedPhysical / physicalScale;
+        return (display, logicalDrawSize);
+    }
+
     private static void DrawFittedLine(
         IUIRenderer renderer, string text, Vector2 position,
         float preferredSize, float maxWidth, Vector4 color, float minSize = 8f)
     {
         if (string.IsNullOrEmpty(text)) return;
 
-        float size = UIFontMetrics.FitFontSize(text, preferredSize, maxWidth, minSize);
-        string fitted = UITextDrawing.TruncateWithEllipsis(text, maxWidth, size);
-        renderer.DrawText(fitted, position, size, color);
+        var (display, logicalSize) = FitLabel(renderer, text, maxWidth, preferredSize, minSize);
+        renderer.DrawText(display, position, logicalSize, color);
+    }
+
+    private static void DrawPrerequisiteMicroLabel(
+        IUIRenderer renderer, Vector2 tilePos, BuildMapEntryView entry)
+    {
+        string? label = FormatPrerequisiteMicroLabel(entry);
+        if (label == null)
+            return;
+
+        var bandPos = tilePos + new Vector2(0f, TileSize - LockedMicroLabelBandHeight);
+        var bandSize = new Vector2(TileSize, LockedMicroLabelBandHeight);
+        renderer.DrawRect(bandPos, bandSize, new Vector4(0.04f, 0.05f, 0.08f, 0.92f));
+
+        float maxLabelWidth = TileSize - 4f;
+        var (display, logicalSize) = FitLabel(
+            renderer, label, maxLabelWidth, LockedMicroLabelFontSize, LockedMicroLabelMinFontSize);
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float drawnPhysical = renderer.ResolveFontSize(logicalSize);
+        float labelLogicalW = UIFontMetrics.MeasureTextWidth(display, drawnPhysical) / physicalScale;
+        var textPos = bandPos + new Vector2(
+            MathF.Max(2f, (bandSize.X - labelLogicalW) * 0.5f),
+            (bandSize.Y - logicalSize) * 0.5f);
+        renderer.DrawText(display, textPos, logicalSize, LockedMicroLabelColor);
     }
 }

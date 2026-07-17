@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.UI;
 
 namespace SharpOpenGl.Engine.UI.Widgets;
 
@@ -19,6 +20,15 @@ public sealed class ScrollPanel : Panel
     /// <summary>Whether to draw a slim scrollbar track when content overflows.</summary>
     public bool ShowScrollbar { get; set; } = true;
 
+    /// <summary>
+    /// When false, <see cref="SyncLabelWrapWidths"/> is a no-op so callers can manage
+    /// <see cref="Label.WrapWidth"/> manually (e.g. compact-viewport scale-aware layout).
+    /// </summary>
+    public bool AutoSyncWrapWidths { get; set; } = true;
+
+    /// <summary>Right inset reserved for the slim scrollbar track (matches <see cref="DrawScrollbar"/>).</summary>
+    private const float ScrollbarGutter = 10f;
+
     /// <summary>Measured bottom extent of child layout relative to the panel top.</summary>
     public float ContentHeight { get; private set; }
 
@@ -26,14 +36,37 @@ public sealed class ScrollPanel : Panel
     public float MaxScrollOffset(Vector2 visibleSize) =>
         Math.Max(0f, ContentHeight - visibleSize.Y);
 
+    /// <summary>
+    /// Sync <see cref="Label.WrapWidth"/> on direct label children from layout width and padding.
+    /// Accounts for scrollbar gutter when <see cref="ShowScrollbar"/> is enabled.
+    /// </summary>
+    public void SyncLabelWrapWidths()
+    {
+        if (!AutoSyncWrapWidths)
+            return;
+
+        float gutter = ShowScrollbar ? ScrollbarGutter : 0f;
+        foreach (Widget child in Children)
+        {
+            if (child is not Label label || !child.Visible) continue;
+            label.WrapWidth = UITextDrawing.ContentWrapWidth(label.Size.X - gutter, label.Padding);
+        }
+    }
+
     /// <summary>Recompute <see cref="ContentHeight"/> from child anchors and sizes.</summary>
     public void RecalculateContentHeight(Vector2 visibleSize)
     {
+        SyncLabelWrapWidths();
+
         float maxBottom = ContentPadding;
         foreach (Widget child in Children)
         {
             if (!child.Visible) continue;
-            maxBottom = MathF.Max(maxBottom, child.Position.Y + child.Size.Y + ContentPadding);
+
+            float childBottom = child is Label label
+                ? label.Position.Y + label.MeasureContentHeight()
+                : child.Position.Y + child.Size.Y;
+            maxBottom = MathF.Max(maxBottom, childBottom + ContentPadding);
         }
 
         ContentHeight = maxBottom;

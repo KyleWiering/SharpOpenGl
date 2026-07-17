@@ -16,8 +16,7 @@ public sealed class SaveGameScreen : UIScreen
     private const float SlotLabelFontSize = 18f;
     private const float SlotButtonWidth = 420f;
     private const float SlotButtonHeight = 48f;
-    private const float SlotLabelInnerWidth =
-        SlotButtonWidth - IconButton.TitleNavIconColumnWidth - IconButton.LabelPadding;
+
 
     /// <inheritdoc/>
     public override string ScreenName => "SaveGame";
@@ -81,8 +80,6 @@ public sealed class SaveGameScreen : UIScreen
             TextColor = MenuTheme.TitleColor,
         });
 
-        float gap = 10f;
-
         _slotScroll = new ScrollPanel
         {
             Name = "SlotScroll",
@@ -94,7 +91,6 @@ public sealed class SaveGameScreen : UIScreen
         };
         card.AddChild(_slotScroll);
 
-        float startY = 0f;
         var quickSave = new IconButton
         {
             Name = "QuickSave",
@@ -106,7 +102,7 @@ public sealed class SaveGameScreen : UIScreen
             FontSize = SlotLabelFontSize,
             RequireMinimumHitExtent = true,
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(0f, startY),
+            Position = new Vector2(0f, 0f),
             Size = new Vector2(SlotButtonWidth, SlotButtonHeight),
         };
         IconButton.ApplyMenuTheme(quickSave, showGlow: true);
@@ -128,7 +124,7 @@ public sealed class SaveGameScreen : UIScreen
                 FontSize = SlotLabelFontSize,
                 RequireMinimumHitExtent = true,
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(0f, startY + (i + 1) * (SlotButtonHeight + gap)),
+                Position = new Vector2(0f, 0f),
                 Size = new Vector2(SlotButtonWidth, SlotButtonHeight),
             };
             IconButton.ApplyMenuTheme(btn, showGlow: true);
@@ -137,7 +133,7 @@ public sealed class SaveGameScreen : UIScreen
             _slotButtons.Add(btn);
         }
 
-        _slotScroll.RecalculateContentHeight(_slotScroll.Size);
+        RefreshSlots();
 
         var back = new IconButton
         {
@@ -161,9 +157,14 @@ public sealed class SaveGameScreen : UIScreen
     private void RefreshSlots()
     {
         var slots = _saveManager.ListSaveSlots().ToDictionary(s => s.SlotName);
+        float gap = 10f;
+        float rowY = 0f;
 
         foreach (IconButton button in _slotButtons)
         {
+            ClearSlotMetadataLabels(button);
+            button.Position = new Vector2(0f, rowY);
+
             string slotKey = button.Name ?? string.Empty;
             if (!slots.TryGetValue(slotKey, out SaveSlotInfo? info) || !info.HasData)
             {
@@ -171,14 +172,21 @@ public sealed class SaveGameScreen : UIScreen
                     button.Label = "Quick Save";
                 else
                     button.Label = $"{SaveSlotNames.DisplayName(slotKey)} — Empty";
+
+                button.Size = new Vector2(SlotButtonWidth, SlotButtonHeight);
+                rowY += SlotButtonHeight + gap;
                 continue;
             }
 
+            button.Label = string.Empty;
             string mission = string.IsNullOrWhiteSpace(info.MissionId) ? "Free Play" : info.MissionId;
             string when = FormatSavedAt(info.SavedAt);
-            button.Label = FormatOccupiedSlotLabel(slotKey, mission, when);
+            float rowHeight = ApplyOccupiedSlotLabels(button, slotKey, mission, when);
+            button.Size = new Vector2(SlotButtonWidth, rowHeight);
+            rowY += rowHeight + gap;
         }
 
+        _slotScroll.SyncLabelWrapWidths();
         _slotScroll.RecalculateContentHeight(_slotScroll.Size);
     }
 
@@ -293,20 +301,81 @@ public sealed class SaveGameScreen : UIScreen
         return FormatOccupiedSlotLabel(slotName, mission, when);
     }
 
-    private static string FormatOccupiedSlotLabel(string slotKey, string mission, string when)
+    private const float SlotTextLeft =
+        IconButton.TitleNavIconColumnWidth + IconButton.LabelPadding;
+    private const float SlotLabelPadding = 4f;
+    private const float SlotRowPadding = 6f;
+    private const float SlotLineGap = 2f;
+
+    private float SlotLabelAreaWidth =>
+        SlotButtonWidth - SlotTextLeft - IconButton.LabelPadding;
+
+    private float SlotMissionWrapWidth =>
+        UITextDrawing.ContentWrapWidth(SlotLabelAreaWidth, SlotLabelPadding);
+
+    private static void ClearSlotMetadataLabels(IconButton button)
     {
-        string prefix = $"{SaveSlotNames.DisplayName(slotKey)} — ";
-        string suffix = $" ({when})";
-        float prefixWidth = UIFontMetrics.MeasureTextWidth(prefix, SlotLabelFontSize);
-        float suffixWidth = UIFontMetrics.MeasureTextWidth(suffix, SlotLabelFontSize);
-        float missionBudget = SlotLabelInnerWidth - prefixWidth - suffixWidth;
-
-        string missionFit = missionBudget > 0f
-            ? UITextDrawing.TruncateWithEllipsis(mission, missionBudget, SlotLabelFontSize)
-            : "…";
-
-        return $"{prefix}{missionFit}{suffix}";
+        for (int i = button.Children.Count - 1; i >= 0; i--)
+        {
+            if (button.Children[i] is Label)
+                button.RemoveChild(button.Children[i]);
+        }
     }
+
+    private float ApplyOccupiedSlotLabels(IconButton button, string slotKey, string mission, string when)
+    {
+        float labelWidth = SlotLabelAreaWidth;
+        float labelY = SlotRowPadding;
+        float wrapWidth = SlotMissionWrapWidth;
+
+        var slotLabel = new Label
+        {
+            Name = $"{slotKey}Slot",
+            Text = $"{SaveSlotNames.DisplayName(slotKey)} —",
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(SlotTextLeft, labelY),
+            Size = new Vector2(labelWidth, 0f),
+            FontSize = SlotLabelFontSize,
+            Padding = SlotLabelPadding,
+            TextColor = MenuTheme.ButtonText,
+        };
+        button.AddChild(slotLabel);
+        labelY += slotLabel.MeasureContentHeight() + SlotLineGap;
+
+        var missionLabel = new Label
+        {
+            Name = $"{slotKey}Mission",
+            Text = mission,
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(SlotTextLeft, labelY),
+            Size = new Vector2(labelWidth, 0f),
+            FontSize = SlotLabelFontSize,
+            Padding = SlotLabelPadding,
+            WrapWidth = wrapWidth,
+            TextColor = MenuTheme.BodyTextColor,
+        };
+        button.AddChild(missionLabel);
+        labelY += missionLabel.MeasureContentHeight() + SlotLineGap;
+
+        var whenLabel = new Label
+        {
+            Name = $"{slotKey}When",
+            Text = $"({when})",
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(SlotTextLeft, labelY),
+            Size = new Vector2(labelWidth, 0f),
+            FontSize = SlotLabelFontSize,
+            Padding = SlotLabelPadding,
+            TextColor = MenuTheme.MutedTextColor,
+        };
+        button.AddChild(whenLabel);
+        labelY += whenLabel.MeasureContentHeight() + SlotRowPadding;
+
+        return MathF.Max(SlotButtonHeight, labelY);
+    }
+
+    private static string FormatOccupiedSlotLabel(string slotKey, string mission, string when) =>
+        $"{SaveSlotNames.DisplayName(slotKey)} — {mission} ({when})";
 
     private void PerformSave(string slotName, Func<SaveData> buildSnapshot)
     {

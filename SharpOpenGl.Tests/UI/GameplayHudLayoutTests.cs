@@ -95,6 +95,7 @@ public class GameplayHudLayoutTests
     [Theory]
     [InlineData(1024f, 768f)]
     [InlineData(1920f, 1080f)]
+    [InlineData(2560f, 1440f)]
     public void GameplayHUD_draw_applies_density_layout_before_widgets(float viewportWidth, float viewportHeight)
     {
         var physical = new Vector2(viewportWidth, viewportHeight);
@@ -110,6 +111,18 @@ public class GameplayHudLayoutTests
         var unitInfo = GameplayHudLayout.GetBounds(hud.UnitInfoPanel, ReferenceViewport);
 
         Assert.False(buildMap.Overlaps(unitInfo));
+    }
+
+    [Fact]
+    public void ApplyDensityLayout_clamps_build_panel_inside_reference_right_edge()
+    {
+        var hud = CreateCrowdedHud();
+        hud.BuildPanel.Visible = true;
+        hud.ApplyDensityLayout();
+
+        var buildPanel = GameplayHudLayout.GetBounds(hud.BuildPanel, ReferenceViewport);
+
+        Assert.True(buildPanel.Right <= ReferenceViewport.X - GameplayHudLayout.PanelGap + 0.5f);
     }
 
     [Fact]

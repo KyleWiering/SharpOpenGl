@@ -12,11 +12,14 @@ public partial class EngineWindow
     private DemoVideoRecorder? _demoRecorder;
     private float _demoElapsed;
     private bool _demoFinalizePending;
+    /// <summary>Wall-clock cap for demo recording (≤60s section target; prefer 45s for CI).</summary>
     private const float DemoMaxDurationSeconds = 45f;
-    private const float DemoScriptDoneHoldSeconds = 1.5f;
+    private const float DemoScriptDoneHoldSeconds = 1f;
     private const float DemoVictoryHoldSeconds = 2f;
     private const int DemoCaptureTargetFps = 20;
-    /// <summary>Speeds simulation during recording so CI finishes near the advertised ~45s runtime.</summary>
+    /// <summary>Max PNG frames buffered for encode (20 fps × ~45s wall ≈ 900; hard cap 1000).</summary>
+    private const int DemoCaptureMaxFrames = 1000;
+    /// <summary>Speeds simulation during recording so CI finishes within the ~45s wall cap.</summary>
     internal const float DemoSimulationTimeScale = 4f;
     private float _demoVictoryHold;
     private float _demoScriptDoneHold;
@@ -72,7 +75,7 @@ public partial class EngineWindow
 
         _missionController!.StartMission(_demoMissionId);
         _pendingMissionId = _demoMissionId;
-        _demoRecorder = new DemoVideoRecorder(_demoVideoPath, targetFps: DemoCaptureTargetFps, maxFrames: 1000);
+        _demoRecorder = new DemoVideoRecorder(_demoVideoPath, targetFps: DemoCaptureTargetFps, maxFrames: DemoCaptureMaxFrames);
         Console.WriteLine($"[Demo] Recording mission '{_demoMissionId}' → {_demoVideoPath}");
     }
 

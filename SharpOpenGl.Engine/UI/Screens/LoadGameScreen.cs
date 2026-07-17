@@ -13,7 +13,7 @@ public sealed class LoadGameScreen : UIScreen
     private readonly SaveManager _saveManager;
     private readonly ScrollPanel _listPanel;
     private readonly Label _emptyLabel;
-    private readonly List<IconButton> _entryButtons = new();
+    private readonly List<Panel> _entryRows = new();
     private IReadOnlyList<LoadGameListEntry> _entries = [];
 
     private sealed record LoadGameListEntry(
@@ -99,9 +99,9 @@ public sealed class LoadGameScreen : UIScreen
     /// <summary>Reload save metadata from disk.</summary>
     public void RefreshList()
     {
-        foreach (IconButton button in _entryButtons)
-            _listPanel.RemoveChild(button);
-        _entryButtons.Clear();
+        foreach (Panel row in _entryRows)
+            _listPanel.RemoveChild(row);
+        _entryRows.Clear();
 
         _entries = _saveManager.ListSaveFiles()
             .Select(path =>
@@ -130,69 +130,131 @@ public sealed class LoadGameScreen : UIScreen
         _emptyLabel.Visible = _entries.Count == 0;
         if (_entries.Count == 0)
         {
+            _listPanel.SyncLabelWrapWidths();
             _listPanel.RecalculateContentHeight(_listPanel.Size);
             return;
         }
 
-        const float btnW = 700f;
-        const float btnH = 56f;
-        const float gap = 10f;
-        const float startY = 24f;
-        const float labelFontSize = 17f;
-
+        float rowY = EntryStartY;
         for (int i = 0; i < _entries.Count; i++)
         {
             LoadGameListEntry entry = _entries[i];
-            var btn = new IconButton
-            {
-                Name = $"Entry{i}",
-                Icon = MenuIconKind.NavLoadGame,
-                Label = FormatEntryLabel(entry),
-                TooltipHint = "Load this save",
-                Layout = IconButtonLayout.IconLeftOfLabel,
-                IconSize = IconButton.TitleNavIconSize,
-                FontSize = labelFontSize,
-                RequireMinimumHitExtent = true,
-                Anchor = Anchor.TopLeft,
-                Position = new Vector2(30f, startY + i * (btnH + gap)),
-                Size = new Vector2(btnW, btnH),
-            };
-            IconButton.ApplyMenuTheme(btn, showGlow: true);
-            string slot = entry.Info.SlotName;
-            btn.Clicked += () => LoadRequested?.Invoke(slot);
-            _listPanel.AddChild(btn);
-            _entryButtons.Add(btn);
+            float rowHeight = BuildEntryRow(entry, i, rowY, out Panel row);
+            rowY += rowHeight + EntryRowGap;
+            _entryRows.Add(row);
+            _listPanel.AddChild(row);
         }
 
+        _listPanel.SyncLabelWrapWidths();
         _listPanel.RecalculateContentHeight(_listPanel.Size);
     }
 
     /// <summary>Number of populated save entries currently shown.</summary>
     public int EntryCount => _entries.Count;
 
-    private const float EntryButtonWidth = 700f;
+    private const float EntryRowWidth = 700f;
+    private const float EntryRowLeft = 30f;
+    private const float EntryRowGap = 10f;
+    private const float EntryStartY = 24f;
+    private const float EntryRowMinHeight = 56f;
     private const float EntryLabelFontSize = 17f;
-    private const float EntryLabelInnerWidth =
-        EntryButtonWidth - IconButton.TitleNavIconColumnWidth - IconButton.LabelPadding;
+    private const float EntryLabelPadding = 4f;
+    private const float EntryRowPadding = 8f;
+    private const float EntryLineGap = 2f;
+    private const float EntryTextLeft =
+        IconButton.TitleNavIconColumnWidth + IconButton.LabelPadding;
 
-    private static string FormatEntryLabel(LoadGameListEntry entry)
+    private float EntryLabelAreaWidth =>
+        EntryRowWidth - EntryTextLeft - IconButton.LabelPadding;
+
+    private float EntryMissionWrapWidth =>
+        UITextDrawing.ContentWrapWidth(EntryLabelAreaWidth, EntryLabelPadding);
+
+    private float BuildEntryRow(LoadGameListEntry entry, int index, float rowY, out Panel row)
     {
-        string slot = SaveSlotNames.DisplayName(entry.Info.SlotName);
+        row = new Panel
+        {
+            Name = $"EntryRow{index}",
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(EntryRowLeft, rowY),
+            Size = new Vector2(EntryRowWidth, EntryRowMinHeight),
+            BackgroundColor = Vector4.Zero,
+            DrawBorder = false,
+        };
+
+        var btn = new IconButton
+        {
+            Name = $"Entry{index}",
+            Icon = MenuIconKind.NavLoadGame,
+            Label = string.Empty,
+            TooltipHint = "Load this save",
+            Layout = IconButtonLayout.IconLeftOfLabel,
+            IconSize = IconButton.TitleNavIconSize,
+            FontSize = EntryLabelFontSize,
+            RequireMinimumHitExtent = true,
+            Anchor = Anchor.TopLeft,
+            Position = Vector2.Zero,
+            Size = new Vector2(EntryRowWidth, EntryRowMinHeight),
+        };
+        IconButton.ApplyMenuTheme(btn, showGlow: true);
+        string slot = entry.Info.SlotName;
+        btn.Clicked += () => LoadRequested?.Invoke(slot);
+        row.AddChild(btn);
+
+        float labelWidth = EntryLabelAreaWidth;
+        float labelY = EntryRowPadding;
+        float wrapWidth = EntryMissionWrapWidth;
+
+        var slotLabel = new Label
+        {
+            Name = $"Entry{index}Slot",
+            Text = SaveSlotNames.DisplayName(entry.Info.SlotName),
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(EntryTextLeft, labelY),
+            Size = new Vector2(labelWidth, 0f),
+            FontSize = EntryLabelFontSize,
+            Padding = EntryLabelPadding,
+            TextColor = MenuTheme.ButtonText,
+        };
+        row.AddChild(slotLabel);
+        labelY += slotLabel.MeasureContentHeight() + EntryLineGap;
+
         string mission = FormatMissionLabel(entry);
-        string when = FormatSavedAt(entry.Info.SavedAt);
-        string elapsed = FormatElapsed(entry.Info.ElapsedMissionTime);
+        var missionLabel = new Label
+        {
+            Name = $"Entry{index}Mission",
+            Text = mission,
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(EntryTextLeft, labelY),
+            Size = new Vector2(labelWidth, 0f),
+            FontSize = EntryLabelFontSize,
+            Padding = EntryLabelPadding,
+            WrapWidth = wrapWidth,
+            TextColor = MenuTheme.BodyTextColor,
+        };
+        row.AddChild(missionLabel);
+        labelY += missionLabel.MeasureContentHeight() + EntryLineGap;
 
-        string slotPart = $"{slot}  |  ";
-        string tailPart = $"  |  {elapsed}  |  {when}";
-        float slotWidth = UIFontMetrics.MeasureTextWidth(slotPart, EntryLabelFontSize);
-        float tailWidth = UIFontMetrics.MeasureTextWidth(tailPart, EntryLabelFontSize);
-        float missionBudget = EntryLabelInnerWidth - slotWidth - tailWidth;
+        string meta = $"{FormatElapsed(entry.Info.ElapsedMissionTime)}  |  {FormatSavedAt(entry.Info.SavedAt)}";
+        var metaLabel = new Label
+        {
+            Name = $"Entry{index}Meta",
+            Text = meta,
+            Anchor = Anchor.TopLeft,
+            Position = new Vector2(EntryTextLeft, labelY),
+            Size = new Vector2(labelWidth, 0f),
+            FontSize = EntryLabelFontSize,
+            Padding = EntryLabelPadding,
+            TextColor = MenuTheme.MutedTextColor,
+        };
+        row.AddChild(metaLabel);
+        labelY += metaLabel.MeasureContentHeight() + EntryRowPadding;
 
-        string missionFit = missionBudget > 0f
-            ? UITextDrawing.TruncateWithEllipsis(mission, missionBudget, EntryLabelFontSize)
-            : "…";
+        float rowHeight = MathF.Max(EntryRowMinHeight, labelY);
+        row.Size = new Vector2(EntryRowWidth, rowHeight);
+        btn.Size = new Vector2(EntryRowWidth, rowHeight);
 
-        return $"{slotPart}{missionFit}{tailPart}";
+        return rowHeight;
     }
 
     private static string FormatMissionLabel(LoadGameListEntry entry)

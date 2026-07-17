@@ -33,6 +33,7 @@ public sealed class MultiplayerSetupScreen : UIScreen
     private readonly MultiplayerSlotState[] _slots;
     private readonly SlotWidgets[] _slotWidgets;
     private readonly Button _startBtn;
+    private readonly ScrollPanel _validationScroll;
     private readonly Label _validationLabel;
     private readonly Label _mapLabel;
     private readonly Label _difficultyLabel;
@@ -170,19 +171,29 @@ public sealed class MultiplayerSetupScreen : UIScreen
             _slotWidgets[i] = CreateSlotRow(i, x, y);
         }
 
+        _validationScroll = new ScrollPanel
+        {
+            Name = "MPValidationScroll",
+            Anchor = Anchor.TopCenter,
+            Position = new Vector2(0f, MultiplayerSetupLayout.ValidationTop),
+            Size = new Vector2(ValidationLabelWidth, MultiplayerSetupLayout.ValidationHeight),
+            BackgroundColor = new Vector4(0f, 0f, 0f, 0f),
+            DrawBorder = false,
+            ContentPadding = ValidationLabelPadding,
+        };
         _validationLabel = new Label
         {
             Name = "MPValidation",
             Text = string.Empty,
-            Anchor = Anchor.TopCenter,
-            Position = new Vector2(0f, MultiplayerSetupLayout.ValidationTop),
-            Size = new Vector2(ValidationLabelWidth, MultiplayerSetupLayout.ValidationHeight),
+            Anchor = Anchor.TopLeft,
+            Position = Vector2.Zero,
+            Size = new Vector2(ValidationLabelWidth, 0f),
             FontSize = 16f,
-            WrapWidth = UITextDrawing.ContentWrapWidth(ValidationLabelWidth, ValidationLabelPadding),
-            MaxLines = 2,
+            Padding = ValidationLabelPadding,
             TextColor = new Vector4(1f, 0.55f, 0.35f, 1f),
         };
-        AddWidget(_validationLabel);
+        _validationScroll.AddChild(_validationLabel);
+        AddWidget(_validationScroll);
 
         _startBtn = new Button
         {
@@ -431,6 +442,7 @@ public sealed class MultiplayerSetupScreen : UIScreen
         {
             _startBtn.IsEnabled = false;
             _validationLabel.Text = "No skirmish maps available.";
+            RefreshValidationScroll();
             return;
         }
 
@@ -439,6 +451,23 @@ public sealed class MultiplayerSetupScreen : UIScreen
         _validationLabel.Text = canStart
             ? string.Empty
             : MultiplayerSetupLogic.DescribeMapValidation(_slots, _skirmishMaps[_mapIndex]);
+        RefreshValidationScroll();
+    }
+
+    private void RefreshValidationScroll()
+    {
+        _validationScroll.SyncLabelWrapWidths();
+
+        if (string.IsNullOrEmpty(_validationLabel.Text))
+        {
+            _validationLabel.Size = new Vector2(_validationScroll.Size.X, 0f);
+            _validationScroll.RecalculateContentHeight(_validationScroll.Size);
+            return;
+        }
+
+        float labelHeight = _validationLabel.MeasureContentHeight();
+        _validationLabel.Size = new Vector2(_validationScroll.Size.X, labelHeight);
+        _validationScroll.RecalculateContentHeight(_validationScroll.Size);
     }
 
     private static string FormatRaceName(string raceId)

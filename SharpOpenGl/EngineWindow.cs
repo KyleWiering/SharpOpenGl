@@ -1059,6 +1059,10 @@ public partial class EngineWindow : GameWindow
 protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
+
+        if (_uiManager.HandleScroll(UiMousePosition, e.OffsetY, UiViewportSize))
+            return;
+
         if (_sceneManager.State == GameState.Playing)
         {
             EnsurePersistence();

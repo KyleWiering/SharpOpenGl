@@ -11,6 +11,7 @@ namespace SharpOpenGl.Tests.UI;
 public class BriefingScreenTests
 {
     private static readonly Vector2 ReferenceViewport = UIScaler.ReferenceSize;
+    private static readonly Vector2 CompactViewport = new(1024f, 768f);
 
     [Fact]
     public void Briefing_start_and_back_use_icon_buttons()
@@ -112,7 +113,12 @@ public class BriefingScreenTests
         Assert.NotNull(objective);
         Assert.Equal(4, objective!.MaxLines);
 
-        float wrapWidth = UITextDrawing.ContentWrapWidth(1920f - 160f, 16f);
+        var objectivesScroll = FindWidget<ScrollPanel>(screen, "ObjectivesPreview");
+        Assert.NotNull(objectivesScroll);
+        float scrollbarGutter = objectivesScroll!.ShowScrollbar ? 10f : 0f;
+        float wrapWidth = UITextDrawing.ContentWrapWidth(
+            objective!.Size.X - scrollbarGutter,
+            objective.Padding);
         var wrapped = UITextDrawing.WrapTextLimited(
             "• Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector while maintaining supply lines",
             wrapWidth,
@@ -121,6 +127,142 @@ public class BriefingScreenTests
 
         Assert.True(wrapped.Count <= 4);
         Assert.DoesNotContain('…', wrapped[^1]);
+    }
+
+    [Fact]
+    public void Briefing_panel_width_derives_from_viewport_margins()
+    {
+        var screen = new BriefingScreen();
+        screen.SetMission(new MissionDefinition
+        {
+            Id = "layout",
+            DisplayName = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+            Description = "Fallback body.",
+            Briefing = new BriefingDefinition
+            {
+                Text = "Commander, review objectives before launch.",
+                ObjectivesPreview = ["Secure the relay corridor"],
+            },
+        });
+
+        var panel = FindWidget<Panel>(screen, "BriefingText");
+        var bodyScroll = FindWidget<ScrollPanel>(screen, "BriefingBodyScroll");
+        var objectives = FindWidget<ScrollPanel>(screen, "ObjectivesPreview");
+        var missionTitle = FindWidget<Label>(screen, "MissionTitle");
+        Assert.NotNull(panel);
+        Assert.NotNull(bodyScroll);
+        Assert.NotNull(objectives);
+        Assert.NotNull(missionTitle);
+
+        float expectedPanelW = ReferenceViewport.X - 160f;
+        Assert.Equal(expectedPanelW, panel!.Size.X, precision: 1);
+        Assert.Equal(expectedPanelW, objectives!.Size.X, precision: 1);
+        Assert.Equal(expectedPanelW - 32f, bodyScroll!.Size.X, precision: 1);
+        Assert.Equal(expectedPanelW - 32f, missionTitle!.Size.X, precision: 1);
+
+        var (panelPos, panelSize) = panel.Resolve(Vector2.Zero, ReferenceViewport);
+        Assert.True(panelPos.X >= 79f);
+        Assert.True(panelPos.X + panelSize.X <= ReferenceViewport.X - 79f);
+    }
+
+    [Fact]
+    public void Briefing_title_chrome_has_viewport_wrap_width()
+    {
+        var screen = new BriefingScreen();
+        var title = FindWidget<Label>(screen, "BriefingTitle");
+        var subtitle = FindWidget<Label>(screen, "BriefingSubtitle");
+        Assert.NotNull(title);
+        Assert.NotNull(subtitle);
+
+        float panelW = ReferenceViewport.X - 160f;
+        Assert.True(title!.WrapWidth > 0f);
+        Assert.True(subtitle!.WrapWidth > 0f);
+        Assert.True(title.Size.X <= 900f);
+        Assert.True(title.Size.X <= panelW + 1f);
+        Assert.True(subtitle.Size.X <= 700f);
+        Assert.True(subtitle.Size.X <= panelW + 1f);
+    }
+
+    [Fact]
+    public void Briefing_compact_viewport_objectives_relayout_without_overlap()
+    {
+        const string longObjective =
+            "Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector while maintaining supply lines";
+
+        var screen = new BriefingScreen();
+        screen.SetMission(new MissionDefinition
+        {
+            DisplayName = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+            Description = "Fallback briefing body.",
+            Briefing = new BriefingDefinition
+            {
+                Text = "Commander, review all primary objectives before launch.",
+                ObjectivesPreview =
+                [
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                ],
+            },
+        });
+
+        var inner = new RecordingTextRenderer(CompactViewport);
+        var renderer = new ScaledUIRenderer(inner, new UIScaler(CompactViewport));
+        screen.Draw(renderer);
+
+        AssertNoHorizontalBleed(inner.TextDraws, CompactViewport);
+
+        var objectivesScroll = FindWidget<ScrollPanel>(screen, "ObjectivesPreview");
+        Assert.NotNull(objectivesScroll);
+        Assert.True(objectivesScroll!.ContentHeight > objectivesScroll.Size.Y);
+        Assert.True(objectivesScroll.MaxScrollOffset(objectivesScroll.Size) > 0f);
+
+        float previousBottom = float.NegativeInfinity;
+        for (int i = 0; i < 4; i++)
+        {
+            var objective = FindWidget<Label>(screen, $"Objective_{i}");
+            Assert.NotNull(objective);
+            Assert.True(objective!.Position.Y >= previousBottom - 0.5f,
+                $"Objective_{i} should stack below prior rows after compact relayout.");
+            previousBottom = objective.Position.Y + objective.Size.Y;
+        }
+    }
+
+    [Fact]
+    public void Briefing_compact_viewport_all_text_avoids_horizontal_bleed()
+    {
+        var screen = new BriefingScreen();
+        screen.SetMission(new MissionDefinition
+        {
+            Id = "compact_bleed",
+            DisplayName = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+            Description = "Fallback briefing body.",
+            Briefing = new BriefingDefinition
+            {
+                Text = string.Join(
+                    " ",
+                    Enumerable.Repeat(
+                        "Commander, reconnaissance probes report multiple hostile staging areas along the contested frontier corridor.",
+                        40)),
+                ObjectivesPreview =
+                [
+                    "Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector",
+                    "Protect the civilian evacuation corridor for fifteen minutes under continuous weapons fire",
+                ],
+            },
+        });
+
+        var inner = new RecordingTextRenderer(CompactViewport);
+        var renderer = new ScaledUIRenderer(inner, new UIScaler(CompactViewport));
+        screen.Draw(renderer);
+
+        foreach (var draw in inner.TextDraws)
+        {
+            float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
+            Assert.True(draw.Position.X >= -1f, draw.Text);
+            Assert.True(draw.Position.X + width <= CompactViewport.X + 1f, draw.Text);
+        }
     }
 
     [Fact]
@@ -199,5 +341,29 @@ public class BriefingScreenTests
 
         public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color) { }
         public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) { }
+    }
+
+    private static void AssertNoHorizontalBleed(
+        IReadOnlyList<(string Text, float FontSize, Vector2 Position)> draws,
+        Vector2 viewport)
+    {
+        foreach (var draw in draws)
+        {
+            float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
+            Assert.True(draw.Position.X >= -1f, draw.Text);
+            Assert.True(draw.Position.X + width <= viewport.X + 1f, draw.Text);
+        }
+    }
+
+    private sealed class RecordingTextRenderer : IUIRenderer
+    {
+        public RecordingTextRenderer(Vector2 viewport) => ViewportSize = viewport;
+        public Vector2 ViewportSize { get; }
+        public List<(string Text, float FontSize, Vector2 Position)> TextDraws { get; } = new();
+
+        public void DrawRect(Vector2 position, Vector2 size, Vector4 color) { }
+        public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color) { }
+        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) =>
+            TextDraws.Add((text, fontSize, position));
     }
 }

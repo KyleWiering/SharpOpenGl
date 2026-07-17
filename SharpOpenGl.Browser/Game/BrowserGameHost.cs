@@ -171,6 +171,23 @@ public sealed class BrowserGameHost : IDisposable
             new Vector2(_viewportWidth, _viewportHeight));
     }
 
+    public void HandleScroll(int x, int y, float deltaY)
+    {
+        var viewport = new Vector2(_viewportWidth, _viewportHeight);
+        var screenPoint = new Vector2(x, y);
+
+        if (_uiManager.HandleScroll(screenPoint, deltaY, viewport))
+            return;
+
+        if (_sceneManager.State != GameState.Playing || IsMissionResultOverlayActive())
+            return;
+
+        var cam = _gameplayRenderer.Camera;
+        var settings = _settingsManager.Current.Clamped();
+        cam.ZoomSpeedMultiplier = settings.CameraZoomSpeed;
+        cam.ZoomTowardScreenPoint(deltaY, screenPoint, viewport);
+    }
+
     public void HandleKey(string key)
     {
         if (_sceneManager.State != GameState.Playing || IsMissionResultOverlayActive()) return;

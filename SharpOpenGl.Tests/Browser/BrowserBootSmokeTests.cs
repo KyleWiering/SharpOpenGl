@@ -17,7 +17,12 @@ public class BrowserBootSmokeTests
         Assert.Contains("sharpLoop.start", razor);
         Assert.Contains("sharpGameInput.attach", razor);
         Assert.Contains("OnFrame", razor);
+        Assert.Contains("OnScroll", razor);
         Assert.Contains("invokeMethodAsync('OnFrame', dt)", gameLoop);
+
+        string gameInput = File.ReadAllText(GameInputJsPath);
+        Assert.Contains("addEventListener('wheel'", gameInput);
+        Assert.Contains("invokeMethodAsync('OnScroll'", gameInput);
     }
 
     [Fact]
@@ -60,6 +65,9 @@ public class BrowserBootSmokeTests
 
     private static string GameLoopJsPath =>
         ResolveRepoFile("SharpOpenGl.Browser", "wwwroot", "js", "game-loop.js");
+
+    private static string GameInputJsPath =>
+        ResolveRepoFile("SharpOpenGl.Browser", "wwwroot", "js", "game-input.js");
 
     private static string BrowserGameHostSourcePath =>
         ResolveRepoFile("SharpOpenGl.Browser", "Game", "BrowserGameHost.cs");

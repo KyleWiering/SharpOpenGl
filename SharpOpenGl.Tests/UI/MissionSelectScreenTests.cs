@@ -1,3 +1,4 @@
+using System.Reflection;
 using OpenTK.Mathematics;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Screens;
@@ -9,6 +10,7 @@ namespace SharpOpenGl.Tests.UI;
 public class MissionSelectScreenTests
 {
     private static readonly Vector2 ReferenceViewport = UIScaler.ReferenceSize;
+    private static readonly Vector2 CompactViewport = new(1024f, 768f);
     private static readonly Vector2 StarMapOrigin = new(40f, 110f);
     private static readonly Vector2 StarMapSize = new(1320f, 860f);
     private static readonly Vector2 StartButtonCenter = new(1550f, 970f);
@@ -267,6 +269,94 @@ public class MissionSelectScreenTests
     }
 
     [Fact]
+    public void MissionSelect_preview_scrolls_with_measured_content_heights()
+    {
+        const string longObjective =
+            "Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector while maintaining supply lines";
+
+        var screen = new MissionSelectScreen();
+        screen.SetMissions(
+        [
+            new MissionEntry
+            {
+                Id = "scroll_stress",
+                Title = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+                Description = "Fallback summary.",
+                BriefingText = string.Join(
+                    " ",
+                    Enumerable.Repeat(
+                        "Commander, hostile forces have fortified relay nodes across the contested frontier corridor.",
+                        30)),
+                ObjectivesPreview =
+                [
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                ],
+                PlanetName = "Helios Prime",
+                StarMapPosition = new Vector2(0.35f, 0.45f),
+            },
+        ]);
+
+        var preview = FindWidget<ScrollPanel>(screen, "MissionPreview");
+        Assert.NotNull(preview);
+        Assert.True(preview!.ContentHeight > preview.Size.Y);
+        Assert.True(preview.MaxScrollOffset(preview.Size) > 0f);
+
+        var body = FindWidget<Label>(screen, "PreviewBody");
+        Assert.NotNull(body);
+        Assert.True(body!.MeasureContentHeight() > 200f);
+
+        float previousBottom = float.NegativeInfinity;
+        for (int i = 0; i < 5; i++)
+        {
+            var objective = FindWidget<Label>(screen, $"PreviewObjective_{i}");
+            Assert.NotNull(objective);
+            Assert.Equal(4, objective!.MaxLines);
+            Assert.True(objective.Position.Y >= previousBottom - 0.5f);
+            previousBottom = objective.Position.Y + objective.Size.Y;
+        }
+    }
+
+    [Fact]
+    public void MissionSelect_compact_viewport_preview_avoids_horizontal_bleed()
+    {
+        var screen = new MissionSelectScreen();
+        screen.SetMissions(
+        [
+            new MissionEntry
+            {
+                Id = "compact_bleed",
+                Title = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+                Description = "A very long summary that should wrap inside the preview panel without overflowing.",
+                BriefingText =
+                    "Commander, hostile forces have established fortified positions across the outer rim. " +
+                    "Neutralize their command infrastructure and secure all relay stations before warp assembly completes.",
+                ObjectivesPreview =
+                [
+                    "Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector",
+                    "Protect the civilian evacuation corridor for fifteen minutes under continuous weapons fire",
+                ],
+                PlanetName = "Helios Prime Extended Colony Zone Alpha Seven",
+                StarMapPosition = new Vector2(0.35f, 0.45f),
+            },
+        ]);
+
+        var inner = new RecordingRenderer(CompactViewport);
+        var renderer = new ScaledUIRenderer(inner, new UIScaler(CompactViewport));
+        screen.Draw(renderer);
+
+        foreach (var draw in inner.TextDraws)
+        {
+            float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
+            Assert.True(draw.Position.X >= -1f, draw.Text);
+            Assert.True(draw.Position.X + width <= CompactViewport.X + 1f, draw.Text);
+        }
+    }
+
+    [Fact]
     public void Planet_labels_draw_scrim_backdrop_on_star_map()
     {
         var screen = new MissionSelectScreen();
@@ -282,6 +372,35 @@ public class MissionSelectScreenTests
             && rect.Size.X >= 40f);
 
         Assert.True(hasScrim, "Planet labels should sit on a semi-opaque scrim for starfield contrast.");
+    }
+
+    private static T? FindWidget<T>(UIScreen screen, string name) where T : Widget
+    {
+        FieldInfo? field = typeof(UIScreen).GetField("_roots", BindingFlags.Instance | BindingFlags.NonPublic);
+        var roots = (IReadOnlyList<Widget>)(field?.GetValue(screen) ?? Array.Empty<Widget>());
+        foreach (Widget root in roots)
+        {
+            T? match = FindWidgetInTree<T>(root, name);
+            if (match != null)
+                return match;
+        }
+
+        return null;
+    }
+
+    private static T? FindWidgetInTree<T>(Widget widget, string name) where T : Widget
+    {
+        if (widget.Name == name && widget is T match)
+            return match;
+
+        foreach (Widget child in widget.Children)
+        {
+            T? childMatch = FindWidgetInTree<T>(child, name);
+            if (childMatch != null)
+                return childMatch;
+        }
+
+        return null;
     }
 
     private static int CountPreviewIconColumnRects(RecordingUIRenderer renderer) =>
@@ -326,7 +445,9 @@ public class MissionSelectScreenTests
 
     private sealed class RecordingRenderer : IUIRenderer
     {
-        public Vector2 ViewportSize { get; } = UIScaler.ReferenceSize;
+        public RecordingRenderer(Vector2 viewport) => ViewportSize = viewport;
+        public RecordingRenderer() : this(UIScaler.ReferenceSize) { }
+        public Vector2 ViewportSize { get; }
         public List<string> Texts { get; } = new();
         public List<(string Text, float FontSize, Vector2 Position, Vector4 Color)> TextDraws { get; } = new();
 

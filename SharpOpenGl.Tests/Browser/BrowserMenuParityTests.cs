@@ -99,6 +99,70 @@ public class BrowserMenuParityTests
     }
 
     [Fact]
+    public void BrowserHost_routes_wheel_to_ui_before_camera_zoom()
+    {
+        string source = File.ReadAllText(BrowserGameHostSourcePath);
+
+        Assert.Contains("public void HandleScroll(int x, int y, float deltaY)", source);
+        Assert.Contains("_uiManager.HandleScroll(screenPoint, deltaY, viewport)", source);
+        Assert.Contains("cam.ZoomTowardScreenPoint(deltaY, screenPoint, viewport)", source);
+    }
+
+    [Fact]
+    public void Briefing_scroll_panel_consumes_wheel_at_browser_390x844()
+    {
+        var viewport = new Vector2(390f, 844f);
+        var mgr = new UIManager(new EventBus());
+        mgr.Resize(viewport);
+
+        var briefing = new BriefingScreen();
+        briefing.SetMission(CreateLongBriefingMission());
+        mgr.Push(briefing);
+
+        var scaler = new UIScaler(viewport);
+        Vector2 scrollPoint = new(960f, 420f);
+
+        Assert.True(mgr.HandleScroll(scaler.ScalePosition(scrollPoint), 1f, viewport));
+    }
+
+    [Fact]
+    public void Briefing_back_navigation_works_at_browser_390x844()
+    {
+        var viewport = new Vector2(390f, 844f);
+        var mgr = new UIManager(new EventBus());
+        mgr.Resize(viewport);
+
+        var briefing = new BriefingScreen();
+        briefing.SetMission(CreateLongBriefingMission());
+        bool backed = false;
+        briefing.BackRequested += () => backed = true;
+        mgr.Push(briefing);
+
+        var scaler = new UIScaler(viewport);
+        var backBtn = Assert.IsType<IconButton>(briefing.FindButton("Back"));
+        var (backPos, backSize) = backBtn.Resolve(Vector2.Zero, UIScaler.ReferenceSize);
+
+        Assert.True(mgr.HandlePointerTapped(scaler.ScalePosition(backPos + backSize * 0.5f), 0, viewport));
+        Assert.True(backed);
+    }
+
+    [Fact]
+    public void Briefing_scroll_panel_consumes_wheel_at_1024x768()
+    {
+        var mgr = new UIManager(new EventBus());
+        mgr.Resize(BrowserHostViewport);
+
+        var briefing = new BriefingScreen();
+        briefing.SetMission(CreateSampleMission());
+        mgr.Push(briefing);
+
+        var scaler = new UIScaler(BrowserHostViewport);
+        Vector2 scrollPoint = new(960f, 420f);
+
+        Assert.True(mgr.HandleScroll(scaler.ScalePosition(scrollPoint), 1f, BrowserHostViewport));
+    }
+
+    [Fact]
     public void Briefing_back_navigation_works_at_1024x768()
     {
         var mgr = new UIManager(new EventBus());
@@ -127,6 +191,26 @@ public class BrowserMenuParityTests
         float centerY = startY + buttonIndex * (btnH + gap) + btnH * 0.5f;
         return new Vector2(960f, centerY);
     }
+
+    private static MissionDefinition CreateLongBriefingMission() => new()
+    {
+        Id = "viewport_matrix_stress",
+        DisplayName = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+        Description = "Fallback briefing body.",
+        Briefing = new BriefingDefinition
+        {
+            Text = string.Join(
+                " ",
+                Enumerable.Repeat(
+                    "Commander, reconnaissance probes report multiple hostile staging areas along the contested frontier corridor.",
+                    40)),
+            ObjectivesPreview =
+            [
+                "Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector",
+                "Protect the civilian evacuation corridor for fifteen minutes under continuous weapons fire",
+            ],
+        },
+    };
 
     private static MissionDefinition CreateSampleMission() => new()
     {

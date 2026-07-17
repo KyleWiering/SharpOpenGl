@@ -24,6 +24,11 @@ public static class GameplayHudLayout
     public const float UnitInfoOffsetX = -280f;
     public const float UnitInfoOffsetY = -164f;
 
+    public const float BuildPanelWidth = 258f;
+    public const float BuildPanelHeight = 500f;
+    public const float BuildPanelOffsetX = -288f;
+    public const float BuildPanelOffsetY = 56f;
+
     public const float PanelGap = 8f;
 
     /// <summary>Axis-aligned HUD panel bounds in logical coordinates.</summary>
@@ -68,6 +73,20 @@ public static class GameplayHudLayout
         }
 
         hud.UnitInfoPanel.Position = new Vector2(UnitInfoOffsetX, UnitInfoOffsetY);
+
+        hud.BuildPanel.Size = new Vector2(BuildPanelWidth, BuildPanelHeight);
+        hud.BuildPanel.Position = new Vector2(BuildPanelOffsetX, BuildPanelOffsetY);
+
+        var (buildPanelPos, buildPanelSize) = hud.BuildPanel.Resolve(Vector2.Zero, viewport);
+        float buildPanelRight = buildPanelPos.X + buildPanelSize.X;
+        float maxRight = viewport.X - PanelGap;
+        if (buildPanelRight > maxRight)
+        {
+            float shift = buildPanelRight - maxRight;
+            hud.BuildPanel.Position = new Vector2(
+                hud.BuildPanel.Position.X - shift,
+                hud.BuildPanel.Position.Y);
+        }
     }
 
     /// <summary>Resolve widget bounds for overlap audits.</summary>

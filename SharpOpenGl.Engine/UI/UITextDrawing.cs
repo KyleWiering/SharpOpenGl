@@ -80,6 +80,41 @@ public static class UITextDrawing
     public static float ContentWrapWidth(float containerWidth, float horizontalPadding = 16f) =>
         Math.Max(0f, containerWidth - horizontalPadding * 2f);
 
+    /// <summary>
+    /// Tighten logical wrap width when <see cref="ScaledUIRenderer.MinPhysicalFontSize"/>
+    /// prevents text from shrinking as much as the panel width at compact viewports.
+    /// </summary>
+    public static float ScaleAwareWrapWidth(float wrapWidth, float fontSize, UIScaler? scaler)
+    {
+        if (scaler == null || wrapWidth <= 0f)
+            return wrapWidth;
+
+        float physicalFont = MathF.Max(fontSize * scaler.UniformScale, ScaledUIRenderer.MinPhysicalFontSize);
+        float fontScaleRatio = physicalFont / fontSize;
+        if (fontScaleRatio <= scaler.Scale.X + 0.001f)
+            return wrapWidth;
+
+        return wrapWidth * (scaler.Scale.X / fontScaleRatio);
+    }
+
+    /// <summary>
+    /// Tighten logical wrap width using <see cref="IUIRenderer.ScaleToPhysical"/> and
+    /// <see cref="IUIRenderer.ResolveFontSize"/> (e.g. gameplay <see cref="ScaledUIRenderer"/>).
+    /// </summary>
+    public static float ScaleAwareWrapWidth(float wrapWidth, float fontSize, IUIRenderer? renderer)
+    {
+        if (renderer == null || wrapWidth <= 0f)
+            return wrapWidth;
+
+        float uniformScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float physicalFont = renderer.ResolveFontSize(fontSize);
+        float fontScaleRatio = physicalFont / fontSize;
+        if (fontScaleRatio <= uniformScale + 0.001f)
+            return wrapWidth;
+
+        return wrapWidth * (uniformScale / fontScaleRatio);
+    }
+
     /// <summary>Maximum drawable lines that fit within <paramref name="maxHeight"/>.</summary>
     public static int MaxLinesFromHeight(float maxHeight, float fontSize)
     {
@@ -101,7 +136,7 @@ public static class UITextDrawing
         float ellipsisWidth = UIFontMetrics.MeasureTextWidth(ellipsis, fontSize);
         float budget = Math.Max(0f, maxWidth - ellipsisWidth);
         if (budget <= 0f)
-            return ellipsis;
+            return FitsWidth(ellipsis, maxWidth, fontSize) ? ellipsis : string.Empty;
 
         var builder = new System.Text.StringBuilder();
         foreach (char ch in text)
@@ -113,7 +148,11 @@ public static class UITextDrawing
         }
 
         string trimmed = builder.ToString().TrimEnd();
-        return trimmed.Length == 0 ? ellipsis : trimmed + ellipsis;
+        if (trimmed.Length == 0)
+            return FitsWidth(ellipsis, maxWidth, fontSize) ? ellipsis : string.Empty;
+
+        string truncated = trimmed + ellipsis;
+        return FitsWidth(truncated, maxWidth, fontSize) ? truncated : string.Empty;
     }
 
     /// <summary>Wrap text and cap the number of lines, truncating the last line with ellipsis when needed.</summary>

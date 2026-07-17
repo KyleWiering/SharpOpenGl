@@ -109,8 +109,8 @@ public sealed class GameplayHUD : UIScreen
         {
             Name = "BuildPanel",
             Anchor = Anchor.TopRight,
-            Position = new Vector2(-280f, 56f),
-            Size = new Vector2(270f, 500f),
+            Position = new Vector2(GameplayHudLayout.BuildPanelOffsetX, GameplayHudLayout.BuildPanelOffsetY),
+            Size = new Vector2(GameplayHudLayout.BuildPanelWidth, GameplayHudLayout.BuildPanelHeight),
             Visible = false,
         };
         AddWidget(BuildPanel);
@@ -355,10 +355,9 @@ public sealed class GameplayHUD : UIScreen
             return;
 
         Vector2 viewport = UIScaler.ReferenceSize;
-        float maxWidth = viewport.X - 280f;
-        float fontSize = UIFontMetrics.FitFontSize(
-            PlacementHint, PlacementHintFontSize, maxWidth, PlacementHintMinFontSize);
-        string text = UITextDrawing.TruncateWithEllipsis(PlacementHint, maxWidth, fontSize);
+        float maxLogicalWidth = viewport.X - 280f;
+        var (text, fontSize) = FitHintLabel(
+            renderer, PlacementHint, maxLogicalWidth, PlacementHintFontSize, PlacementHintMinFontSize);
         float textWidth = UIFontMetrics.MeasureTextWidth(text, fontSize);
         float textHeight = UIFontMetrics.GetGlyphHeight(fontSize);
 
@@ -389,6 +388,28 @@ public sealed class GameplayHUD : UIScreen
             textColor);
     }
 
+    private static (string Text, float LogicalDrawSize) FitHintLabel(
+        IUIRenderer renderer, string text, float maxLogicalWidth,
+        float preferredLogicalSize, float minLogicalSize)
+    {
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float viewportMargin = renderer.ScaleToPhysical(32f);
+        maxPhysicalWidth = MathF.Min(
+            maxPhysicalWidth,
+            MathF.Max(0f, renderer.ViewportSize.X - viewportMargin));
+
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+        float fittedPhysical = UIFontMetrics.FitFontSize(
+            text, preferredPhysical, maxPhysicalWidth, minPhysical);
+        string display = UITextDrawing.TruncateWithEllipsis(text, maxPhysicalWidth, fittedPhysical);
+        float logicalDrawSize = fittedPhysical / physicalScale;
+        return (display, logicalDrawSize);
+    }
+
     /// <inheritdoc/>
     public override bool HandleScroll(Vector2 screenPoint, float deltaY, Vector2 viewportSize)
     {
@@ -400,6 +421,10 @@ public sealed class GameplayHUD : UIScreen
 
         if (BuildPanel.Visible &&
             BuildPanel.HandleScroll(screenPoint, deltaY, Vector2.Zero, viewportSize))
+            return true;
+
+        if (ObjectivePanel.Visible &&
+            ObjectivePanel.HandleScroll(screenPoint, deltaY, Vector2.Zero, viewportSize))
             return true;
 
         return base.HandleScroll(screenPoint, deltaY, viewportSize);

@@ -12,6 +12,7 @@ permissions:
 jobs:
   build-and-screenshot:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v5
@@ -48,6 +49,7 @@ jobs:
           fi
 
       - name: Record gameplay demo video
+        timeout-minutes: 5
         run: |
           xvfb-run -a -s "-screen 0 1024x768x24" \
             dotnet run --project SharpOpenGl --configuration Release --no-build -- \
