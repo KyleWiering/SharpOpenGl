@@ -73,15 +73,18 @@ public class MissionPlaythroughTests
         Assert.Contains(mission.DemoScript, s => s.Type == "wait");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_move");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_target");
+        Assert.Contains(mission.DemoScript, s => s.Type == "harvest");
+        Assert.Contains(mission.DemoScript, s => s.Type == "move_to");
         Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_objective");
         Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_for_construction");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "power_reactor");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
         Assert.Contains(mission.DemoScript, s => s.Type == "build_unit");
+        Assert.Contains(mission.StartConditions.StartingUnits, u => u == "miner_basic");
     }
 
     [Fact]
-    public void Example_scenario_demoScript_wait_sum_is_ci_fast()
+    public void Example_scenario_demoScript_wait_sum_is_ci_watchable()
     {
         var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
         var mission = loader.Load("example_scenario")!;
@@ -89,9 +92,14 @@ public class MissionPlaythroughTests
         float waitSum = mission.DemoScript
             .Where(s => s.Type == "wait")
             .Sum(s => s.Seconds);
+        float harvestSum = mission.DemoScript
+            .Where(s => s.Type == "harvest")
+            .Sum(s => s.Seconds);
 
-        // Fixed waits only; sum ~8.5 sim-s → wall ≈ 8.5/4 + DemoScriptDoneHold (~1s) ≪ DemoMaxDurationSeconds 20
-        Assert.True(waitSum <= 10f, $"example_scenario wait sum {waitSum} exceeds CI cap of 10 sim-seconds (hard max 12).");
+        // Multi-act fixed waits + harvest; at 2× sim ≈ wait/2 + hold ≪ DemoMaxDurationSeconds 40
+        Assert.True(waitSum >= 20f, $"example_scenario wait sum {waitSum} is too short for a watchable multi-act demo.");
+        Assert.True(waitSum <= 32f, $"example_scenario wait sum {waitSum} exceeds CI watchable cap of 32 sim-seconds.");
+        Assert.True(harvestSum >= 2f, "demo should include a harvest beat of at least 2 sim-seconds.");
         Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_objective");
         Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_for_construction");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_move");
@@ -100,6 +108,8 @@ public class MissionPlaythroughTests
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
         Assert.Contains(mission.DemoScript, s => s.Type == "build_unit");
         Assert.Contains(mission.DemoScript, s => s.Type == "camera_pan");
+        Assert.True(mission.DemoScript.Count(s => s.Type == "camera_pan") >= 5,
+            "multi-act demo should pan the camera across fleet, combat, harvest, base, and close.");
     }
 
     [Fact]

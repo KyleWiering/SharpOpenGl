@@ -17,7 +17,7 @@
   },
   "startConditions": {
     "playerSpawn": [3, 3],
-    "startingUnits": ["scout_light", "scout_light", "cruiser_heavy"],
+    "startingUnits": ["scout_light", "scout_light", "cruiser_heavy", "miner_basic"],
     "startingResources": { "energy": 500, "minerals": 450, "data": 100, "crew": 10 }
   },
   "objectives": {
@@ -87,23 +87,37 @@
   },
   "demoScript": [
     { "type": "camera_pan", "position": [3, 3], "height": 200 },
-    { "type": "wait", "seconds": 0.5 },
-    { "type": "select_units", "filter": "all" },
-    { "type": "wait", "seconds": 0.25 },
-    { "type": "attack_move", "position": [28, 28] },
-    { "type": "wait", "seconds": 2 },
-    { "type": "camera_pan", "position": [32, 32], "height": 180 },
     { "type": "wait", "seconds": 1.5 },
     { "type": "select_units", "filter": "all" },
+    { "type": "wait", "seconds": 0.75 },
+
+    { "type": "attack_move", "position": [28, 28] },
+    { "type": "wait", "seconds": 4 },
+    { "type": "camera_pan", "position": [32, 32], "height": 180 },
+    { "type": "wait", "seconds": 2 },
+
+    { "type": "select_units", "filter": "all" },
     { "type": "attack_target", "targetTag": "enemy_scouts" },
+    { "type": "wait", "seconds": 5 },
+    { "type": "camera_pan", "position": [30, 30], "height": 160 },
+    { "type": "wait", "seconds": 2 },
+
+    { "type": "select_units", "filter": "miner_basic" },
+    { "type": "move_to", "position": [45, 20] },
     { "type": "wait", "seconds": 2.5 },
+    { "type": "camera_pan", "position": [45, 20], "height": 170 },
+    { "type": "harvest", "seconds": 3.5 },
+
     { "type": "camera_pan", "position": [99, 95], "height": 170 },
-    { "type": "wait", "seconds": 0.25 },
+    { "type": "wait", "seconds": 1 },
     { "type": "place_building", "buildingId": "power_reactor", "position": [96, 92] },
     { "type": "place_building", "buildingId": "shipyard_small", "position": [99, 95] },
     { "type": "build_unit", "unitId": "fighter_basic", "buildingTag": "shipyard_small" },
-    { "type": "wait", "seconds": 1 },
+    { "type": "wait", "seconds": 3 },
+
     { "type": "camera_pan", "position": [32, 32], "height": 240 },
-    { "type": "wait", "seconds": 0.5 }
+    { "type": "wait", "seconds": 2 },
+    { "type": "camera_pan", "position": [50, 50], "height": 280 },
+    { "type": "wait", "seconds": 1.5 }
   ]
 }
