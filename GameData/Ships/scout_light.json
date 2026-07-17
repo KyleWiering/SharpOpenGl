@@ -1,0 +1,31 @@
+{
+  "id": "scout_light",
+  "displayName": "Whisper Scout",
+  "category": "scout",
+  "shipRole": "military",
+  "mesh": "meshes/scout_light.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 60, "shields": 20, "armor": 5 },
+    "movement": { "speed": 120, "acceleration": 180, "turnRate": 270 },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 8, "range": 150, "fireRate": 3.0 }
+    ],
+    "weaponSkill": {
+      "accuracyBonus": 0.08,
+      "reloadModifier": 0.75,
+      "rangeTier": "medium"
+    },
+    "sightRadius": 8
+  },
+  "defaultStance": "defensive",
+  "cost": { "energy": 30, "minerals": 40, "data": 10, "crew": 1 },
+  "buildTime": 8,
+  "articulation": {
+    "parts": [
+      { "id": "sensor_dish", "partType": "SensorDish", "localPivot": [0, 0.35, 0.45], "yawMin": -120, "yawMax": 120, "pitchMin": -15, "pitchMax": 45, "idleSweep": true, "meshKey": "articulated/sensor_dish/scout_light" },
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.25, 0.1], "yawMin": -90, "yawMax": 90, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/scout_light" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 35, "meshKey": "articulated/turret_pitch/scout_light" }
+    ]
+  }
+}

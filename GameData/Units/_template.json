@@ -1,0 +1,15 @@
+{
+  "_comment": "Template for unit definitions.",
+  "id": "unit_template",
+  "displayName": "Unnamed Unit",
+  "category": "worker",
+  "mesh": "",
+  "fallbackMesh": "default",
+  "components": {
+    "health":   { "maxHP": 50,  "shields": 0, "armor": 0 },
+    "movement": { "speed": 50,  "acceleration": 60, "turnRate": 180 },
+    "weapons":  []
+  },
+  "cost":      { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 10
+}

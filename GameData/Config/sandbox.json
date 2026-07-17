@@ -1,0 +1,8 @@
+{
+  "startingResources": { "energy": 10000, "minerals": 10000, "data": 5000, "crew": 50 },
+  "spawnHostileAi": false,
+  "quietStart": true,
+  "startingUnitId": "support_repair",
+  "initialRevealRadius": 36,
+  "chunkLoadRadius": 2
+}

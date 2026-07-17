@@ -1,0 +1,27 @@
+{
+  "_comment": "Template for ship definitions. All fields shown with defaults.",
+  "id": "ship_template",
+  "displayName": "Unnamed Ship",
+  "category": "fighter",
+  "_comment_shipRole": "Optional: military | engineering | political. Omitted hulls infer from category (miner/freighter/transport/support → engineering; hero → political; else military).",
+  "shipRole": "military",
+  "mesh": "",
+  "fallbackMesh": "default",
+  "components": {
+    "health":   { "maxHP": 100,  "shields": 0,   "armor": 0 },
+    "movement": { "speed": 60,   "acceleration": 60, "turnRate": 90 },
+    "weapons":  [],
+    "abilities": []
+  },
+  "cost":      { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 10,
+  "_comment_articulation": "Optional articulation block spawns child part entities (turrets, arms, etc.). Omit entirely when the hull has no articulated parts.",
+  "_comment_articulation_example": {
+    "articulation": {
+      "parts": [
+        { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.4, 0.6], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "slewRate": 90, "meshKey": "articulated/turret_yaw/corvette_fast" },
+        { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "slewRate": 90, "meshKey": "articulated/turret_pitch/corvette_fast" }
+      ]
+    }
+  }
+}

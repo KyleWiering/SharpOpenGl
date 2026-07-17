@@ -1,0 +1,88 @@
+{
+  "id": "shipyard_medium",
+  "displayName": "Medium Shipyard",
+  "category": "base",
+  "mesh": "meshes/shipyard_medium.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 1500, "shields": 0, "armor": 75 },
+    "building": {
+      "buildingType": "shipyard_medium",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 3],
+      "rotates": false
+    },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 28, "range": 360, "fireRate": 2.5 },
+      { "slot": 1, "type": "cannon", "damage": 65, "range": 420, "fireRate": 0.55 }
+    ],
+    "sightRadius": 10
+  },
+  "producible": [
+    "scout_light",
+    "fighter_basic",
+    "interceptor_mk2",
+    "drone_swarm",
+    "miner_basic",
+    "miner_eva",
+    "miner_tractor",
+    "bomber_heavy",
+    "corvette_fast",
+    "frigate_strike",
+    "destroyer_assault",
+    "gunship_heavy",
+    "transport_cargo"
+  ],
+  "articulation": {
+    "parts": [
+      {
+        "id": "crane",
+        "partType": "Crane",
+        "localPivot": [0, 5.46, 0.42],
+        "yawMin": -45,
+        "yawMax": 45,
+        "idleSweep": true,
+        "idleSweepSpeed": 20,
+        "slewRate": 60,
+        "meshKey": "station_part:shipyard_crane"
+      },
+      {
+        "id": "bay_door",
+        "partType": "BayDoor",
+        "localPivot": [0, 1.96, -1.26],
+        "pitchMin": 0,
+        "pitchMax": 90,
+        "slewRate": 60,
+        "meshKey": "station_part:shipyard_bay_door"
+      }
+    ]
+  },
+  "cost": { "energy": 220, "minerals": 320, "data": 25, "crew": 4 },
+  "buildTime": 55,
+  "articulation": {
+    "parts": [
+      {
+        "id": "shipyard_crane",
+        "partType": "Crane",
+        "localPivot": [0, 5.46, 0.42],
+        "yawMin": -45,
+        "yawMax": 45,
+        "idleSweep": true,
+        "idleSweepSpeed": 20,
+        "slewRate": 60,
+        "meshKey": "station_part:shipyard_crane"
+      },
+      {
+        "id": "shipyard_door",
+        "partType": "BayDoor",
+        "localPivot": [0, 1.96, -1.26],
+        "pitchMin": 0,
+        "pitchMax": 90,
+        "idleSweep": false,
+        "slewRate": 60,
+        "meshKey": "station_part:shipyard_bay_door"
+      }
+    ]
+  }
+}

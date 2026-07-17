@@ -1,0 +1,57 @@
+{
+  "id": "shipyard_small",
+  "displayName": "Small Shipyard",
+  "category": "base",
+  "mesh": "meshes/shipyard_small.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 800, "shields": 0, "armor": 50 },
+    "building": {
+      "buildingType": "shipyard_small",
+      "productionRate": 1.2,
+      "buildQueue": [],
+      "footprint": [2, 2],
+      "rotates": false
+    },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 18, "range": 280, "fireRate": 2.8 }
+    ],
+    "sightRadius": 8
+  },
+  "producible": [
+    "scout_light",
+    "fighter_basic",
+    "interceptor_mk2",
+    "drone_swarm",
+    "miner_basic",
+    "miner_eva",
+    "miner_tractor"
+  ],
+  "cost": { "energy": 120, "minerals": 180, "data": 0, "crew": 2 },
+  "buildTime": 40,
+  "articulation": {
+    "parts": [
+      {
+        "id": "shipyard_crane",
+        "partType": "Crane",
+        "localPivot": [0, 5.46, 0.42],
+        "yawMin": -45,
+        "yawMax": 45,
+        "idleSweep": true,
+        "idleSweepSpeed": 20,
+        "slewRate": 60,
+        "meshKey": "station_part:shipyard_crane"
+      },
+      {
+        "id": "shipyard_door",
+        "partType": "BayDoor",
+        "localPivot": [0, 1.96, -1.26],
+        "pitchMin": 0,
+        "pitchMax": 90,
+        "idleSweep": false,
+        "slewRate": 60,
+        "meshKey": "station_part:shipyard_bay_door"
+      }
+    ]
+  }
+}

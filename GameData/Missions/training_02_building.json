@@ -1,0 +1,81 @@
+{
+  "id": "training_02_building",
+  "displayName": "Training: First Base",
+  "description": "Establish a Base HQ with your builder, bring power online, construct a small shipyard, and produce one fighter. Unlimited resources; no hostiles.",
+  "map": "sector_alpha",
+  "planetName": "Foundation Yard",
+  "starMapPosition": [0.14, 0.18],
+  "planetColor": "#4ECF8A",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, Foundation Yard is a controlled construction range. You start with a single Restoration Tender (support repair) and no free base. Place Base HQ first, then a Power Reactor — the small shipyard will not unlock until both HQ and power are online. Build the Small Shipyard and queue one basic fighter. Resources are unlimited for this exercise; there are no hostiles.",
+    "objectivesPreview": [
+      "Build Base HQ (command center)",
+      "Place a Power Reactor (required before the shipyard unlocks)",
+      "Build a Small Shipyard",
+      "Produce one basic fighter"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [12, 12],
+    "startingUnits": ["support_repair"],
+    "startingBuildings": [],
+    "spawnDefaultBase": false,
+    "unlimitedResources": true,
+    "startingResources": { "energy": 5000, "minerals": 5000, "data": 500, "crew": 50 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "build_hq",
+        "type": "construct",
+        "target": "command_center:1",
+        "description": "Build Base HQ"
+      },
+      {
+        "id": "build_power",
+        "type": "construct",
+        "target": "power_reactor:1",
+        "description": "Place a Power Reactor"
+      },
+      {
+        "id": "build_shipyard",
+        "type": "construct",
+        "target": "shipyard_small:1",
+        "description": "Build small shipyard"
+      },
+      {
+        "id": "produce_fighter",
+        "type": "construct",
+        "target": "unit:fighter_basic:1",
+        "description": "Produce one fighter"
+      }
+    ],
+    "secondary": []
+  },
+  "triggers": [],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "unit_destroyed", "target": "player_support" },
+  "rewards": {
+    "resources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+    "xp": 50,
+    "unlocks": []
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [12, 12], "height": 220 },
+    { "type": "wait", "seconds": 1 },
+    { "type": "select_units", "filter": "support_repair" },
+    { "type": "wait", "seconds": 0.5 },
+    { "type": "place_building", "buildingId": "command_center", "position": [16, 14] },
+    { "type": "wait_for_construction", "buildingId": "command_center", "position": [16, 14] },
+    { "type": "wait_objective", "objectiveId": "build_hq" },
+    { "type": "place_building", "buildingId": "power_reactor", "position": [18, 20] },
+    { "type": "wait_for_construction", "buildingId": "power_reactor", "position": [18, 20] },
+    { "type": "wait_objective", "objectiveId": "build_power" },
+    { "type": "place_building", "buildingId": "shipyard_small", "position": [31, 28] },
+    { "type": "wait_for_construction", "buildingId": "shipyard_small", "position": [31, 28] },
+    { "type": "wait_objective", "objectiveId": "build_shipyard" },
+    { "type": "build_unit", "unitId": "fighter_basic", "buildingTag": "shipyard_small" },
+    { "type": "wait_objective", "objectiveId": "produce_fighter" }
+  ]
+}

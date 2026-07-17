@@ -1,0 +1,52 @@
+{
+  "id": "sensor_array",
+  "displayName": "Sensor Array",
+  "category": "base",
+  "mesh": "meshes/sensor_array.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 450, "shields": 0, "armor": 25 },
+    "building": {
+      "buildingType": "sensor_array",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [2, 2],
+      "rotates": true
+    },
+    "sightRadius": 18
+  },
+  "articulation": {
+    "parts": [
+      {
+        "id": "sensor_dish",
+        "partType": "SensorDish",
+        "localPivot": [0, 4.06, 0.56],
+        "meshOffset": [0, -4.06, -0.56],
+        "yawMin": -60,
+        "yawMax": 60,
+        "idleSweep": true,
+        "idleSweepSpeed": 25,
+        "slewRate": 90,
+        "meshKey": "station_part:sensor_dish"
+      }
+    ]
+  },
+  "cost": { "energy": 80, "minerals": 70, "data": 15, "crew": 1 },
+  "buildTime": 22,
+  "articulation": {
+    "parts": [
+      {
+        "id": "sensor_dish",
+        "partType": "SensorDish",
+        "localPivot": [0, 4.06, 0.56],
+        "meshOffset": [0, -4.06, -0.56],
+        "yawMin": -60,
+        "yawMax": 60,
+        "idleSweep": true,
+        "idleSweepSpeed": 25,
+        "slewRate": 90,
+        "meshKey": "station_part:sensor_dish"
+      }
+    ]
+  }
+}

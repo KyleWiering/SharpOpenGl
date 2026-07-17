@@ -1,0 +1,35 @@
+{
+  "id": "resource_refinery",
+  "displayName": "Resource Refinery",
+  "category": "base",
+  "mesh": "meshes/resource_refinery.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 900, "shields": 0, "armor": 55 },
+    "building": {
+      "buildingType": "resource_refinery",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 2],
+      "rotates": false
+    },
+    "sightRadius": 7
+  },
+  "cost": { "energy": 140, "minerals": 200, "data": 10, "crew": 2 },
+  "buildTime": 35,
+  "articulation": {
+    "parts": [
+      {
+        "id": "refinery_arm",
+        "partType": "Crane",
+        "localPivot": [1.26, 4.06, 0.84],
+        "yawMin": -40,
+        "yawMax": 40,
+        "idleSweep": true,
+        "idleSweepSpeed": 16,
+        "slewRate": 60,
+        "meshKey": "station_part:refinery_arm"
+      }
+    ]
+  }
+}

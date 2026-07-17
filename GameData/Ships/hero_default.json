@@ -1,0 +1,34 @@
+{
+  "_comment": "Hero ship template. Copy this file and rename to define a new hero.",
+  "id": "hero_default",
+  "displayName": "Vanguard",
+  "category": "hero",
+  "shipRole": "political",
+  "mesh": "meshes/hero_vanguard.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 1000, "shields": 500, "armor": 50 },
+    "movement": { "speed": 120, "acceleration": 60, "turnRate": 90 },
+    "weapons": [
+      { "slot": 0, "type": "laser",   "damage": 25,  "range": 300, "fireRate": 4.0 },
+      { "slot": 1, "type": "missile", "damage": 100, "range": 600, "fireRate": 0.5 }
+    ],
+    "abilities": [
+      { "slot": 0, "id": "shield_boost", "cooldown": 30 },
+      { "slot": 1, "id": "emp_burst",    "cooldown": 60 }
+    ],
+    "hero": {
+      "level": 1,
+      "xp": 0,
+      "upgradeTree": "tech_trees/hero_vanguard.json"
+    }
+  },
+  "articulation": {
+    "parts": [
+      { "id": "primary_yaw", "partType": "TurretYaw", "localPivot": [0, 0.5, 0.8], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/hero_default" },
+      { "id": "primary_pitch", "partType": "TurretPitch", "ownerPartId": "primary_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/hero_default" },
+      { "id": "secondary_yaw", "partType": "TurretYaw", "localPivot": [0, 0.45, -0.3], "yawMin": -120, "yawMax": 120, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/hero_default" },
+      { "id": "secondary_pitch", "partType": "TurretPitch", "ownerPartId": "secondary_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -10, "pitchMax": 45, "meshKey": "articulated/turret_pitch/hero_default" }
+    ]
+  }
+}

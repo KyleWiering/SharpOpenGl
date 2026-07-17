@@ -1,0 +1,68 @@
+{
+  "_comment": "Race-level shield doctrine. Non-shield races always spawn with MaxShields=0; shielded races scale hull shields by multiplier.",
+  "version": 1,
+  "races": [
+    {
+      "id": "terran",
+      "displayName": "Terran Coalition",
+      "hasShields": true,
+      "shieldMultiplier": 1.0,
+      "regenPerSecond": 8,
+      "shieldTint": [0.35, 0.65, 1.0]
+    },
+    {
+      "id": "vesper",
+      "displayName": "Vesper Syndicate",
+      "hasShields": true,
+      "shieldMultiplier": 0.75,
+      "regenPerSecond": 5,
+      "shieldTint": [0.2, 0.9, 1.0]
+    },
+    {
+      "id": "korath",
+      "displayName": "Korath Dominion",
+      "hasShields": false,
+      "shieldMultiplier": 0,
+      "shieldTint": [0.6, 0.3, 0.2]
+    },
+    {
+      "id": "aetherian",
+      "displayName": "Aetherian Collective",
+      "hasShields": true,
+      "shieldMultiplier": 1.1,
+      "regenPerSecond": 12,
+      "shieldTint": [0.55, 0.35, 1.0]
+    },
+    {
+      "id": "nexar",
+      "displayName": "Nexar Hive",
+      "hasShields": false,
+      "shieldMultiplier": 0,
+      "shieldTint": [0.75, 0.55, 0.15]
+    },
+    {
+      "id": "solari",
+      "displayName": "Solari Ascendancy",
+      "hasShields": true,
+      "shieldMultiplier": 1.25,
+      "regenPerSecond": 15,
+      "shieldTint": [1.0, 0.85, 0.4]
+    },
+    {
+      "id": "voidborn",
+      "displayName": "Voidborn Exiles",
+      "hasShields": true,
+      "shieldMultiplier": 0.5,
+      "regenPerSecond": 3,
+      "shieldTint": [0.55, 0.2, 0.9]
+    },
+    {
+      "id": "cryo",
+      "displayName": "Cryo Legion",
+      "hasShields": true,
+      "shieldMultiplier": 1.15,
+      "regenPerSecond": 10,
+      "shieldTint": [0.5, 0.9, 1.0]
+    }
+  ]
+}

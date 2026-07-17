@@ -1,0 +1,35 @@
+{
+  "id": "bomber_heavy",
+  "displayName": "Thunderhawk Bomber",
+  "category": "bomber",
+  "shipRole": "military",
+  "mesh": "meshes/bomber_heavy.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 300, "shields": 100, "armor": 40 },
+    "movement": { "speed": 50, "acceleration": 30, "turnRate": 140 },
+    "weapons": [
+      { "slot": 0, "type": "torpedo", "damage": 200, "range": 400, "fireRate": 0.3 },
+      { "slot": 1, "type": "bomb", "damage": 350, "range": 100, "fireRate": 0.2 }
+    ],
+    "weaponSkill": {
+      "accuracyBonus": 0.03,
+      "reloadModifier": 1.20,
+      "rangeTier": "long"
+    },
+    "squadMember": {
+      "formationSlot": -1,
+      "formationOffset": [0, 0, 0]
+    }
+  },
+  "cost": { "energy": 150, "minerals": 200, "data": 25, "crew": 3 },
+  "buildTime": 35,
+  "articulation": {
+    "parts": [
+      { "id": "bay_port", "partType": "BayDoor", "localPivot": [-0.35, 0.15, 0.25], "pitchMin": 0, "pitchMax": 90, "meshKey": "articulated/bay_door/bomber_heavy/port" },
+      { "id": "bay_starboard", "partType": "BayDoor", "localPivot": [0.35, 0.15, 0.25], "pitchMin": 0, "pitchMax": 90, "meshKey": "articulated/bay_door/bomber_heavy/starboard" },
+      { "id": "turret_yaw", "partType": "TurretYaw", "localPivot": [0, 0.32, -0.2], "yawMin": -100, "yawMax": 100, "idleSweep": true, "idleSweepSpeed": 8, "meshKey": "articulated/turret_yaw/bomber_heavy" },
+      { "id": "turret_pitch", "partType": "TurretPitch", "ownerPartId": "turret_yaw", "localPivot": [0, 0.15, 0.2], "pitchMin": -15, "pitchMax": 40, "meshKey": "articulated/turret_pitch/bomber_heavy" }
+    ]
+  }
+}

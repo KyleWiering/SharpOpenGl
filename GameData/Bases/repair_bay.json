@@ -1,0 +1,45 @@
+{
+  "id": "repair_bay",
+  "displayName": "Repair Bay",
+  "category": "base",
+  "mesh": "meshes/repair_bay.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 1100, "shields": 0, "armor": 60 },
+    "building": {
+      "buildingType": "repair_bay",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [3, 3],
+      "rotates": false
+    },
+    "sightRadius": 8
+  },
+  "cost": { "energy": 160, "minerals": 240, "data": 20, "crew": 3 },
+  "buildTime": 42,
+  "articulation": {
+    "parts": [
+      {
+        "id": "repair_door",
+        "partType": "BayDoor",
+        "localPivot": [0, 2.24, -1.54],
+        "pitchMin": 0,
+        "pitchMax": 90,
+        "idleSweep": false,
+        "slewRate": 60,
+        "meshKey": "station_part:repair_bay_door"
+      },
+      {
+        "id": "repair_crane",
+        "partType": "Crane",
+        "localPivot": [0, 5.74, 0],
+        "yawMin": -45,
+        "yawMax": 45,
+        "idleSweep": true,
+        "idleSweepSpeed": 20,
+        "slewRate": 60,
+        "meshKey": "station_part:repair_crane"
+      }
+    ]
+  }
+}

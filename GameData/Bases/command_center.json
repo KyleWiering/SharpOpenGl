@@ -1,0 +1,39 @@
+{
+  "id": "command_center",
+  "displayName": "Command Center",
+  "category": "base",
+  "mesh": "meshes/command_center.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 2000, "shields": 0, "armor": 100 },
+    "building": {
+      "buildingType": "command_center",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [2, 2],
+      "rotates": false
+    },
+    "weapons": [
+      { "slot": 0, "type": "beam", "damage": 45, "range": 480, "fireRate": 1.2 },
+      { "slot": 1, "type": "missile", "damage": 95, "range": 620, "fireRate": 0.35 }
+    ],
+    "sightRadius": 12
+  },
+  "cost": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+  "buildTime": 0,
+  "articulation": {
+    "parts": [
+      {
+        "id": "comm_mast",
+        "partType": "SensorDish",
+        "localPivot": [0, 6.65, 0.35],
+        "yawMin": -90,
+        "yawMax": 90,
+        "idleSweep": true,
+        "idleSweepSpeed": 20,
+        "slewRate": 90,
+        "meshKey": "station_part:comm_mast"
+      }
+    ]
+  }
+}

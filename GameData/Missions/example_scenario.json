@@ -1,0 +1,123 @@
+{
+  "id": "example_scenario",
+  "displayName": "First Contact",
+  "description": "A training scenario: move your fleet to the waypoint and neutralize enemy scouts.",
+  "map": "sector_alpha",
+  "planetName": "Sigma Drift",
+  "starMapPosition": [0.35, 0.78],
+  "planetColor": "#88CCFF",
+  "prerequisiteMissionId": "tutorial_01",
+  "briefing": {
+    "text": "Commander, our sensors have detected enemy scout activity in Sector Alpha. Move your fleet to the marked waypoint and eliminate any hostiles you encounter. Reinforcements will arrive shortly after engagement.",
+    "objectivesPreview": [
+      "Move fleet to the waypoint",
+      "Destroy all enemy scouts",
+      "Bonus: train a fighter from the shipyard"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [3, 3],
+    "startingUnits": ["scout_light", "scout_light", "cruiser_heavy", "miner_basic"],
+    "startingResources": { "energy": 500, "minerals": 450, "data": 100, "crew": 10 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "reach_waypoint",
+        "type": "reach_area",
+        "position": [32, 32],
+        "radius": 5.0,
+        "description": "Move any ship to the waypoint at sector center"
+      },
+      {
+        "id": "destroy_scouts",
+        "type": "destroy_target",
+        "target": "enemy_scouts",
+        "description": "Destroy all enemy scout ships"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "no_losses",
+        "type": "condition",
+        "condition": "player_units_alive >= 3",
+        "description": "Complete the mission without losing any ships"
+      },
+      {
+        "id": "train_fighter",
+        "type": "construct",
+        "target": "unit:fighter_basic:1",
+        "description": "Train one fighter from the shipyard (bonus)"
+      }
+    ]
+  },
+  "triggers": [
+    {
+      "id": "reinforcements",
+      "condition": {
+        "type": "timer",
+        "seconds": 60
+      },
+      "actions": [
+        { "type": "spawn_units", "units": ["scout_light"], "position": [5, 5] },
+        { "type": "dialog", "speaker": "Fleet Command", "text": "Reinforcements have arrived, Commander." }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "enemy_patrol",
+      "condition": {
+        "type": "area_enter",
+        "position": [30, 30],
+        "radius": 10.0
+      },
+      "actions": [
+        { "type": "spawn_units", "units": ["scout_light", "scout_light"], "position": [35, 35], "tag": "enemy_scouts" },
+        { "type": "dialog", "speaker": "Sensors", "text": "Enemy contacts detected! Engaging!" }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": { "energy": 200, "minerals": 150, "data": 50, "crew": 2 },
+    "xp": 100,
+    "unlocks": ["cruiser_heavy"]
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [3, 3], "height": 200 },
+    { "type": "wait", "seconds": 1.5 },
+    { "type": "select_units", "filter": "all" },
+    { "type": "wait", "seconds": 0.75 },
+
+    { "type": "attack_move", "position": [28, 28] },
+    { "type": "wait", "seconds": 4 },
+    { "type": "camera_pan", "position": [32, 32], "height": 180 },
+    { "type": "wait", "seconds": 2 },
+
+    { "type": "select_units", "filter": "all" },
+    { "type": "attack_target", "targetTag": "enemy_scouts" },
+    { "type": "wait", "seconds": 5 },
+    { "type": "camera_pan", "position": [30, 30], "height": 160 },
+    { "type": "wait", "seconds": 2 },
+
+    { "type": "select_units", "filter": "miner_basic" },
+    { "type": "move_to", "position": [45, 20] },
+    { "type": "wait", "seconds": 2.5 },
+    { "type": "camera_pan", "position": [45, 20], "height": 170 },
+    { "type": "harvest", "seconds": 3.5 },
+
+    { "type": "camera_pan", "position": [99, 95], "height": 170 },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "power_reactor", "position": [96, 92] },
+    { "type": "place_building", "buildingId": "shipyard_small", "position": [99, 95] },
+    { "type": "build_unit", "unitId": "fighter_basic", "buildingTag": "shipyard_small" },
+    { "type": "wait", "seconds": 3 },
+
+    { "type": "camera_pan", "position": [32, 32], "height": 240 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "camera_pan", "position": [50, 50], "height": 280 },
+    { "type": "wait", "seconds": 1.5 }
+  ]
+}

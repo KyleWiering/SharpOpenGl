@@ -1,0 +1,22 @@
+{
+  "id": "miner_eva",
+  "displayName": "EVA Mining Ship",
+  "category": "miner",
+  "shipRole": "engineering",
+  "mesh": "meshes/miner_basic.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 130, "shields": 0, "armor": 12 },
+    "movement": { "speed": 42, "acceleration": 58, "turnRate": 115 },
+    "weapons": [],
+    "resourceCollector": {
+      "harvestMode": "eva",
+      "harvestRange": 35,
+      "harvestRate": 14,
+      "harvestRateMultiplier": 0.9,
+      "carryCapacity": 90
+    }
+  },
+  "cost": { "energy": 70, "minerals": 110, "data": 5, "crew": 3 },
+  "buildTime": 22
+}

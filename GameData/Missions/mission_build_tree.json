@@ -1,0 +1,118 @@
+{
+  "id": "mission_build_tree",
+  "displayName": "Foundation Protocol",
+  "description": "Sandbox: expand from the command center through economy, production, defense, support, and capstone tiers.",
+  "map": "sector_alpha",
+  "planetName": "Architect's Proving Ground",
+  "starMapPosition": [0.68, 0.72],
+  "planetColor": "#6BC4A0",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, Architect's Proving Ground is a sanctioned expansion exercise. Your Restoration Tender will demonstrate the full base construction tree — from power and refining through shipyards, defenses, support structures, and capstone fortifications. No hostiles are expected; complete the build demonstration to certify the protocol.",
+    "objectivesPreview": [
+      "Establish economy and power infrastructure",
+      "Construct the small, medium, and large shipyard chain",
+      "Deploy defense and support structures",
+      "Complete orbital uplink and fortress core capstones"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [12, 12],
+    "startingUnits": ["support_repair"],
+    "startingResources": { "energy": 4500, "minerals": 5500, "data": 700, "crew": 55 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "complete_build_tree",
+        "type": "survive_time",
+        "target": "600",
+        "description": "Complete the build tree demonstration"
+      }
+    ],
+    "secondary": []
+  },
+  "triggers": [
+    {
+      "id": "tier_economy",
+      "condition": { "type": "timer", "seconds": 30 },
+      "actions": [
+        {
+          "type": "dialog",
+          "speaker": "Architect Control",
+          "text": "Begin with economy foundations — power, refining, and supply before branching into production."
+        }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "tier_production",
+      "condition": { "type": "timer", "seconds": 120 },
+      "actions": [
+        {
+          "type": "dialog",
+          "speaker": "Architect Control",
+          "text": "Production tier unlocked. Advance the shipyard chain from small through large hull bays."
+        }
+      ],
+      "oneShot": true
+    },
+    {
+      "id": "tier_capstone",
+      "condition": { "type": "timer", "seconds": 300 },
+      "actions": [
+        {
+          "type": "dialog",
+          "speaker": "Architect Control",
+          "text": "Capstone structures remain — orbital uplink and fortress core complete the demonstration."
+        }
+      ],
+      "oneShot": true
+    }
+  ],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "unit_destroyed", "target": "player_support" },
+  "rewards": {
+    "resources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+    "xp": 0,
+    "unlocks": []
+  },
+  "demoScript": [
+    { "type": "camera_pan", "position": [12, 12], "height": 220 },
+    { "type": "wait", "seconds": 2 },
+    { "type": "select_units", "filter": "support_repair" },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "power_reactor", "position": [18, 20] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "resource_refinery", "position": [24, 20] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "supply_depot", "position": [30, 20] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "defense_turret", "position": [35, 20] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "sensor_array", "position": [18, 28] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "fabrication_hub", "position": [24, 28] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "shipyard_small", "position": [31, 28] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "shield_emitter", "position": [18, 38] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "missile_battery", "position": [24, 38] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "shipyard_medium", "position": [30, 38] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "repair_bay", "position": [18, 50] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "comms_relay", "position": [25, 50] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "shipyard_large", "position": [32, 50] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "orbital_uplink", "position": [18, 65] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "place_building", "buildingId": "fortress_core", "position": [26, 65] },
+    { "type": "wait", "seconds": 1 },
+    { "type": "camera_pan", "position": [28, 42], "height": 280 },
+    { "type": "wait", "seconds": 2 }
+  ]
+}

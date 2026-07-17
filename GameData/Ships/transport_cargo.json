@@ -1,0 +1,18 @@
+{
+  "id": "transport_cargo",
+  "displayName": "Hauler Transport",
+  "category": "transport",
+  "shipRole": "engineering",
+  "mesh": "meshes/transport_cargo.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 200, "shields": 50, "armor": 15 },
+    "movement": { "speed": 55, "acceleration": 40, "turnRate": 60 },
+    "weapons": [],
+    "cargo": { "capacity": 500 },
+    "sightRadius": 4
+  },
+  "defaultStance": "neutral",
+  "cost": { "energy": 80, "minerals": 120, "data": 0, "crew": 3 },
+  "buildTime": 25
+}

@@ -1,0 +1,47 @@
+{
+  "id": "defense_turret",
+  "displayName": "Defense Turret",
+  "category": "base",
+  "mesh": "meshes/defense_turret.obj",
+  "fallbackMesh": "default",
+  "components": {
+    "health": { "maxHP": 600, "shields": 0, "armor": 40 },
+    "building": {
+      "buildingType": "defense_turret",
+      "productionRate": 1.0,
+      "buildQueue": [],
+      "footprint": [1, 1],
+      "rotates": true
+    },
+    "weapons": [
+      { "slot": 0, "type": "laser", "damage": 35, "range": 320, "fireRate": 3.0 }
+    ],
+    "sightRadius": 9
+  },
+  "articulation": {
+    "parts": [
+      {
+        "id": "turret_yaw",
+        "partType": "TurretYaw",
+        "localPivot": [0, 2.9399998, 0],
+        "yawMin": -180,
+        "yawMax": 180,
+        "idleSweep": true,
+        "idleSweepSpeed": 25,
+        "slewRate": 90
+      },
+      {
+        "id": "turret_pitch",
+        "partType": "TurretPitch",
+        "ownerPartId": "turret_yaw",
+        "localPivot": [0, 0.7, 2.9399998],
+        "pitchMin": -10,
+        "pitchMax": 45,
+        "slewRate": 90,
+        "meshKey": "station_part:turret_barrel"
+      }
+    ]
+  },
+  "cost": { "energy": 60, "minerals": 90, "data": 0, "crew": 1 },
+  "buildTime": 18
+}

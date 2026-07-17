@@ -1,0 +1,50 @@
+{
+  "id": "ship_gallery",
+  "displayName": "Fleet Gallery",
+  "description": "Inspect every hull type, station, and race-specific texture across the sector with live articulation motion.",
+  "map": "sector_alpha",
+  "planetName": "Arsenal Station",
+  "starMapPosition": [0.92, 0.22],
+  "planetColor": "#A8D4FF",
+  "prerequisiteMissionId": null,
+  "briefing": {
+    "text": "Commander, Arsenal Station displays the full fleet and station roster for all eight races. Terran zone zero runs a live articulation showcase — turrets track mock targets, bay doors and sensor dishes sweep, shipyard cranes idle, utility arms aim at work targets, and engine nozzles gimbal under thrust. Pan across the sector to compare race-specific hull textures tinted by faction color. No combat required.",
+    "objectivesPreview": [
+      "Inspect all 19 hull types per race in the sector grids",
+      "Compare all 16 station types with race textures, turrets, dishes, and cranes in motion",
+      "Watch armed capitals and medium combat row turrets track mock targets in Terran zone zero",
+      "Pan the map to visit each of the eight race zones"
+    ]
+  },
+  "startConditions": {
+    "playerSpawn": [25, 25],
+    "startingUnits": ["hero_default"],
+    "startingResources": { "energy": 5000, "minerals": 5000, "data": 500, "crew": 100 }
+  },
+  "objectives": {
+    "primary": [
+      {
+        "id": "inspect_fleet",
+        "type": "survive_time",
+        "target": "45",
+        "description": "Inspect the articulated fleet gallery for 45 seconds"
+      }
+    ],
+    "secondary": [
+      {
+        "id": "inspect_combat_row",
+        "type": "survive_time",
+        "target": "20",
+        "description": "Inspect Terran zone zero medium combat row turret tracking"
+      }
+    ]
+  },
+  "triggers": [],
+  "victory": { "type": "all_primary_complete" },
+  "defeat": { "type": "hero_destroyed" },
+  "rewards": {
+    "resources": { "energy": 0, "minerals": 0, "data": 0, "crew": 0 },
+    "xp": 0,
+    "unlocks": []
+  }
+}
