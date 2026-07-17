@@ -123,6 +123,7 @@ internal static class FactoryHelpers
         if (def.Components?.Weapons == null || def.Components.Weapons.Length == 0)
             return;
 
+#pragma warning disable CS0618 // Fallback path until all hulls carry JSON articulation
         string hullKey = ShipTurretArticulationDefs.ResolveHullKey(def);
 
         if (def.Articulation != null)
@@ -134,6 +135,7 @@ internal static class FactoryHelpers
 
         if (!ShipTurretArticulationDefs.TryGet(hullKey, out ShipTurretDef turretDef))
             return;
+#pragma warning restore CS0618
 
         Entity yawEntity = world.CreateEntity();
         world.AddComponent(yawEntity, new ArticulatedPartComponent

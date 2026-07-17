@@ -2251,14 +2251,12 @@ internal static class RaceSurfaceDetail
         }
     }
 
-    /// <summary>Belly/flank carapace membrane substrate bands ï¿½ magenta spine veins readable under team tint.</summary>
+    /// <summary>Belly/flank carapace membrane substrate bands — magenta spine veins readable under team tint.</summary>
     private static void AddSpinyUtilitySubstrate(
         RaceMeshWriter w, string hullKey, float hw, float hgt, float len)
     {
-        var membrane = RaceMeshWriter.HullMaterial.Hull;
         var vein = RaceMeshWriter.HullMaterial.Solar;
         var shadow = RaceMeshWriter.HullMaterial.Radiator;
-        var emboss = RaceMeshWriter.HullMaterial.Truss;
         bool isCargo = hullKey is "freighter_bulk" or "transport_cargo";
         bool isMiner = hullKey is "miner_basic" or "miner_eva" or "miner_tractor";
         bool isSupport = hullKey is "support_repair";
@@ -7938,7 +7936,6 @@ internal static class RaceSurfaceDetail
         RaceMeshWriter w, string hullKey, float len, float wid, float hgt)
     {
         var vein = RaceMeshWriter.HullMaterial.Solar;
-        var shadow = RaceMeshWriter.HullMaterial.Radiator;
         var engineMat = RaceMeshWriter.HullMaterial.Engine;
         var weapon = RaceMeshWriter.HullMaterial.Weapon;
         float hw = wid * 0.5f;
@@ -8389,7 +8386,6 @@ internal static class RaceSurfaceDetail
         }
 
         float compact = hullKey is "scout" or "scout_light" or "interceptor" or "interceptor_mk2" ? 0.82f : 1f;
-        var hullBand = RaceMeshWriter.HullMaterial.Truss;
         int bellyPlates = hullKey is "dreadnought" or "carrier" ? 7 : 5;
         for (int i = 0; i < bellyPlates; i++)
         {
@@ -15822,7 +15818,6 @@ internal static class RaceSurfaceDetail
     {
         float hw = wid * 0.5f;
         var hull = RaceMeshWriter.HullMaterial.Hull;
-        var accent = RaceMeshWriter.HullMaterial.Solar;
         var frame = RaceMeshWriter.HullMaterial.Truss;
 
         switch (hullKey)
