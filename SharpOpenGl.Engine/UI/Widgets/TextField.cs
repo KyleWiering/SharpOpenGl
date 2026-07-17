@@ -14,6 +14,9 @@ public sealed class TextField : Widget
     private const float TextPadding = 12f;
     private const int MaxLength = 64;
 
+    /// <summary>Horizontal scroll distance per wheel notch or programmatic step.</summary>
+    public float ScrollStep { get; set; } = 48f;
+
     /// <summary>Current text buffer.</summary>
     public string Value { get; set; } = string.Empty;
 
@@ -22,6 +25,9 @@ public sealed class TextField : Widget
 
     /// <summary>Whether keyboard navigation has highlighted this field.</summary>
     public bool IsKeyboardFocused { get; set; }
+
+    /// <summary>Horizontal scroll offset in logical pixels (reveals obscured tail when increased).</summary>
+    public float ScrollOffsetX { get; private set; }
 
     /// <summary>Background fill colour.</summary>
     public Vector4 BackgroundColor { get; set; } = MenuTheme.PanelBackground;
@@ -57,6 +63,7 @@ public sealed class TextField : Widget
             return true;
 
         Value += c;
+        ScrollToEnd();
         return true;
     }
 
@@ -70,7 +77,10 @@ public sealed class TextField : Widget
         {
             case UIKey.Backspace:
                 if (Value.Length > 0)
+                {
                     Value = Value[..^1];
+                    ClampScrollOffset();
+                }
                 return true;
             case UIKey.Enter:
                 Submitted?.Invoke();
@@ -78,6 +88,63 @@ public sealed class TextField : Widget
             default:
                 return false;
         }
+    }
+
+    /// <summary>Maximum horizontal scroll offset for the current display text and field size.</summary>
+    public float MaxScrollOffset(Vector2 fieldSize, IUIRenderer renderer)
+    {
+        string displayText = ResolveDisplayText();
+        if (string.IsNullOrEmpty(displayText))
+            return 0f;
+
+        float innerWidth = InnerTextWidth(fieldSize);
+        float textWidth = MeasureDisplayTextWidth(displayText, renderer);
+        if (textWidth <= innerWidth)
+            return 0f;
+
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float innerWidthPhysical = renderer.ScaleToPhysical(innerWidth);
+        float fittedPhysical = renderer.ResolveFontSize(FontSize);
+        int maxStartIndex = MaxScrollStartIndex(displayText, innerWidthPhysical, fittedPhysical);
+        float maxScrollPhysical = maxStartIndex == 0
+            ? 0f
+            : UIFontMetrics.MeasureTextWidth(displayText[..maxStartIndex], fittedPhysical);
+
+        return maxScrollPhysical / physicalScale;
+    }
+
+    /// <summary>Scroll horizontally by <paramref name="deltaX"/> logical pixels (positive reveals tail).</summary>
+    public void ScrollHorizontalBy(float deltaX, Vector2 fieldSize, IUIRenderer renderer)
+    {
+        float max = MaxScrollOffset(fieldSize, renderer);
+        ScrollOffsetX = Math.Clamp(ScrollOffsetX + deltaX, 0f, max);
+    }
+
+    /// <summary>Reveal the start of the current display text.</summary>
+    public void ScrollToStart() => ScrollOffsetX = 0f;
+
+    /// <summary>Reveal the end of the current display text.</summary>
+    public void ScrollToEnd(Vector2 fieldSize, IUIRenderer renderer) =>
+        ScrollOffsetX = MaxScrollOffset(fieldSize, renderer);
+
+    /// <summary>Reveal the end using reference-resolution sizing (for tests and caret-follow).</summary>
+    public void ScrollToEnd() => ScrollToEnd(Size, CreateMeasurementRenderer());
+
+    /// <inheritdoc/>
+    public override bool HandleScroll(
+        Vector2 screenPoint, float deltaY,
+        Vector2 containerPosition, Vector2 containerSize)
+    {
+        if (!IsKeyboardFocused || !Visible || MathF.Abs(deltaY) < 0.001f)
+            return false;
+
+        var (pos, size) = Resolve(containerPosition, containerSize);
+        if (screenPoint.X < pos.X || screenPoint.X >= pos.X + size.X ||
+            screenPoint.Y < pos.Y || screenPoint.Y >= pos.Y + size.Y)
+            return false;
+
+        ScrollHorizontalBy(deltaY > 0f ? ScrollStep : -ScrollStep, size, CreateMeasurementRenderer());
+        return true;
     }
 
     /// <inheritdoc/>
@@ -113,30 +180,114 @@ public sealed class TextField : Widget
         renderer.DrawRect(drawPos, drawSize, BackgroundColor);
         renderer.DrawRectOutline(drawPos, drawSize, border);
 
-        bool showPlaceholder = string.IsNullOrEmpty(Value) && !string.IsNullOrEmpty(Placeholder);
-        string displayText = showPlaceholder ? Placeholder : Value;
-        Vector4 color = showPlaceholder ? PlaceholderColor : TextColor;
+        string displayText = ResolveDisplayText();
         if (string.IsNullOrEmpty(displayText))
+        {
+            ScrollOffsetX = 0f;
             return;
+        }
+
+        bool showPlaceholder = string.IsNullOrEmpty(Value) && !string.IsNullOrEmpty(Placeholder);
+        Vector4 color = showPlaceholder ? PlaceholderColor : TextColor;
 
         float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
-        float maxWidth = renderer.ScaleToPhysical(drawSize.X - TextPadding * 2f);
-        float preferredPhysical = renderer.ResolveFontSize(FontSize);
-        float minPhysical = ScaledUIRenderer.MinPhysicalFontSize;
-        float fittedPhysical = UIFontMetrics.FitFontSize(displayText, preferredPhysical, maxWidth, minPhysical);
+        float innerWidthLogical = InnerTextWidth(drawSize);
+        float innerWidthPhysical = renderer.ScaleToPhysical(innerWidthLogical);
+        float fittedPhysical = renderer.ResolveFontSize(FontSize);
         float logicalDrawSize = fittedPhysical / physicalScale;
+        float textWidthLogical = MeasureDisplayTextWidth(displayText, renderer);
 
-        if (UIFontMetrics.MeasureTextWidth(displayText, fittedPhysical) > maxWidth)
-            displayText = UITextDrawing.TruncateWithEllipsis(displayText, maxWidth, fittedPhysical);
+        float maxScrollLogical = MaxScrollOffset(drawSize, renderer);
+        ScrollOffsetX = Math.Clamp(ScrollOffsetX, 0f, maxScrollLogical);
+        float scrollPhysical = renderer.ScaleToPhysical(ScrollOffsetX);
 
-        float textWidthPhysical = UIFontMetrics.MeasureTextWidth(displayText, fittedPhysical);
-        float textWidthLogical = textWidthPhysical / physicalScale;
         float lineHeight = fittedPhysical * UITextDrawing.LineHeightFactor / physicalScale;
-
         Vector2 textPos = new(
             drawPos.X + TextPadding,
             drawPos.Y + (drawSize.Y - lineHeight) * 0.5f);
 
-        renderer.DrawText(displayText, textPos, logicalDrawSize, color);
+        string visibleText = SliceTextToViewport(displayText, scrollPhysical, innerWidthPhysical, fittedPhysical);
+        renderer.DrawText(visibleText, textPos, logicalDrawSize, color);
+    }
+
+    private void ClampScrollOffset()
+    {
+        ScrollOffsetX = Math.Clamp(ScrollOffsetX, 0f, MaxScrollOffset(Size, CreateMeasurementRenderer()));
+    }
+
+    private string ResolveDisplayText()
+    {
+        bool showPlaceholder = string.IsNullOrEmpty(Value) && !string.IsNullOrEmpty(Placeholder);
+        return showPlaceholder ? Placeholder : Value;
+    }
+
+    private static float InnerTextWidth(Vector2 drawSize) =>
+        MathF.Max(0f, drawSize.X - TextPadding * 2f);
+
+    private float MeasureDisplayTextWidth(string displayText, IUIRenderer renderer)
+    {
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float fittedPhysical = renderer.ResolveFontSize(FontSize);
+        return UIFontMetrics.MeasureTextWidth(displayText, fittedPhysical) / physicalScale;
+    }
+
+    private static string SliceTextToViewport(
+        string text, float scrollOffsetPhysical, float viewportPhysical, float fontSize)
+    {
+        if (string.IsNullOrEmpty(text) || viewportPhysical <= 0f)
+            return string.Empty;
+
+        int startIndex = IndexAtPhysicalOffset(text, scrollOffsetPhysical, fontSize);
+        var builder = new System.Text.StringBuilder();
+        for (int i = startIndex; i < text.Length; i++)
+        {
+            string candidate = builder.ToString() + text[i];
+            if (UIFontMetrics.MeasureTextWidth(candidate, fontSize) > viewportPhysical + UITextDrawing.WidthTolerance)
+                break;
+            builder.Append(text[i]);
+        }
+
+        return builder.Length == 0 && startIndex < text.Length
+            ? text[startIndex].ToString()
+            : builder.ToString();
+    }
+
+    private static int IndexAtPhysicalOffset(string text, float offsetPhysical, float fontSize)
+    {
+        if (offsetPhysical <= 0f)
+            return 0;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            float width = UIFontMetrics.MeasureTextWidth(text[..i], fontSize);
+            if (width >= offsetPhysical - UITextDrawing.WidthTolerance)
+                return i;
+        }
+
+        return text.Length;
+    }
+
+    private static int MaxScrollStartIndex(string text, float viewportPhysical, float fontSize)
+    {
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (UIFontMetrics.MeasureTextWidth(text[i..], fontSize) <= viewportPhysical + UITextDrawing.WidthTolerance)
+                return i;
+        }
+
+        return text.Length;
+    }
+
+    private static IUIRenderer CreateMeasurementRenderer() =>
+        new MeasurementRenderer();
+
+    private sealed class MeasurementRenderer : IUIRenderer
+    {
+        public Vector2 ViewportSize => UIScaler.ReferenceSize;
+        public float ScaleToPhysical(float logicalPixels) => logicalPixels;
+        public float ResolveFontSize(float logicalFontSize) => logicalFontSize;
+        public void DrawRect(Vector2 position, Vector2 size, Vector4 color) { }
+        public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color) { }
+        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) { }
     }
 }

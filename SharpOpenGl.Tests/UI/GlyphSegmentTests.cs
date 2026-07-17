@@ -21,11 +21,69 @@ public class GlyphSegmentTests
     }
 
     [Theory]
+    [InlineData(8f)]
     [InlineData(12f)]
     [InlineData(16f)]
+    [InlineData(20f)]
     public void Line_thickness_meets_minimum_at_small_sizes(float fontSize)
     {
         Assert.True(UIFontMetrics.GetLineThickness(fontSize) >= UIFontMetrics.MinLineThickness);
+    }
+
+    [Fact]
+    public void S_uses_opposing_curve_segments_distinct_from_5()
+    {
+        var sSegments = UIFontGlyphSegments.GetSegments('S');
+        Assert.Contains(UIFontGlyphSegments.Segment.TopPeakLeft, sSegments);
+        Assert.Contains(UIFontGlyphSegments.Segment.BottomValleyRight, sSegments);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.TopHalfLeft, sSegments);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.BottomHalfLeft, sSegments);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.Top, sSegments);
+
+        var fiveSegments = UIFontGlyphSegments.GetSegments('5');
+        Assert.Contains(UIFontGlyphSegments.Segment.Top, fiveSegments);
+        Assert.Contains(UIFontGlyphSegments.Segment.TopHalfRight, fiveSegments);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.TopPeakLeft, fiveSegments);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.BottomValleyRight, fiveSegments);
+    }
+
+    [Fact]
+    public void Zero_has_diagonal_slash_distinct_from_O()
+    {
+        var zero = UIFontGlyphSegments.GetSegments('0');
+        var o = UIFontGlyphSegments.GetSegments('O');
+        Assert.Contains(UIFontGlyphSegments.Segment.DiagTopRightToBottomLeft, zero);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.DiagTopRightToBottomLeft, o);
+    }
+
+    [Theory]
+    [InlineData(8f)]
+    [InlineData(12f)]
+    [InlineData(16f)]
+    [InlineData(20f)]
+    public void O_and_zero_remain_distinct_at_menu_font_sizes(float fontSize)
+    {
+        Assert.NotEqual(UIFontGlyphSegments.GetSignature('O'), UIFontGlyphSegments.GetSignature('0'));
+
+        var zero = UIFontGlyphSegments.GetSegments('0');
+        var o = UIFontGlyphSegments.GetSegments('O');
+        Assert.Contains(UIFontGlyphSegments.Segment.DiagTopRightToBottomLeft, zero);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.DiagTopRightToBottomLeft, o);
+        Assert.True(UIFontMetrics.GetLineThickness(fontSize) >= UIFontMetrics.MinLineThickness);
+    }
+
+    [Fact]
+    public void I_1_L_have_distinct_serif_and_stem_segments()
+    {
+        var i = UIFontGlyphSegments.GetSegments('I');
+        var one = UIFontGlyphSegments.GetSegments('1');
+        var l = UIFontGlyphSegments.GetSegments('L');
+        Assert.Contains(UIFontGlyphSegments.Segment.TopCenterCap, i);
+        Assert.Contains(UIFontGlyphSegments.Segment.BottomCenterCap, i);
+        Assert.Contains(UIFontGlyphSegments.Segment.TopTick, one);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.TopCenterCap, one);
+        Assert.Contains(UIFontGlyphSegments.Segment.TopLeft, l);
+        Assert.DoesNotContain(UIFontGlyphSegments.Segment.CenterVert, l);
     }
 
     [Fact]

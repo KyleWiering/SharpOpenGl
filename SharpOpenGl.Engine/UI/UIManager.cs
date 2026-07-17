@@ -124,11 +124,16 @@ public sealed class UIManager
     /// <summary>Route a printable character to the active screen.</summary>
     public bool HandleChar(char c) => Current?.HandleChar(c) ?? false;
 
-    /// <summary>Route a scroll-wheel delta to the active screen.</summary>
+    /// <summary>Route a scroll-wheel delta to the visible tooltip or active screen.</summary>
     public bool HandleScroll(Vector2 screenPoint, float deltaY, Vector2 viewportSize)
     {
         _scaler.Resize(viewportSize);
         Vector2 logicalPoint = _scaler.UnscalePosition(screenPoint);
+
+        if (_tooltip.IsShowing &&
+            _tooltip.HandleScroll(logicalPoint, deltaY, Vector2.Zero, UIScaler.ReferenceSize))
+            return true;
+
         return Current?.HandleScroll(logicalPoint, deltaY, UIScaler.ReferenceSize) ?? false;
     }
 

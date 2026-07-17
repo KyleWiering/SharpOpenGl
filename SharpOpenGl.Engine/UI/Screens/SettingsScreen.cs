@@ -33,6 +33,12 @@ public sealed class SettingsScreen : UIScreen
     private Button? _difficultyButton;
     private Button? _hudMinimalButton;
     private Button? _rebindStubButton;
+    private ScrollPanel _helpScroll = null!;
+    private Label _helpLabel = null!;
+
+    private const float HelpScrollWidth = 820f;
+    private const float HelpScrollHeight = 72f;
+    private const float HelpScrollPadding = 8f;
 
     public SettingsScreen(SettingsManager settings)
     {
@@ -110,6 +116,28 @@ public sealed class SettingsScreen : UIScreen
             out _highContrastButton);
         rightY = AddSettingButton("HUD Minimal", ToggleHudMinimal, rightX, rightY, columnWidth, buttonHeight, rowGap,
             out _hudMinimalButton);
+
+        _helpScroll = new ScrollPanel
+        {
+            Name = "SettingsHelpScroll",
+            Anchor = Anchor.BottomCenter,
+            Position = new Vector2(0f, -132f),
+            Size = new Vector2(HelpScrollWidth, HelpScrollHeight),
+            BackgroundColor = new Vector4(0.08f, 0.1f, 0.14f, 0.85f),
+            ContentPadding = HelpScrollPadding,
+        };
+        _helpLabel = new Label
+        {
+            Name = "SettingsHelp",
+            Anchor = Anchor.TopLeft,
+            Position = Vector2.Zero,
+            Size = new Vector2(HelpScrollWidth, 0f),
+            FontSize = 14f,
+            Padding = HelpScrollPadding,
+            TextColor = MenuTheme.SubtitleColor,
+        };
+        _helpScroll.AddChild(_helpLabel);
+        AddWidget(_helpScroll);
 
         var back = new Button
         {
@@ -251,7 +279,45 @@ public sealed class SettingsScreen : UIScreen
             _rebindStubButton.Label = $"Key Rebind: {_settings.Current.KeyBindingOverrides.Count} override(s)";
         if (_hudMinimalButton != null)
             _hudMinimalButton.Label = FormatOnOff("HUD Minimal", _settings.Current.HudMinimalMode);
+
+        RefreshHelpScroll();
     }
+
+    private void RefreshHelpScroll()
+    {
+        _helpLabel.Text = BuildHelpText();
+        _helpScroll.SyncLabelWrapWidths();
+        float labelHeight = _helpLabel.MeasureContentHeight();
+        _helpLabel.Size = new Vector2(_helpScroll.Size.X, labelHeight);
+        _helpScroll.RecalculateContentHeight(_helpScroll.Size);
+    }
+
+    private string BuildHelpText()
+    {
+        var lines = new List<string>
+        {
+            $"Graphics quality tier: {_settings.Current.QualityTier}",
+            $"Colorblind assist: {FormatColorblindModeLong(_settings.Current.Accessibility.ColorblindMode)}",
+            $"Default skirmish difficulty: {_settings.Current.DefaultSkirmishDifficulty}",
+            $"Key rebind overrides: {_settings.Current.KeyBindingOverrides.Count}",
+        };
+
+        if (_settings.Current.KeyBindingOverrides.Count > 0)
+        {
+            foreach (var pair in _settings.Current.KeyBindingOverrides.OrderBy(p => p.Key, StringComparer.Ordinal))
+                lines.Add($"  {pair.Key} → {pair.Value}");
+        }
+
+        return string.Join('\n', lines);
+    }
+
+    private static string FormatColorblindModeLong(ColorblindMode mode) => mode switch
+    {
+        ColorblindMode.RedGreen => "Red-Green (protanopia / deuteranopia simulation)",
+        ColorblindMode.BlueYellow => "Blue-Yellow (tritanopia simulation)",
+        ColorblindMode.Monochrome => "Monochrome (achromatopsia simulation)",
+        _ => "None",
+    };
 
     private static string FormatOnOff(string prefix, bool enabled) => $"{prefix}: {(enabled ? "On" : "Off")}";
 

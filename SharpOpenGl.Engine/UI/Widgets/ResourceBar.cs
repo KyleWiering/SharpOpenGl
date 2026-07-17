@@ -65,10 +65,11 @@ public sealed class ResourceBar : Widget
             renderer.DrawRectOutline(badgePos, new Vector2(BadgeSize, BadgeSize), color);
 
             string abbrev = ResourceAbbreviation(res.Type);
-            float abbrevSize = UIFontMetrics.FitFontSize(abbrev, FontSize - 4f, BadgeSize, 8f);
-            float abbrevW = UIFontMetrics.MeasureTextWidth(abbrev, abbrevSize);
+            var (abbrevDisplay, abbrevSize) = FitLabel(
+                renderer, abbrev, BadgeSize, FontSize - 4f, minLogicalSize: 8f);
+            float abbrevW = UIFontMetrics.MeasureTextWidth(abbrevDisplay, abbrevSize);
             renderer.DrawText(
-                abbrev,
+                abbrevDisplay,
                 badgePos + new Vector2((BadgeSize - abbrevW) * 0.5f, (BadgeSize - abbrevSize) * 0.5f),
                 abbrevSize,
                 color);
@@ -93,10 +94,34 @@ public sealed class ResourceBar : Widget
 
             string income = FormatIncome(res.IncomePerSecond);
             string label = $"{res.Current:0}/{res.Max:0} {income}";
-            float fittedSize = UIFontMetrics.FitFontSize(label, FontSize, textW, 10f);
-            label = UITextDrawing.TruncateWithEllipsis(label, textW, fittedSize);
-            renderer.DrawText(label, new Vector2(textX, y), fittedSize, color);
+            DrawFittedText(renderer, label, new Vector2(textX, y), textW, FontSize, color, minLogicalSize: 10f);
         }
+    }
+
+    private static (string Text, float LogicalDrawSize) FitLabel(
+        IUIRenderer renderer, string text, float maxLogicalWidth,
+        float preferredLogicalSize, float minLogicalSize = 10f)
+    {
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+        float fittedPhysical = UIFontMetrics.FitFontSize(
+            text, preferredPhysical, maxPhysicalWidth, minPhysical);
+        string display = UITextDrawing.TruncateWithEllipsis(text, maxPhysicalWidth, fittedPhysical);
+        float logicalDrawSize = fittedPhysical / physicalScale;
+        return (display, logicalDrawSize);
+    }
+
+    private static void DrawFittedText(
+        IUIRenderer renderer, string text, Vector2 position, float maxLogicalWidth,
+        float preferredLogicalSize, Vector4 color, float minLogicalSize = 10f)
+    {
+        var (display, logicalSize) = FitLabel(
+            renderer, text, maxLogicalWidth, preferredLogicalSize, minLogicalSize);
+        renderer.DrawText(display, position, logicalSize, color);
     }
 
     /// <inheritdoc/>

@@ -13,13 +13,19 @@ public sealed class DemoVideoRecorder : IDisposable
     private readonly string _posterPngPath;
     private readonly string _framesDir;
     private readonly int _captureInterval;
+    private readonly int _maxFrames;
     private readonly List<string> _framePaths = new();
     private int _frameCounter;
     private bool _posterSaved;
 
-    public DemoVideoRecorder(string outputMp4Path, int targetFps = 30, int updateFps = 60)
+    public DemoVideoRecorder(
+        string outputMp4Path,
+        int targetFps = 30,
+        int updateFps = 60,
+        int maxFrames = 0)
     {
         _outputMp4Path = outputMp4Path;
+        _maxFrames = Math.Max(0, maxFrames);
         string baseName = Path.GetFileNameWithoutExtension(outputMp4Path);
         string outputDir = Path.GetDirectoryName(outputMp4Path) ?? ".";
         Directory.CreateDirectory(outputDir);
@@ -34,6 +40,7 @@ public sealed class DemoVideoRecorder : IDisposable
     /// <summary>Read the current framebuffer and store a frame when the interval elapses.</summary>
     public void CaptureFrame(int width, int height, int renderFrameNumber)
     {
+        if (_maxFrames > 0 && _framePaths.Count >= _maxFrames) return;
         if (renderFrameNumber % _captureInterval != 0) return;
 
         byte[] pixels = new byte[width * height * 4];
@@ -92,7 +99,7 @@ public sealed class DemoVideoRecorder : IDisposable
         if (ffmpeg == null) return false;
 
         var args = $"-y -framerate {targetFps} -i \"{inputPattern}\" " +
-                   $"-c:v libx264 -pix_fmt yuv420p -crf 28 -preset fast -movflags +faststart \"{_outputMp4Path}\"";
+                   $"-c:v libx264 -pix_fmt yuv420p -crf 28 -preset ultrafast -movflags +faststart \"{_outputMp4Path}\"";
 
         try
         {

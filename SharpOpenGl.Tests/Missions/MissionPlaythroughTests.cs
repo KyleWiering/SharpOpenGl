@@ -72,12 +72,34 @@ public class MissionPlaythroughTests
         Assert.Contains(mission.DemoScript, s => s.Type == "camera_pan");
         Assert.Contains(mission.DemoScript, s => s.Type == "wait");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_move");
-        Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "reach_waypoint");
         Assert.Contains(mission.DemoScript, s => s.Type == "attack_target");
-        Assert.Contains(mission.DemoScript, s => s.Type == "wait_objective" && s.ObjectiveId == "destroy_scouts");
+        Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_objective");
+        Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_for_construction");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "power_reactor");
         Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
         Assert.Contains(mission.DemoScript, s => s.Type == "build_unit");
+    }
+
+    [Fact]
+    public void Example_scenario_demoScript_wait_sum_is_ci_fast()
+    {
+        var loader = new MissionLoader(new AssetManager(GetTestDataPath()));
+        var mission = loader.Load("example_scenario")!;
+
+        float waitSum = mission.DemoScript
+            .Where(s => s.Type == "wait")
+            .Sum(s => s.Seconds);
+
+        // Fixed waits only; sum ~8.5 sim-s → wall ≈ 8.5/4 + DemoScriptDoneHold (~1–1.5s) ≪ DemoMaxDurationSeconds 45
+        Assert.True(waitSum <= 10f, $"example_scenario wait sum {waitSum} exceeds CI cap of 10 sim-seconds (hard max 12).");
+        Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_objective");
+        Assert.DoesNotContain(mission.DemoScript, s => s.Type == "wait_for_construction");
+        Assert.Contains(mission.DemoScript, s => s.Type == "attack_move");
+        Assert.Contains(mission.DemoScript, s => s.Type == "attack_target");
+        Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "power_reactor");
+        Assert.Contains(mission.DemoScript, s => s.Type == "place_building" && s.BuildingId == "shipyard_small");
+        Assert.Contains(mission.DemoScript, s => s.Type == "build_unit");
+        Assert.Contains(mission.DemoScript, s => s.Type == "camera_pan");
     }
 
     [Fact]

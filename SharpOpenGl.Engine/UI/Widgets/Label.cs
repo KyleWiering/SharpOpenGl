@@ -28,6 +28,24 @@ public sealed class Label : Widget
     /// <summary>Internal padding from the widget edge.</summary>
     public float Padding { get; set; } = 4f;
 
+    /// <summary>Measured drawable height from wrapped text, padding, and <see cref="MaxLines"/>.</summary>
+    public float MeasureContentHeight()
+    {
+        if (string.IsNullOrEmpty(Text))
+            return 0f;
+
+        float contentWidth = UITextDrawing.ContentWrapWidth(Size.X, Padding);
+        float wrap = WrapWidth > 0f ? Math.Min(WrapWidth, contentWidth) : 0f;
+
+        int lineCount = MaxLines > 0
+            ? UITextDrawing.WrapTextLimited(Text, wrap, FontSize, MaxLines).Count
+            : wrap > 0f
+                ? UITextDrawing.WrapText(Text, wrap, FontSize).Count
+                : Math.Max(1, Text.Split('\n').Length);
+
+        return Padding * 2f + lineCount * FontSize * UITextDrawing.LineHeightFactor;
+    }
+
     /// <inheritdoc/>
     protected override void OnDraw(IUIRenderer renderer, Vector2 position, Vector2 size)
     {

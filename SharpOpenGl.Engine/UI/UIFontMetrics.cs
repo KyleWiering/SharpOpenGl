@@ -21,6 +21,12 @@ public static class UIFontMetrics
     /// <summary>Minimum segment stroke thickness in pixels.</summary>
     public const float MinLineThickness = 1.5f;
 
+    /// <summary>Font sizes at or below this use boosted stroke factor for micro HUD labels.</summary>
+    public const float MicroSizeThreshold = 10f;
+
+    /// <summary>Stroke factor for micro sizes (8–10px tier badges / locked labels).</summary>
+    public const float MicroLineThicknessFactor = 0.2f;
+
     public static float GetCharWidth(float fontSize) => fontSize * CharWidthFactor;
 
     public static float GetCharSpacing(float fontSize) => GetCharWidth(fontSize) * SpacingFactor;
@@ -30,7 +36,9 @@ public static class UIFontMetrics
     public static float GetGlyphPadTop(float fontSize) => fontSize * GlyphPadTopFactor;
 
     public static float GetLineThickness(float fontSize) =>
-        MathF.Max(MinLineThickness, fontSize * LineThicknessFactor);
+        fontSize <= MicroSizeThreshold
+            ? MathF.Max(MinLineThickness, fontSize * MicroLineThicknessFactor)
+            : MathF.Max(MinLineThickness, fontSize * LineThicknessFactor);
 
     /// <summary>Shrink font size until <paramref name="text"/> fits <paramref name="maxWidth"/>.</summary>
     public static float FitFontSize(string text, float preferredSize, float maxWidth, float minSize = 10f)
@@ -100,7 +108,7 @@ public static class UIFontGlyphSegments
         'P' => [Segment.Top, Segment.Middle, Segment.TopLeft, Segment.TopRight, Segment.BottomLeft],
         'Q' => [Segment.Top, Segment.Bottom, Segment.TopLeft, Segment.TopRight, Segment.BottomLeft, Segment.BottomRight, Segment.DiagMidRightBottomRight],
         'R' => [Segment.Top, Segment.Middle, Segment.TopLeft, Segment.TopRight, Segment.BottomLeft, Segment.DiagMidRightBottomRight],
-        'S' => [Segment.TopHalfLeft, Segment.TopLeft, Segment.Middle, Segment.MiddleLeft, Segment.BottomRight, Segment.BottomHalfLeft, Segment.Bottom],
+        'S' => [Segment.TopPeakLeft, Segment.TopLeft, Segment.TopRight, Segment.MiddleLeft, Segment.BottomValleyRight, Segment.BottomLeft, Segment.BottomHalfRight],
         'T' => [Segment.Top, Segment.CenterVert],
         'U' => [Segment.LeftFull, Segment.RightFull, Segment.Bottom],
         'V' => [Segment.TopLeft, Segment.TopRight, Segment.BottomLeft, Segment.BottomRight, Segment.Bottom],
@@ -113,7 +121,7 @@ public static class UIFontGlyphSegments
         '2' => [Segment.Top, Segment.TopRight, Segment.Middle, Segment.BottomLeft, Segment.Bottom],
         '3' => [Segment.Top, Segment.Middle, Segment.Bottom, Segment.TopRight, Segment.BottomRight],
         '4' => [Segment.TopLeft, Segment.Middle, Segment.TopRight, Segment.BottomRight],
-        '5' => [Segment.Top, Segment.TopLeft, Segment.Middle, Segment.BottomRight, Segment.Bottom],
+        '5' => [Segment.Top, Segment.TopLeft, Segment.TopHalfRight, Segment.Middle, Segment.BottomRight, Segment.Bottom],
         '6' => [Segment.Top, Segment.TopLeft, Segment.Middle, Segment.BottomLeft, Segment.BottomRight, Segment.Bottom],
         '7' => [Segment.Top, Segment.TopRight, Segment.BottomRight],
         '8' => [Segment.Top, Segment.Bottom, Segment.Middle, Segment.TopLeft, Segment.TopRight, Segment.BottomLeft, Segment.BottomRight],

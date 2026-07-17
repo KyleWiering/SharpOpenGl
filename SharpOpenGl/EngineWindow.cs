@@ -1059,6 +1059,10 @@ public partial class EngineWindow : GameWindow
 protected override void OnMouseWheel(MouseWheelEventArgs e)
     {
         base.OnMouseWheel(e);
+
+        if (_uiManager.HandleScroll(UiMousePosition, e.OffsetY, UiViewportSize))
+            return;
+
         if (_sceneManager.State == GameState.Playing)
         {
             EnsurePersistence();
@@ -1865,8 +1869,9 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
 
         var building = _world.CreateEntity();
         _world.AddComponent(building, new TransformComponent { Position = worldPos, Scale = scale });
+        bool instantDemoPlacement = _demoRecordingMode;
         var placedRender = new RenderComponent { Visible = true, MeshId = -1, PrimitiveType = (int)PrimitiveType.Triangles };
-        if (def.BuildTime > 0f)
+        if (def.BuildTime > 0f && !instantDemoPlacement)
             ApplyStructureConstructionMesh(placedRender, buildingType, raceId, playerId: 1, buildFraction: 0f);
         else
         {
@@ -1882,7 +1887,7 @@ protected override void OnMouseWheel(MouseWheelEventArgs e)
         var healthDef = def.Components?.Health;
         float maxHp = healthDef?.MaxHP ?? 1000f;
 
-        if (def.BuildTime > 0f)
+        if (def.BuildTime > 0f && !instantDemoPlacement)
         {
             // Reduced HP during construction: targetable but less punishing than full health.
             // True invulnerability would require ProjectileSystem damage guards (deferred to wo-sc-01-03).

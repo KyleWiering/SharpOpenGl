@@ -62,25 +62,94 @@ public class ScrollPanelTests
             ContentPadding = 4f,
         };
 
+        string paragraph = string.Join(
+            " ",
+            Enumerable.Repeat(
+                "Commander, reconnaissance probes report hostile staging areas along the contested frontier corridor.",
+                8));
+
         float y = 0f;
         for (int i = 0; i < 5; i++)
         {
-            float height = 200f;
-            panel.AddChild(new Label
+            var label = new Label
             {
                 Position = new Vector2(0f, y),
-                Size = new Vector2(1728f, height),
-                Text = $"Briefing paragraph {i}",
+                Size = new Vector2(1728f, 40f),
+                Text = $"{paragraph} Briefing paragraph {i}.",
                 FontSize = 20f,
-                WrapWidth = 1700f,
-            });
-            y += height;
+            };
+            panel.AddChild(label);
+            panel.RecalculateContentHeight(panel.Size);
+            y += label.MeasureContentHeight();
         }
 
         panel.RecalculateContentHeight(panel.Size);
 
+        var firstLabel = (Label)panel.Children[0];
+        Assert.True(firstLabel.MeasureContentHeight() > 40f);
+
         Assert.True(panel.ContentHeight > panel.Size.Y);
         Assert.True(panel.MaxScrollOffset(panel.Size) > 0f);
+    }
+
+    [Fact]
+    public void ScrollPanel_syncs_label_wrap_width_on_resize()
+    {
+        var panel = new ScrollPanel
+        {
+            Size = new Vector2(400f, 200f),
+            ShowScrollbar = true,
+        };
+        var label = new Label
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(400f, 100f),
+            Text = "Wrapped briefing text",
+            Padding = 8f,
+        };
+        panel.AddChild(label);
+
+        panel.RecalculateContentHeight(panel.Size);
+        Assert.Equal(UITextDrawing.ContentWrapWidth(400f - 10f, 8f), label.WrapWidth);
+
+        panel.Size = new Vector2(300f, 200f);
+        label.Size = new Vector2(300f, 100f);
+        panel.RecalculateContentHeight(panel.Size);
+        Assert.Equal(UITextDrawing.ContentWrapWidth(300f - 10f, 8f), label.WrapWidth);
+    }
+
+    [Fact]
+    public void ScrollPanel_recalculates_height_after_label_text_change()
+    {
+        var panel = new ScrollPanel
+        {
+            Size = new Vector2(300f, 200f),
+            ShowScrollbar = false,
+            ContentPadding = 4f,
+        };
+        string longText = string.Join(" ", Enumerable.Repeat("operations", 40));
+        var label = new Label
+        {
+            Position = Vector2.Zero,
+            Size = new Vector2(300f, 48f),
+            Text = longText,
+            FontSize = 20f,
+        };
+        panel.AddChild(label);
+
+        panel.RecalculateContentHeight(panel.Size);
+        float longContentHeight = panel.ContentHeight;
+        float longMaxScroll = panel.MaxScrollOffset(panel.Size);
+        float measuredLongBottom = label.Position.Y + label.MeasureContentHeight() + panel.ContentPadding;
+        Assert.True(longContentHeight >= measuredLongBottom - 0.01f);
+        Assert.True(longMaxScroll > 0f);
+
+        label.Text = "Short";
+        panel.RecalculateContentHeight(panel.Size);
+
+        Assert.True(panel.ContentHeight < longContentHeight);
+        Assert.True(panel.MaxScrollOffset(panel.Size) < longMaxScroll);
+        Assert.True(label.MeasureContentHeight() < 48f);
     }
 
     [Fact]

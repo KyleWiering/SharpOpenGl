@@ -184,12 +184,13 @@ public class MultiplayerSetupScreenTests
 
         var mapLabel = FindLabel(screen, "MapLabel")!;
         var slotRow = FindButton(screen, "Slot7Kind")!;
+        var validationScroll = FindWidget<ScrollPanel>(screen, "MPValidationScroll")!;
         var validation = FindLabel(screen, "MPValidation")!;
         var start = FindButton(screen, "StartMP")!;
 
         var mapBounds = MultiplayerSetupLayout.ToRect(mapLabel.Resolve(Vector2.Zero, viewport));
         var slotBounds = MultiplayerSetupLayout.ToRect(slotRow.Resolve(Vector2.Zero, viewport));
-        var validationBounds = MultiplayerSetupLayout.ToRect(validation.Resolve(Vector2.Zero, viewport));
+        var validationBounds = MultiplayerSetupLayout.ToRect(validationScroll.Resolve(Vector2.Zero, viewport));
         var startBounds = MultiplayerSetupLayout.ToRect(start.Resolve(Vector2.Zero, viewport));
 
         Assert.True(mapBounds.Bottom + MultiplayerSetupLayout.RegionGap <= slotBounds.Top);
@@ -268,6 +269,35 @@ public class MultiplayerSetupScreenTests
     }
 
     [Fact]
+    public void Validation_scroll_panel_recalculates_when_message_wraps()
+    {
+        var screen = CreateStressLayoutScreen();
+        var validationScroll = FindWidget<ScrollPanel>(screen, "MPValidationScroll");
+        var validationLabel = FindLabel(screen, "MPValidation");
+        Assert.NotNull(validationScroll);
+        Assert.NotNull(validationLabel);
+        Assert.False(string.IsNullOrWhiteSpace(validationLabel!.Text));
+
+        validationScroll!.SyncLabelWrapWidths();
+        float labelHeight = validationLabel.MeasureContentHeight();
+        validationLabel.Size = new Vector2(validationScroll.Size.X, labelHeight);
+        validationScroll.RecalculateContentHeight(validationScroll.Size);
+
+        Assert.True(validationScroll.ContentHeight >= labelHeight + validationScroll.ContentPadding - 0.01f);
+
+        validationLabel.Text =
+            "Duel Frontier supports up to 2 players (8 selected). " +
+            "Choose a larger map with enough spawn capacity for every active combatant.";
+        validationScroll.SyncLabelWrapWidths();
+        labelHeight = validationLabel.MeasureContentHeight();
+        validationLabel.Size = new Vector2(validationScroll.Size.X, labelHeight);
+        validationScroll.RecalculateContentHeight(validationScroll.Size);
+
+        Assert.True(validationScroll.ContentHeight > validationScroll.Size.Y);
+        Assert.True(validationScroll.MaxScrollOffset(validationScroll.Size) > 0f);
+    }
+
+    [Fact]
     public void Eight_slot_configuration_with_seven_ai_requires_large_map()
     {
         var screen = new MultiplayerSetupScreen();
@@ -311,6 +341,33 @@ public class MultiplayerSetupScreenTests
         var field = typeof(MenuTheme).GetField(fieldName, BindingFlags.Public | BindingFlags.Static);
         Assert.NotNull(field);
         return (Vector4)field!.GetValue(null)!;
+    }
+
+    private static T? FindWidget<T>(UIScreen screen, string name) where T : Widget
+    {
+        foreach (Widget root in GetRoots(screen))
+        {
+            T? match = FindWidgetInTree<T>(root, name);
+            if (match != null)
+                return match;
+        }
+
+        return null;
+    }
+
+    private static T? FindWidgetInTree<T>(Widget widget, string name) where T : Widget
+    {
+        if (widget.Name == name && widget is T match)
+            return match;
+
+        foreach (Widget child in widget.Children)
+        {
+            T? childMatch = FindWidgetInTree<T>(child, name);
+            if (childMatch != null)
+                return childMatch;
+        }
+
+        return null;
     }
 
     private static Label? FindLabel(UIScreen screen, string name)

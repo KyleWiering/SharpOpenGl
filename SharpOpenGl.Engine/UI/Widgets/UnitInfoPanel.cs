@@ -58,8 +58,9 @@ public sealed class UnitInfoPanel : Widget
         if (SelectedUnits.Count > MaxDisplayed)
         {
             string morePreview = $"+ {SelectedUnits.Count - MaxDisplayed} more";
-            float moreSize = UIFontMetrics.FitFontSize(morePreview, FontSize, contentW, 10f);
-            footerReserve = moreSize * UITextDrawing.LineHeightFactor + padding * 2f;
+            float moreHeight = MeasureFittedBlockHeight(
+                renderer, morePreview, contentW, FontSize, maxLines: 1, minLogicalSize: 10f);
+            footerReserve = moreHeight + padding * 2f;
         }
 
         int count = Math.Min(SelectedUnits.Count, MaxDisplayed);
@@ -94,11 +95,13 @@ public sealed class UnitInfoPanel : Widget
                     {
                         string cargoLabel =
                             $"Harvest: {unit.HarvestMode}   Cargo {unit.CargoAmount:0}/{unit.CargoCapacity:0}";
-                        cargoSize = UIFontMetrics.FitFontSize(cargoLabel, FontSize - 3f, textColumnW, 9f);
-                        cargoLabelHeight = cargoSize * UITextDrawing.LineHeightFactor;
+                        cargoLabelHeight = MeasureFittedBlockHeight(
+                            renderer, cargoLabel, textColumnW, FontSize - 3f, maxLines: 1, minLogicalSize: 9f);
                         float labelY = barY - cargoLabelHeight - 2f;
-                        UITextDrawing.DrawTextBlock(renderer, cargoLabel, new Vector2(textColumnX, labelY),
-                            cargoSize, new Vector4(0.82f, 0.78f, 0.55f, 1f), textColumnW, maxLines: 1);
+                        DrawFittedTextBlock(renderer, cargoLabel, new Vector2(textColumnX, labelY),
+                            textColumnW, FontSize - 3f, new Vector4(0.82f, 0.78f, 0.55f, 1f),
+                            maxLines: 1, minLogicalSize: 9f);
+                        cargoSize = cargoLabelHeight / UITextDrawing.LineHeightFactor;
                     }
                     else
                     {
@@ -150,15 +153,14 @@ public sealed class UnitInfoPanel : Widget
             float textY = slotTop + padding;
 
             Vector4 nameColor = GameplayEntityDisplay.LabelColor(unit.DisplayKind);
-            float nameSize = UIFontMetrics.FitFontSize(unit.Name, FontSize + 2f, textColumnW);
-            string name = UITextDrawing.TruncateWithEllipsis(unit.Name, textColumnW, nameSize);
+            var (_, nameSize) = FitLabel(renderer, unit.Name, textColumnW, FontSize + 2f);
             DrawHeaderGlyph(renderer, unit, new Vector2(barX, textY), headerIconSize);
-            renderer.DrawText(name, new Vector2(textColumnX, textY), nameSize, nameColor);
+            DrawFittedText(renderer, unit.Name, new Vector2(textColumnX, textY), textColumnW, FontSize + 2f, nameColor);
             textY += nameSize * UITextDrawing.LineHeightFactor + 2f;
 
             List<StatSegment> statSegments = BuildPrimaryStatSegments(unit);
             float statsSize = statSegments.Count > 0
-                ? FitStatRowFontSize(statSegments, FontSize - 2f, textColumnW, 10f)
+                ? FitStatRowFontSize(renderer, statSegments, FontSize - 2f, textColumnW, 10f)
                 : 0f;
             float statsHeight = statsSize > 0f
                 ? statsSize * UITextDrawing.LineHeightFactor + 2f
@@ -169,10 +171,13 @@ public sealed class UnitInfoPanel : Widget
             {
                 float subtitleSize = FontSize - 1f;
                 int subtitleMaxLines = UITextDrawing.MaxLinesFromHeight(subtitleBudget, subtitleSize);
-                UITextDrawing.DrawTextBlock(renderer, unit.Subtitle, new Vector2(textColumnX, textY),
-                    subtitleSize, new Vector4(0.75f, 0.8f, 0.9f, 1f), textColumnW, subtitleMaxLines, subtitleBudget);
+                DrawFittedTextBlock(renderer, unit.Subtitle, new Vector2(textColumnX, textY),
+                    textColumnW, subtitleSize, new Vector4(0.75f, 0.8f, 0.9f, 1f),
+                    subtitleMaxLines, subtitleBudget);
                 textY += Math.Min(
-                    UITextDrawing.MeasureTextBlockHeight(unit.Subtitle, subtitleSize, textColumnW),
+                    MeasureFittedBlockHeight(
+                        renderer, unit.Subtitle, textColumnW, subtitleSize,
+                        subtitleMaxLines, subtitleBudget),
                     subtitleBudget) + 2f;
             }
 
@@ -186,11 +191,10 @@ public sealed class UnitInfoPanel : Widget
         if (SelectedUnits.Count > MaxDisplayed)
         {
             string more = $"+ {SelectedUnits.Count - MaxDisplayed} more";
-            float moreSize = UIFontMetrics.FitFontSize(more, FontSize, contentW, 10f);
-            more = UITextDrawing.TruncateWithEllipsis(more, contentW, moreSize);
-            renderer.DrawText(more,
+            var (_, moreSize) = FitLabel(renderer, more, contentW, FontSize, minLogicalSize: 10f);
+            DrawFittedText(renderer, more,
                 new Vector2(position.X + padding, position.Y + size.Y - moreSize - padding),
-                moreSize, new Vector4(0.6f, 0.65f, 0.72f, 1f));
+                contentW, FontSize, new Vector4(0.6f, 0.65f, 0.72f, 1f), minLogicalSize: 10f);
         }
     }
 
@@ -203,9 +207,110 @@ public sealed class UnitInfoPanel : Widget
 
         float textX = iconPos.X + EmptyStateIconSize + EmptyStateIconGap;
         float textW = Math.Max(0f, contentW - EmptyStateIconSize - EmptyStateIconGap);
-        float promptSize = UIFontMetrics.FitFontSize(prompt, FontSize, textW, 12f);
-        UITextDrawing.DrawTextBlock(renderer, prompt, new Vector2(textX, textY), promptSize,
-            new Vector4(0.65f, 0.68f, 0.75f, 1f), textW, maxLines: 1);
+        DrawFittedTextBlock(renderer, prompt, new Vector2(textX, textY), textW, FontSize,
+            new Vector4(0.65f, 0.68f, 0.75f, 1f), maxLines: 1, minLogicalSize: 12f);
+    }
+
+    /// <summary>Inner text-column width after header glyph reservation.</summary>
+    public static float ComputeTextColumnWidth(float panelWidth, float padding, float headerIconSize) =>
+        MathF.Max(0f, panelWidth - padding * 2f - headerIconSize - HeaderIconGap);
+
+    private static (string Text, float LogicalDrawSize) FitLabel(
+        IUIRenderer renderer, string text, float maxLogicalWidth,
+        float preferredLogicalSize, float minLogicalSize = 10f)
+    {
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+        float fittedPhysical = UIFontMetrics.FitFontSize(
+            text, preferredPhysical, maxPhysicalWidth, minPhysical);
+        string display = UITextDrawing.TruncateWithEllipsis(text, maxPhysicalWidth, fittedPhysical);
+        float logicalDrawSize = fittedPhysical / physicalScale;
+        return (display, logicalDrawSize);
+    }
+
+    private static void DrawFittedText(
+        IUIRenderer renderer, string text, Vector2 position, float maxLogicalWidth,
+        float preferredLogicalSize, Vector4 color, float minLogicalSize = 10f)
+    {
+        var (display, logicalSize) = FitLabel(
+            renderer, text, maxLogicalWidth, preferredLogicalSize, minLogicalSize);
+        renderer.DrawText(display, position, logicalSize, color);
+    }
+
+    private static void DrawFittedTextBlock(
+        IUIRenderer renderer, string text, Vector2 position, float maxLogicalWidth,
+        float preferredLogicalSize, Vector4 color, int maxLines, float maxHeightLogical = 0f,
+        float minLogicalSize = 10f)
+    {
+        if (string.IsNullOrEmpty(text)) return;
+
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+        float fittedPhysical = UIFontMetrics.FitFontSize(
+            text, preferredPhysical, maxPhysicalWidth, minPhysical);
+        float logicalDrawSize = fittedPhysical / physicalScale;
+
+        int effectiveMaxLines = maxLines;
+        if (maxHeightLogical > 0f)
+        {
+            int heightLines = UITextDrawing.MaxLinesFromHeight(maxHeightLogical, logicalDrawSize);
+            effectiveMaxLines = effectiveMaxLines > 0
+                ? Math.Min(effectiveMaxLines, heightLines)
+                : heightLines;
+        }
+
+        IReadOnlyList<string> lines = effectiveMaxLines > 0
+            ? UITextDrawing.WrapTextLimited(text, maxPhysicalWidth, fittedPhysical, effectiveMaxLines)
+            : UITextDrawing.WrapText(text, maxPhysicalWidth, fittedPhysical);
+
+        float lineHeight = logicalDrawSize * UITextDrawing.LineHeightFactor;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            if (maxHeightLogical > 0f && i > 0 && i * lineHeight >= maxHeightLogical + 0.001f)
+                break;
+
+            renderer.DrawText(lines[i], position + new Vector2(0f, i * lineHeight), logicalDrawSize, color);
+        }
+    }
+
+    private static float MeasureFittedBlockHeight(
+        IUIRenderer renderer, string text, float maxLogicalWidth, float preferredLogicalSize,
+        int maxLines, float maxHeightLogical = 0f, float minLogicalSize = 10f)
+    {
+        if (string.IsNullOrEmpty(text)) return 0f;
+
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+        float fittedPhysical = UIFontMetrics.FitFontSize(
+            text, preferredPhysical, maxPhysicalWidth, minPhysical);
+        float logicalDrawSize = fittedPhysical / physicalScale;
+
+        int effectiveMaxLines = maxLines;
+        if (maxHeightLogical > 0f)
+        {
+            int heightLines = UITextDrawing.MaxLinesFromHeight(maxHeightLogical, logicalDrawSize);
+            effectiveMaxLines = effectiveMaxLines > 0
+                ? Math.Min(effectiveMaxLines, heightLines)
+                : heightLines;
+        }
+
+        IReadOnlyList<string> lines = effectiveMaxLines > 0
+            ? UITextDrawing.WrapTextLimited(text, maxPhysicalWidth, fittedPhysical, effectiveMaxLines)
+            : UITextDrawing.WrapText(text, maxPhysicalWidth, fittedPhysical);
+
+        return lines.Count * logicalDrawSize * UITextDrawing.LineHeightFactor;
     }
 
     private static void DrawHeaderGlyph(IUIRenderer renderer, UnitInfo unit, Vector2 position, float size)
@@ -254,7 +359,7 @@ public sealed class UnitInfoPanel : Widget
         segments.Add(new StatSegment(MenuIconKind.StatCargo,
             $"{unit.CargoAmount:0}/{unit.CargoCapacity:0}"));
 
-        float size = FitStatRowFontSize(segments, preferredSize, maxWidth, 9f);
+        float size = FitStatRowFontSize(renderer, segments, preferredSize, maxWidth, 9f);
         float rowHeight = size * UITextDrawing.LineHeightFactor;
         float rowY = baselineY - rowHeight;
         Vector4 textColor = new(0.82f, 0.78f, 0.55f, 1f);
@@ -264,11 +369,16 @@ public sealed class UnitInfoPanel : Widget
 
     private void DrawStatSegments(
         IUIRenderer renderer, IReadOnlyList<StatSegment> segments,
-        Vector2 position, float maxWidth, float fontSize, Vector4 textColor)
+        Vector2 position, float maxLogicalWidth, float logicalFontSize, Vector4 textColor)
     {
-        float lineHeight = fontSize * UITextDrawing.LineHeightFactor;
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float physicalFontSize = renderer.ResolveFontSize(logicalFontSize);
+        float logicalDrawSize = physicalFontSize / physicalScale;
+        float lineHeight = logicalDrawSize * UITextDrawing.LineHeightFactor;
         float iconY = position.Y + Math.Max(0f, (lineHeight - StatMicroIconSize) * 0.5f);
         float x = position.X;
+        float rightEdge = position.X + maxLogicalWidth;
 
         foreach (StatSegment segment in segments)
         {
@@ -279,8 +389,14 @@ public sealed class UnitInfoPanel : Widget
             MenuIconDrawing.Draw(renderer, segment.Icon, new Vector2(x, iconY), StatMicroIconSize, primary, accent);
             x += StatMicroIconSize + StatIconGap;
 
-            renderer.DrawText(segment.Text, new Vector2(x, position.Y), fontSize, textColor);
-            x += UIFontMetrics.MeasureTextWidth(segment.Text, fontSize);
+            float remainingLogical = MathF.Max(0f, rightEdge - x);
+            float remainingPhysical = renderer.ScaleToPhysical(remainingLogical);
+            string display = segment.Text;
+            if (UIFontMetrics.MeasureTextWidth(display, physicalFontSize) > remainingPhysical)
+                display = UITextDrawing.TruncateWithEllipsis(display, remainingPhysical, physicalFontSize);
+
+            renderer.DrawText(display, new Vector2(x, position.Y), logicalDrawSize, textColor);
+            x += UIFontMetrics.MeasureTextWidth(display, physicalFontSize) / physicalScale;
         }
     }
 
@@ -297,12 +413,21 @@ public sealed class UnitInfoPanel : Widget
     }
 
     private static float FitStatRowFontSize(
-        IReadOnlyList<StatSegment> segments, float preferredSize, float maxWidth, float minSize)
+        IUIRenderer renderer, IReadOnlyList<StatSegment> segments,
+        float preferredLogicalSize, float maxLogicalWidth, float minLogicalSize)
     {
-        float size = preferredSize;
-        while (size > minSize && MeasureStatRowWidth(segments, size) > maxWidth)
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - 2f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+
+        float size = preferredPhysical;
+        while (size > minPhysical && MeasureStatRowWidth(segments, size) > maxPhysicalWidth)
             size -= 0.5f;
-        return size;
+
+        return size / physicalScale;
     }
 
     private static float MeasureStatRowWidth(IReadOnlyList<StatSegment> segments, float fontSize)

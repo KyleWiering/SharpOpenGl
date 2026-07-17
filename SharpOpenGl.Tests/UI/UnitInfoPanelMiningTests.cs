@@ -1,4 +1,5 @@
 using OpenTK.Mathematics;
+using SharpOpenGl.Engine.Entities;
 using SharpOpenGl.Engine.UI;
 using SharpOpenGl.Engine.UI.Widgets;
 using Xunit;
@@ -7,6 +8,41 @@ namespace SharpOpenGl.Tests.UI;
 
 public class UnitInfoPanelMiningTests
 {
+    [Fact]
+    public void UnitInfoPanel_compact_harvest_row_fits_text_column()
+    {
+        var panel = new UnitInfoPanel
+        {
+            Size = new Vector2(GameplayHudLayout.UnitInfoCompactWidth, GameplayHudLayout.UnitInfoCompactHeight),
+            FontSize = 16f,
+            SelectedUnits =
+            [
+                new UnitInfo
+                {
+                    Name = "Mining Barge",
+                    MaxHP = 150f,
+                    CurrentHP = 150f,
+                    HPFraction = 1f,
+                    HarvestMode = "Automated Tractor Beam Array Extended Range",
+                    CargoAmount = 240f,
+                    CargoCapacity = 300f,
+                    DisplayKind = EntityDisplayKind.Friendly,
+                },
+            ],
+        };
+
+        var renderer = new RecordingUIRenderer();
+        panel.Draw(renderer, Vector2.Zero, panel.Size);
+
+        float contentW = UnitInfoPanel.ComputeTextColumnWidth(
+            panel.Size.X, 6f, UnitInfoPanel.CompactHeaderIconSize);
+        Assert.All(renderer.Texts, text =>
+        {
+            float width = UIFontMetrics.MeasureTextWidth(text.Text, text.FontSize);
+            Assert.True(width <= contentW + 1f, text.Text);
+        });
+    }
+
     [Fact]
     public void UnitInfoPanel_renders_harvest_mode_and_cargo_bar()
     {

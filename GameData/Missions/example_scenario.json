@@ -87,25 +87,23 @@
   },
   "demoScript": [
     { "type": "camera_pan", "position": [3, 3], "height": 200 },
-    { "type": "wait", "seconds": 2 },
+    { "type": "wait", "seconds": 0.5 },
     { "type": "select_units", "filter": "all" },
-    { "type": "wait", "seconds": 1 },
+    { "type": "wait", "seconds": 0.25 },
     { "type": "attack_move", "position": [28, 28] },
-    { "type": "wait", "seconds": 6 },
+    { "type": "wait", "seconds": 2 },
     { "type": "camera_pan", "position": [32, 32], "height": 180 },
-    { "type": "wait_objective", "objectiveId": "reach_waypoint" },
+    { "type": "wait", "seconds": 1.5 },
     { "type": "select_units", "filter": "all" },
     { "type": "attack_target", "targetTag": "enemy_scouts" },
-    { "type": "wait", "seconds": 12 },
-    { "type": "wait_objective", "objectiveId": "destroy_scouts" },
+    { "type": "wait", "seconds": 2.5 },
     { "type": "camera_pan", "position": [99, 95], "height": 170 },
-    { "type": "wait", "seconds": 1 },
+    { "type": "wait", "seconds": 0.25 },
     { "type": "place_building", "buildingId": "power_reactor", "position": [96, 92] },
     { "type": "place_building", "buildingId": "shipyard_small", "position": [99, 95] },
-    { "type": "wait", "seconds": 1 },
     { "type": "build_unit", "unitId": "fighter_basic", "buildingTag": "shipyard_small" },
-    { "type": "wait", "seconds": 3 },
+    { "type": "wait", "seconds": 1 },
     { "type": "camera_pan", "position": [32, 32], "height": 240 },
-    { "type": "wait", "seconds": 2 }
+    { "type": "wait", "seconds": 0.5 }
   ]
 }

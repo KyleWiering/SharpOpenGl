@@ -113,8 +113,8 @@ public sealed class BuildPanel : Widget
     /// <summary>Button colour for items already in the production queue.</summary>
     public Vector4 QueuedColor { get; set; } = new(0.12f, 0.28f, 0.38f, 1f);
 
-    private const float HorizontalPadding = 8f;
-    private const float MaxTextInnerWidth = 260f;
+    /// <summary>Horizontal inset from panel edges for text and buttons.</summary>
+    public const float HorizontalPadding = 8f;
     private const float IconColumnWidth = 28f;
     private const float IconGlyphSize = 24f;
     private const float ButtonHeight = 38f;
@@ -126,6 +126,7 @@ public sealed class BuildPanel : Widget
     private const float LabelRightPad = 4f;
     private const float PrimaryLabelTopPad = 5f;
     private const float SecondaryLabelBottomPad = 4f;
+    private const int ProductionNameMaxLines = 2;
     private const int CompactQueueThreshold = 3;
     private const float QueueRowHeight = 14f;
     private const float CurrentProgressBarHeight = 10f;
@@ -147,12 +148,107 @@ public sealed class BuildPanel : Widget
     private float EffectiveWaitingRowHeight =>
         UseCompactQueue ? WaitingRowHeightCompact : WaitingRowHeightNormal;
 
-    private static string FitLabel(string text, float maxWidth, float preferredSize, out float drawSize)
+    /// <summary>Inner content width derived from the resolved panel width.</summary>
+    public static float ComputeContentWidth(float panelWidth) =>
+        MathF.Max(0f, panelWidth - HorizontalPadding * 2f);
+
+    private static (string Text, float LogicalDrawSize) FitLabel(
+        IUIRenderer renderer, string text, float maxLogicalWidth,
+        float preferredLogicalSize, float minLogicalSize = 8f)
     {
-        float minSize = MathF.Max(8f, preferredSize - 4f);
-        drawSize = UIFontMetrics.FitFontSize(text, preferredSize, maxWidth, minSize);
-        return UITextDrawing.TruncateWithEllipsis(text, maxWidth, drawSize);
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        // Reserve physical pixels so MinPhysicalFontSize ellipsis rows never bleed past the panel edge.
+        float physicalGutter = MathF.Max(2f, preferredPhysical * 0.12f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - physicalGutter);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+        float fittedPhysical = UIFontMetrics.FitFontSize(
+            text, preferredPhysical, maxPhysicalWidth, minPhysical);
+        string display = UITextDrawing.TruncateWithEllipsis(text, maxPhysicalWidth, fittedPhysical);
+        float logicalDrawSize = fittedPhysical / physicalScale;
+        float drawPhysicalSize = renderer.ResolveFontSize(logicalDrawSize);
+        if (!string.IsNullOrEmpty(display)
+            && UIFontMetrics.MeasureTextWidth(display, drawPhysicalSize) > maxPhysicalWidth + UITextDrawing.WidthTolerance)
+            display = string.Empty;
+        return (display, logicalDrawSize);
     }
+
+    private static void DrawFittedText(
+        IUIRenderer renderer, string text, Vector2 position, float maxLogicalWidth,
+        float preferredLogicalSize, Vector4 color, float minLogicalSize = 8f)
+    {
+        var (display, logicalSize) = FitLabel(
+            renderer, text, maxLogicalWidth, preferredLogicalSize, minLogicalSize);
+        renderer.DrawText(display, position, logicalSize, color);
+    }
+
+    private static (IReadOnlyList<string> Lines, float LogicalDrawSize) FitWrappedLabel(
+        IUIRenderer renderer, string text, float maxLogicalWidth,
+        float preferredLogicalSize, int maxLines, float minLogicalSize = 8f)
+    {
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float preferredPhysical = renderer.ResolveFontSize(preferredLogicalSize);
+        float physicalGutter = MathF.Max(2f, preferredPhysical * 0.12f);
+        float maxPhysicalWidth = MathF.Max(0f, renderer.ScaleToPhysical(maxLogicalWidth) - physicalGutter);
+        float minPhysical = MathF.Max(
+            ScaledUIRenderer.MinPhysicalFontSize,
+            renderer.ResolveFontSize(minLogicalSize));
+
+        float fittedPhysical = preferredPhysical;
+        var lines = UITextDrawing.WrapTextLimited(text, maxPhysicalWidth, fittedPhysical, maxLines);
+        float widestLine = lines.Count == 0
+            ? 0f
+            : lines.Max(line => UIFontMetrics.MeasureTextWidth(line, fittedPhysical));
+
+        while (fittedPhysical > minPhysical && widestLine > maxPhysicalWidth + UITextDrawing.WidthTolerance)
+        {
+            fittedPhysical -= 1f;
+            lines = UITextDrawing.WrapTextLimited(text, maxPhysicalWidth, fittedPhysical, maxLines);
+            widestLine = lines.Max(line => UIFontMetrics.MeasureTextWidth(line, fittedPhysical));
+        }
+
+        float logicalDrawSize = fittedPhysical / physicalScale;
+        return (lines, logicalDrawSize);
+    }
+
+    private static int MaxProductionNameLines(float areaHeight, float logicalFontSize, int cap = ProductionNameMaxLines)
+    {
+        if (areaHeight <= 0f || logicalFontSize <= 0f)
+            return 1;
+
+        float lineStep = logicalFontSize * UIFontMetrics.GlyphHeightFactor;
+        int fit = Math.Max(1, (int)MathF.Floor(areaHeight / lineStep + 0.001f));
+        return Math.Min(cap, fit);
+    }
+
+    private static void DrawWrappedFittedText(
+        IUIRenderer renderer, string text, Vector2 position, float maxLogicalWidth,
+        float preferredLogicalSize, Vector4 color, int maxLines,
+        float maxLogicalHeight = 0f, float minLogicalSize = 8f)
+    {
+        var (_, logicalDrawSize) = FitLabel(
+            renderer, text, maxLogicalWidth, preferredLogicalSize, minLogicalSize);
+
+        int effectiveMaxLines = maxLines;
+        if (maxLogicalHeight > 0f)
+        {
+            effectiveMaxLines = Math.Min(
+                maxLines,
+                MaxProductionNameLines(maxLogicalHeight, logicalDrawSize, maxLines));
+        }
+
+        var (lines, drawSize) = FitWrappedLabel(
+            renderer, text, maxLogicalWidth, preferredLogicalSize, effectiveMaxLines, minLogicalSize);
+
+        float lineStep = drawSize * UIFontMetrics.GlyphHeightFactor;
+        for (int i = 0; i < lines.Count; i++)
+            renderer.DrawText(lines[i], position + new Vector2(0f, i * lineStep), drawSize, color);
+    }
+
+    private static float QueueWaitingLabelMaxWidth(float textMaxW) =>
+        textMaxW - QueueBadgeWidth - CancelButtonWidth - 6f;
 
     private static Vector4 Brighten(Vector4 color, float amount = 0.12f) =>
         new(
@@ -167,22 +263,22 @@ public sealed class BuildPanel : Widget
         renderer.DrawRect(position, size, BackgroundColor);
         renderer.DrawRectOutline(position, size, MenuTheme.PanelBorder);
 
-        float textMaxW = MathF.Min(size.X - HorizontalPadding * 2f, MaxTextInnerWidth);
+        float textMaxW = ComputeContentWidth(size.X);
         float y = position.Y + 6f - _scrollOffsetY;
         float x = position.X + HorizontalPadding;
         float bottom = position.Y + size.Y;
 
-        string title = FitLabel(BuildingName, textMaxW, FontSize + 2f, out float titleSize);
+        var (_, titleSize) = FitLabel(renderer, BuildingName, textMaxW, FontSize + 2f);
         if (y + titleSize + 2f > position.Y && y < bottom)
-            renderer.DrawText(title, new Vector2(x, y), titleSize,
+            DrawFittedText(renderer, BuildingName, new Vector2(x, y), textMaxW, FontSize + 2f,
                 new Vector4(0.9f, 0.8f, 0.4f, 1f));
         y += titleSize + 10f;
 
         if (!string.IsNullOrEmpty(SupplyText))
         {
-            string supply = FitLabel($"Supply: {SupplyText}", textMaxW, FontSize, out float supplySize);
+            var (_, supplySize) = FitLabel(renderer, $"Supply: {SupplyText}", textMaxW, FontSize);
             if (y + supplySize > position.Y && y < bottom)
-                renderer.DrawText(supply, new Vector2(x, y), supplySize,
+                DrawFittedText(renderer, $"Supply: {SupplyText}", new Vector2(x, y), textMaxW, FontSize,
                     new Vector4(0.7f, 0.7f, 0.9f, 1f));
             y += supplySize + 6f;
         }
@@ -195,10 +291,10 @@ public sealed class BuildPanel : Widget
             1 => "Production Queue (1/1)",
             _ => $"Production Queue ({currentIndex}/{Queue.Count})",
         };
-        string header = FitLabel(headerText, textMaxW, FontSize, out float headerSize);
+        var (_, headerSize) = FitLabel(renderer, headerText, textMaxW, FontSize);
         if (y + headerSize > position.Y && y < bottom)
         {
-            renderer.DrawText(header, new Vector2(x, y), headerSize,
+            DrawFittedText(renderer, headerText, new Vector2(x, y), textMaxW, FontSize,
                 Queue.Count > 0
                     ? new Vector4(0.8f, 0.8f, 0.8f, 1f)
                     : new Vector4(0.62f, 0.66f, 0.72f, 1f));
@@ -207,13 +303,12 @@ public sealed class BuildPanel : Widget
 
         if (Queue.Count == 0)
         {
-            string idleHint = FitLabel(
-                "Click a unit below to queue production",
-                textMaxW, FontSize - 2f, out float idleSize);
+            var (_, idleSize) = FitLabel(
+                renderer, "Click a unit below to queue production", textMaxW, FontSize - 2f, 8f);
             if (y + idleSize > position.Y && y < bottom)
             {
-                renderer.DrawText(idleHint, new Vector2(x, y), idleSize,
-                    new Vector4(0.55f, 0.6f, 0.68f, 1f));
+                DrawFittedText(renderer, "Click a unit below to queue production", new Vector2(x, y),
+                    textMaxW, FontSize - 2f, new Vector4(0.55f, 0.6f, 0.68f, 1f), 8f);
             }
             y += QueueRowHeight;
             y += 4f;
@@ -233,9 +328,9 @@ public sealed class BuildPanel : Widget
                             new Vector4(0.3f, 0.8f, 0.3f, 1f));
 
                     string status = FormatCurrentQueueStatus(current);
-                    string statusLabel = FitLabel(status, contentW - 4f, FontSize - 2f, out float statusSize);
-                    renderer.DrawText(statusLabel, new Vector2(x + 2f, y + CurrentProgressBarHeight + 2f), statusSize,
-                        new Vector4(0.92f, 0.95f, 1f, 1f));
+                    DrawFittedText(
+                        renderer, status, new Vector2(x + 2f, y + CurrentProgressBarHeight + 2f),
+                        contentW - 4f, FontSize - 2f, new Vector4(0.92f, 0.95f, 1f, 1f), 8f);
 
                     DrawQueueCancelButton(
                         renderer, new Vector2(x + textMaxW - CancelButtonWidth, y + 4f),
@@ -300,9 +395,8 @@ public sealed class BuildPanel : Widget
 
                 float labelX = btnPos.X + IconColumnWidth + LabelLeftPad;
                 float labelMaxW = btnW - IconColumnWidth - LabelLeftPad - LabelRightPad;
-                string nameLabel = FitLabel(item.Name, labelMaxW, FontSize, out float nameSize);
-                string costLabel = FitLabel(
-                    FormatAbbreviatedCosts(item), labelMaxW, FontSize - 2f, out float costSize);
+                var (_, costSize) = FitLabel(
+                    renderer, FormatAbbreviatedCosts(item), labelMaxW, FontSize - 2f, 8f);
 
                 Vector4 nameColor = item.IsQueued
                     ? new Vector4(0.75f, 0.9f, 1f, 1f)
@@ -315,12 +409,14 @@ public sealed class BuildPanel : Widget
                         ? MenuTheme.MutedTextColor
                         : Darken(MenuTheme.MutedTextColor, 0.75f);
 
-                renderer.DrawText(nameLabel, new Vector2(labelX, btnPos.Y + PrimaryLabelTopPad), nameSize, nameColor);
-                renderer.DrawText(
-                    costLabel,
+                float nameAreaHeight = btnH - PrimaryLabelTopPad - SecondaryLabelBottomPad - costSize;
+                DrawWrappedFittedText(
+                    renderer, item.Name, new Vector2(labelX, btnPos.Y + PrimaryLabelTopPad),
+                    labelMaxW, FontSize, nameColor, ProductionNameMaxLines, nameAreaHeight);
+                DrawFittedText(
+                    renderer, FormatAbbreviatedCosts(item),
                     new Vector2(labelX, btnPos.Y + btnH - costSize - SecondaryLabelBottomPad),
-                    costSize,
-                    costColor);
+                    labelMaxW, FontSize - 2f, costColor, 8f);
             }
 
             y += btnH + ButtonGap;
@@ -441,13 +537,13 @@ public sealed class BuildPanel : Widget
             string badge = $"#{item.QueueIndex}";
             renderer.DrawRect(new Vector2(x, y), new Vector2(QueueBadgeWidth, rowHeight - 2f),
                 new Vector4(0.18f, 0.22f, 0.32f, 1f));
-            renderer.DrawText(badge, new Vector2(x + 3f, y + 1f), FontSize - 3f,
-                new Vector4(0.75f, 0.85f, 1f, 1f));
+            float badgeMaxW = QueueBadgeWidth - 6f;
+            DrawFittedText(renderer, badge, new Vector2(x + 3f, y + 1f), badgeMaxW,
+                FontSize - 3f, new Vector4(0.75f, 0.85f, 1f, 1f), 8f);
 
-            float labelMaxW = textMaxW - QueueBadgeWidth - CancelButtonWidth - 6f;
-            string waitingLabel = FitLabel(item.Name, labelMaxW, FontSize - 2f, out float waitingSize);
-            renderer.DrawText(waitingLabel, new Vector2(x + QueueBadgeWidth + 4f, y + 1f), waitingSize,
-                new Vector4(0.75f, 0.78f, 0.82f, 1f));
+            float labelMaxW = QueueWaitingLabelMaxWidth(textMaxW);
+            DrawFittedText(renderer, item.Name, new Vector2(x + QueueBadgeWidth + 4f, y + 1f),
+                labelMaxW, FontSize - 2f, new Vector4(0.75f, 0.78f, 0.82f, 1f), 8f);
 
             DrawQueueCancelButton(
                 renderer,
@@ -465,10 +561,8 @@ public sealed class BuildPanel : Widget
         float rowHeight = EffectiveWaitingRowHeight;
         if (y + rowHeight > clipTop && y < clipBottom)
         {
-            string summary = FitLabel(
-                $"+{collapsedCount} more in queue", textMaxW, FontSize - 2f, out float summarySize);
-            renderer.DrawText(summary, new Vector2(x + 2f, y + 1f), summarySize,
-                new Vector4(0.62f, 0.68f, 0.74f, 1f));
+            DrawFittedText(renderer, $"+{collapsedCount} more in queue", new Vector2(x + 2f, y + 1f),
+                textMaxW - 4f, FontSize - 2f, new Vector4(0.62f, 0.68f, 0.74f, 1f), 8f);
         }
 
         y += rowHeight;
@@ -627,8 +721,8 @@ public sealed class BuildPanel : Widget
             ? new Vector4(0.55f, 0.2f, 0.2f, 1f)
             : new Vector4(0.35f, 0.15f, 0.15f, 1f);
         renderer.DrawRect(position, new Vector2(CancelButtonWidth, CancelButtonHeight), fill);
-        renderer.DrawText("X", position + new Vector2(5f, 1f), 10f,
-            new Vector4(1f, 0.85f, 0.85f, 1f));
+        DrawFittedText(renderer, "X", position + new Vector2(4f, 1f),
+            CancelButtonWidth - 6f, 10f, new Vector4(1f, 0.85f, 0.85f, 1f), 8f);
     }
 
     private bool TryHitQueueCancel(Vector2 localPos, float panelWidth, out int queueIndex)
@@ -637,7 +731,7 @@ public sealed class BuildPanel : Widget
         if (Queue.Count == 0)
             return false;
 
-        float textMaxW = MathF.Min(panelWidth - HorizontalPadding * 2f, MaxTextInnerWidth);
+        float textMaxW = ComputeContentWidth(panelWidth);
         float x = HorizontalPadding;
         float y = QueueSectionTopOffset() - _scrollOffsetY;
 

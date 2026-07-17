@@ -10,6 +10,7 @@ namespace SharpOpenGl.Tests.UI;
 public class UIScalerIntegrationTests
 {
     private static readonly Vector2 PhysicalViewport = new(1024f, 768f);
+    private static readonly Vector2 UltrawidePhysicalViewport = new(2560f, 1440f);
 
     private static Vector2 MainMenuButtonCenter(int buttonIndex)
     {
@@ -153,6 +154,55 @@ public class UIScalerIntegrationTests
     }
 
     [Fact]
+    public void UIScaler_uniform_scale_at_2560x1440_preserves_aspect_ratio()
+    {
+        var scaler = new UIScaler(UltrawidePhysicalViewport);
+
+        Assert.Equal(2560f / 1920f, scaler.Scale.X, 3);
+        Assert.Equal(1440f / 1080f, scaler.Scale.Y, 3);
+        Assert.Equal(scaler.Scale.X, scaler.UniformScale, 3);
+        Assert.Equal(scaler.Scale.Y, scaler.UniformScale, 3);
+    }
+
+    [Fact]
+    public void ScaledUIRenderer_font_scales_above_min_physical_at_2560x1440()
+    {
+        var inner = new RecordingRenderer(UltrawidePhysicalViewport);
+        var scaler = new UIScaler(UltrawidePhysicalViewport);
+        var scaled = new ScaledUIRenderer(inner, scaler);
+
+        scaled.DrawText("Ultrawide", new Vector2(100f, 200f), 20f, Vector4.One);
+
+        float expectedPhysical = 20f * scaler.UniformScale;
+        Assert.Equal(expectedPhysical, inner.LastFontSize, 1);
+        Assert.True(inner.LastFontSize > ScaledUIRenderer.MinPhysicalFontSize);
+    }
+
+    [Fact]
+    public void UIManager_scales_mission_select_Start_Mission_click_at_2560x1440()
+    {
+        var mgr = new UIManager(new EventBus());
+        var screen = new MissionSelectScreen();
+        screen.SetMissions(
+        [
+            new MissionEntry { Id = "tutorial_01", Title = "Tutorial", Description = "Learn basics." },
+        ]);
+
+        string? startedId = null;
+        screen.MissionStartRequested += id => startedId = id;
+        mgr.Push(screen);
+
+        var scaler = new UIScaler(UltrawidePhysicalViewport);
+        Vector2 logicalCenter = new(1550f, 970f);
+        Vector2 physicalTap = scaler.ScalePosition(logicalCenter);
+
+        bool consumed = mgr.HandlePointerTapped(physicalTap, 0, UltrawidePhysicalViewport);
+
+        Assert.True(consumed);
+        Assert.Equal("tutorial_01", startedId);
+    }
+
+    [Fact]
     public void ScaledUIRenderer_scales_draw_calls_to_physical_pixels()
     {
         var inner = new RecordingRenderer(new Vector2(1024f, 768f));
@@ -181,6 +231,9 @@ public class UIScalerIntegrationTests
         }
 
         public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color) { }
-        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) { }
+        public float LastFontSize { get; private set; }
+
+        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) =>
+            LastFontSize = fontSize;
     }
 }

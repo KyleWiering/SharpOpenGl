@@ -15,13 +15,18 @@ public class ScreenTextBoundsTests
 {
     private static readonly Vector2 ReferenceViewport = UIScaler.ReferenceSize;
     private static readonly Vector2 CompactViewport = new(1024f, 768f);
+    private static readonly Vector2 BrowserViewport = new(390f, 844f);
+    private static readonly Vector2 UltrawideViewport = new(2560f, 1440f);
 
     private const float UnitInfoPanelWidth = 560f;
     private const float UnitInfoHeaderIconReserve = UnitInfoPanel.HeaderIconSize + 6f;
     private const float UnitInfoContentWidth = UnitInfoPanelWidth - 16f - UnitInfoHeaderIconReserve;
 
     private const float SaveSlotButtonInner = 420f - Button.TextPadding;
-    private const float LoadEntryButtonInner = 700f - Button.TextPadding;
+    private const float LoadEntryLabelWrap =
+        700f - IconButton.TitleNavIconColumnWidth - IconButton.LabelPadding * 2f - 4f;
+    private const float SaveSlotLabelWrap =
+        420f - IconButton.TitleNavIconColumnWidth - IconButton.LabelPadding * 2f - 4f;
 
     private const float ShipDesignerPickerWrap = 224f - 8f;
     private const float ShipDesignerPreviewWrap = 720f - 8f;
@@ -45,7 +50,9 @@ public class ScreenTextBoundsTests
 
     private const float MpMapLabelWrap = 640f - 20f;
     private const float MpRaceLabelWrap = 300f - 20f;
-    private const float MpValidationWrap = 900f - 20f;
+    private const float MpValidationScrollbarGutter = 10f;
+    private const float MpValidationLabelPadding = 10f;
+    private const float MpValidationWrap = 900f - MpValidationScrollbarGutter - MpValidationLabelPadding * 2f;
     private const float MpStartButtonInner = 340f - 20f;
     private const float MpKindButtonInner = 150f - 20f;
 
@@ -193,7 +200,45 @@ public class ScreenTextBoundsTests
     }
 
     [Fact]
-    public void MissionSelectScreen_long_mission_preview_text_fits_panel_bounds()
+    public void MissionSelectScreen_preview_scrolls_when_briefing_and_objectives_overflow()
+    {
+        const string longObjective =
+            "Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector while maintaining supply lines";
+
+        var screen = new MissionSelectScreen();
+        screen.SetMissions(
+        [
+            new MissionEntry
+            {
+                Id = "preview_scroll",
+                Title = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+                Description = "Fallback summary.",
+                BriefingText = string.Join(
+                    " ",
+                    Enumerable.Repeat(
+                        "Commander, reconnaissance probes report hostile staging areas along the contested frontier corridor.",
+                        35)),
+                ObjectivesPreview = [longObjective, longObjective, longObjective, longObjective, longObjective],
+                PlanetName = "Helios Prime",
+                StarMapPosition = new Vector2(0.35f, 0.45f),
+            },
+        ]);
+
+        var preview = FindWidget<ScrollPanel>(screen, "MissionPreview");
+        Assert.NotNull(preview);
+        Assert.False(preview!.AutoSyncWrapWidths);
+        Assert.True(preview.ContentHeight > preview.Size.Y);
+        Assert.True(preview.MaxScrollOffset(preview.Size) > 0f);
+
+        preview.ScrollBy(preview.ScrollStep, preview.Size);
+        Assert.True(preview.ScrollOffsetY > 0f);
+    }
+
+    [Theory]
+    [InlineData(1920f, 1080f)]
+    [InlineData(1024f, 768f)]
+    [InlineData(2560f, 1440f)]
+    public void MissionSelectScreen_long_mission_preview_text_fits_panel_bounds(float viewportWidth, float viewportHeight)
     {
         var screen = new MissionSelectScreen();
         screen.SetMissions(
@@ -218,22 +263,40 @@ public class ScreenTextBoundsTests
             },
         ]);
 
-        var inner = new RecordingRenderer(ReferenceViewport);
-        screen.Draw(inner);
+        var viewport = new Vector2(viewportWidth, viewportHeight);
+        var inner = new RecordingRenderer(viewport);
+        ScaledUIRenderer? scaledRenderer = null;
 
-        AssertScreenTextWithinViewport(inner.TextDraws);
-        foreach (var draw in inner.TextDraws)
+        if (viewport == ReferenceViewport)
+            screen.Draw(inner);
+        else
         {
-            float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
-            float maxWidth = draw.FontSize switch
+            scaledRenderer = new ScaledUIRenderer(inner, new UIScaler(viewport));
+            screen.Draw(scaledRenderer);
+            AssertNoHorizontalViewportBleed(inner.TextDraws, viewport);
+        }
+
+        AssertScreenTextWithinViewport(inner.TextDraws, viewport);
+        if (viewport != CompactViewport && viewport != BrowserViewport)
+        {
+            float previewWrapPhysical = scaledRenderer?.ScaleToPhysical(MissionPreviewWrap) ?? MissionPreviewWrap;
+            float headingPhysical = scaledRenderer?.ScaleToPhysical(MissionHeadingWidth) ?? MissionHeadingWidth;
+            float startButtonPhysical = scaledRenderer?.ScaleToPhysical(MissionStartButtonInner) ?? MissionStartButtonInner;
+            float backButtonPhysical = scaledRenderer?.ScaleToPhysical(MissionBackButtonInner) ?? MissionBackButtonInner;
+
+            foreach (var draw in inner.TextDraws)
             {
-                >= 30f => MissionHeadingWidth,
-                >= 18f when draw.Text is "Start Mission" => MissionStartButtonInner,
-                >= 18f when draw.Text is "Back" => MissionBackButtonInner,
-                >= 16f => MissionPreviewWrap,
-                _ => MissionPreviewWrap,
-            };
-            Assert.True(width <= maxWidth + 1f, $"[{draw.Text}] width {width} > {maxWidth}");
+                float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
+                float maxWidth = draw.FontSize switch
+                {
+                    >= 30f => headingPhysical,
+                    >= 18f when draw.Text is "Start Mission" => startButtonPhysical,
+                    >= 18f when draw.Text is "Back" => backButtonPhysical,
+                    >= 16f => previewWrapPhysical,
+                    _ => previewWrapPhysical,
+                };
+                Assert.True(width <= maxWidth + 1f, $"[{draw.Text}] width {width} > {maxWidth}");
+            }
         }
     }
 
@@ -348,6 +411,20 @@ public class ScreenTextBoundsTests
         var inner = new RecordingRenderer(ReferenceViewport);
         screen.Draw(inner);
 
+        var validationScroll = FindWidget<ScrollPanel>(screen, "MPValidationScroll");
+        var validationLabel = FindWidget<Label>(screen, "MPValidation");
+        Assert.NotNull(validationScroll);
+        Assert.NotNull(validationLabel);
+        Assert.False(string.IsNullOrWhiteSpace(validationLabel!.Text));
+
+        float expectedWrap = UITextDrawing.ContentWrapWidth(
+            validationLabel.Size.X - MpValidationScrollbarGutter,
+            validationLabel.Padding);
+        Assert.Equal(expectedWrap, validationLabel.WrapWidth, precision: 1);
+
+        int wrappedLineCount = UITextDrawing.WrapText(validationLabel.Text, expectedWrap, validationLabel.FontSize).Count;
+        Assert.True(wrappedLineCount >= 1);
+
         var validationLines = inner.TextDraws
             .Where(d => d.FontSize <= 16f && d.Text.Contains("supports up to", StringComparison.Ordinal))
             .ToList();
@@ -358,11 +435,64 @@ public class ScreenTextBoundsTests
             float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
             Assert.True(width <= MpValidationWrap + 1f, draw.Text);
         });
+
+        if (wrappedLineCount > 2)
+        {
+            Assert.True(validationScroll!.ContentHeight > validationScroll.Size.Y);
+            Assert.True(validationScroll.MaxScrollOffset(validationScroll.Size) > 0f);
+        }
+    }
+
+    [Fact]
+    public void MultiplayerSetupScreen_compact_viewport_validation_scrolls_without_bleed()
+    {
+        var screen = new MultiplayerSetupScreen();
+        for (int slot = 2; slot < MultiplayerSetupScreen.SlotCount; slot++)
+        {
+            screen.CycleSlotKind(slot);
+            screen.CycleSlotKind(slot);
+        }
+
+        var bleedInner = new RecordingRenderer(CompactViewport);
+        var bleedRenderer = new ScaledUIRenderer(bleedInner, new UIScaler(CompactViewport));
+        screen.Draw(bleedRenderer);
+        AssertNoHorizontalViewportBleed(bleedInner.TextDraws, CompactViewport);
+
+        var validationLabel = FindWidget<Label>(screen, "MPValidation");
+        Assert.NotNull(validationLabel);
+        validationLabel!.Text =
+            "Duel Frontier supports up to 2 players (8 selected). " +
+            "Choose a larger map with enough spawn capacity for every active combatant.";
+
+        var validationScroll = FindWidget<ScrollPanel>(screen, "MPValidationScroll");
+        Assert.NotNull(validationScroll);
+        validationScroll!.SyncLabelWrapWidths();
+        float labelHeight = validationLabel.MeasureContentHeight();
+        validationLabel.Size = new Vector2(validationScroll.Size.X, labelHeight);
+        validationScroll.RecalculateContentHeight(validationScroll.Size);
+
+        Assert.True(validationScroll.ContentHeight > validationScroll.Size.Y);
+        Assert.True(validationScroll.MaxScrollOffset(validationScroll.Size) > 0f);
+
+        validationScroll.ScrollBy(validationScroll.ScrollStep, validationScroll.Size);
+        Assert.True(validationScroll.ScrollOffsetY > 0f);
+
+        float expectedWrap = UITextDrawing.ContentWrapWidth(
+            validationLabel.Size.X - MpValidationScrollbarGutter,
+            validationLabel.Padding);
+        var wrappedLines = UITextDrawing.WrapText(validationLabel.Text, expectedWrap, validationLabel.FontSize);
+        Assert.All(wrappedLines, line =>
+        {
+            float width = UIFontMetrics.MeasureTextWidth(line, validationLabel.FontSize);
+            Assert.True(width <= expectedWrap + 1f, line);
+        });
     }
 
     [Theory]
     [InlineData(1920f, 1080f)]
     [InlineData(1024f, 768f)]
+    [InlineData(390f, 844f)]
+    [InlineData(2560f, 1440f)]
     public void UnitInfoPanel_long_unit_names_and_subtitles_fit_slot_bounds(float viewportX, float viewportY)
     {
         var viewport = new Vector2(viewportX, viewportY);
@@ -374,10 +504,16 @@ public class ScreenTextBoundsTests
         };
 
         var inner = new RecordingRenderer(viewport);
-        if (viewport == CompactViewport)
+        if (viewport == CompactViewport || viewport == BrowserViewport)
         {
             panel.Anchor = Anchor.BottomCenter;
-            panel.Position = new Vector2(-280f, -180f);
+            panel.Position = viewport == BrowserViewport
+                ? new Vector2(-280f, -164f)
+                : new Vector2(-280f, -180f);
+            panel.Size = viewport == BrowserViewport
+                ? new Vector2(GameplayHudLayout.UnitInfoCompactWidth, GameplayHudLayout.UnitInfoCompactHeight)
+                : panel.Size;
+            panel.FontSize = viewport == BrowserViewport ? 16f : panel.FontSize;
 
             var scaler = new UIScaler(viewport);
             var renderer = new ScaledUIRenderer(inner, scaler);
@@ -448,11 +584,24 @@ public class ScreenTextBoundsTests
                 .ToList();
 
             Assert.NotEmpty(slotDraws);
-            float slotInnerPhysical = scaledRenderer?.ScaleToPhysical(SaveSlotButtonInner) ?? SaveSlotButtonInner;
-            Assert.All(slotDraws, draw =>
+
+            var missionLabel = FindWidget<Label>(screen, $"{SaveSlotNames.ManualSlots[0]}Mission");
+            Assert.NotNull(missionLabel);
+            Assert.Equal(longMission, missionLabel!.Text);
+            Assert.DoesNotContain("…", missionLabel.Text);
+
+            string autosaveMission = longMission + "_autosave_variant";
+            var singleLineSlotDraws = slotDraws
+                .Where(d => !longMission.Contains(d.Text, StringComparison.Ordinal)
+                    && !autosaveMission.Contains(d.Text, StringComparison.Ordinal))
+                .ToList();
+
+            Assert.NotEmpty(singleLineSlotDraws);
+            float slotWrapPhysical = scaledRenderer?.ScaleToPhysical(SaveSlotLabelWrap) ?? SaveSlotLabelWrap;
+            Assert.All(singleLineSlotDraws, draw =>
             {
                 float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
-                Assert.True(width <= slotInnerPhysical + 1f, $"[{draw.Text}] width {width} > {slotInnerPhysical}");
+                Assert.True(width <= slotWrapPhysical + 1f, $"[{draw.Text}] width {width} > {slotWrapPhysical}");
             });
         }
         finally
@@ -476,19 +625,23 @@ public class ScreenTextBoundsTests
                 "Operation Vanguard Deep Space Reconnaissance Extended Territorial Control Campaign Alpha Seven " +
                 "Relay Corridor Staging Area";
 
+            for (int i = 0; i < SaveSlotNames.ManualSlots.Length; i++)
+            {
+                mgr.Save(new SaveData
+                {
+                    SlotName = SaveSlotNames.ManualSlots[i],
+                    MissionId = i == 0 ? longMission : $"{longMission}_slot_{i}",
+                    ElapsedMissionTime = 1000f + i * 500f,
+                    Entities = [new EntitySaveRecord { EntityId = i + 1, TemplateId = "hero_default", Health = 100f }],
+                });
+            }
+
             mgr.Save(new SaveData
             {
-                SlotName = SaveSlotNames.ManualSlots[1],
-                MissionId = longMission,
-                ElapsedMissionTime = 5432f,
-                Entities = [new EntitySaveRecord { EntityId = 1, TemplateId = "hero_default", Health = 100f }],
-            });
-            mgr.Save(new SaveData
-            {
-                SlotName = SaveSlotNames.ManualSlots[2],
-                MissionId = longMission + "_secondary_front",
+                SlotName = SaveSlotNames.Autosave,
+                MissionId = longMission + "_autosave",
                 ElapsedMissionTime = 12_345f,
-                Entities = [new EntitySaveRecord { EntityId = 2, TemplateId = "hero_default", Health = 80f }],
+                Entities = [new EntitySaveRecord { EntityId = 99, TemplateId = "hero_default", Health = 80f }],
             });
 
             var viewport = new Vector2(viewportWidth, viewportHeight);
@@ -505,17 +658,77 @@ public class ScreenTextBoundsTests
             }
 
             AssertScreenTextWithinViewport(inner.TextDraws, viewport);
+
+            Label? fullMissionLabel = null;
+            for (int i = 0; i < screen.EntryCount; i++)
+            {
+                var mission = FindWidget<Label>(screen, $"Entry{i}Mission");
+                Assert.NotNull(mission);
+                Assert.DoesNotContain("…", mission!.Text);
+                if (mission.Text == longMission)
+                    fullMissionLabel = mission;
+            }
+
+            Assert.NotNull(fullMissionLabel);
+
+            var saveList = FindWidget<ScrollPanel>(screen, "SaveList");
+            Assert.NotNull(saveList);
+            Assert.True(saveList!.ContentHeight > saveList.Size.Y);
+            Assert.True(saveList.MaxScrollOffset(saveList.Size) > 0f);
+
+            float entryWrapPhysical = scaledRenderer?.ScaleToPhysical(LoadEntryLabelWrap) ?? LoadEntryLabelWrap;
             var entryDraws = inner.TextDraws
-                .Where(d => d.Text.Contains(" | ", StringComparison.Ordinal))
+                .Where(d => d.Text == longMission
+                    || d.Text == longMission + "_secondary_front"
+                    || d.Text.Contains(" | ", StringComparison.Ordinal)
+                    || d.Text == SaveSlotNames.DisplayName(SaveSlotNames.ManualSlots[1])
+                    || d.Text == SaveSlotNames.DisplayName(SaveSlotNames.ManualSlots[2]))
                 .ToList();
 
             Assert.NotEmpty(entryDraws);
-            float entryInnerPhysical = scaledRenderer?.ScaleToPhysical(LoadEntryButtonInner) ?? LoadEntryButtonInner;
             Assert.All(entryDraws, draw =>
             {
                 float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
-                Assert.True(width <= entryInnerPhysical + 1f, $"[{draw.Text}] width {width} > {entryInnerPhysical}");
+                Assert.True(width <= entryWrapPhysical + 1f, $"[{draw.Text}] width {width} > {entryWrapPhysical}");
             });
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+                Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void LoadGameScreen_long_metadata_wraps_without_horizontal_bleed()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"load_bleed_{Guid.NewGuid():N}");
+        try
+        {
+            var mgr = new SaveManager(dir);
+            string longMission =
+                "Operation Vanguard Deep Space Reconnaissance Extended Territorial Control Campaign Alpha Seven " +
+                "Relay Corridor Staging Area";
+
+            mgr.Save(new SaveData
+            {
+                SlotName = SaveSlotNames.ManualSlots[0],
+                MissionId = longMission,
+                ElapsedMissionTime = 3600f,
+                Entities = [new EntitySaveRecord { EntityId = 1, TemplateId = "hero_default", Health = 100f }],
+            });
+
+            var screen = new LoadGameScreen(mgr);
+            var inner = new RecordingRenderer(CompactViewport);
+            var renderer = new ScaledUIRenderer(inner, new UIScaler(CompactViewport));
+            screen.Draw(renderer);
+
+            AssertScreenTextWithinViewport(inner.TextDraws, CompactViewport);
+
+            var missionLabel = FindWidget<Label>(screen, "Entry0Mission");
+            Assert.NotNull(missionLabel);
+            Assert.Equal(longMission, missionLabel!.Text);
+            Assert.True(missionLabel.MeasureContentHeight() > missionLabel.FontSize * 1.5f);
         }
         finally
         {
@@ -650,18 +863,148 @@ public class ScreenTextBoundsTests
         Assert.NotNull(scroll);
         Assert.True(scroll!.ContentHeight > scroll.Size.Y);
         Assert.True(scroll.MaxScrollOffset(scroll.Size) > 0f);
+
+        var bodyLabel = FindWidget<Label>(screen, "BriefingBody");
+        Assert.NotNull(bodyLabel);
+        float measuredBodyHeight = bodyLabel!.MeasureContentHeight();
+        Assert.True(measuredBodyHeight > bodyLabel.Size.Y * 0.5f);
+        Assert.True(scroll.ContentHeight >= measuredBodyHeight + scroll.ContentPadding - 0.01f);
+
+        float scrollbarGutter = scroll.ShowScrollbar ? 10f : 0f;
+        float expectedBodyWrap = UITextDrawing.ContentWrapWidth(
+            bodyLabel.Size.X - scrollbarGutter,
+            bodyLabel.Padding);
+        Assert.Equal(expectedBodyWrap, bodyLabel.WrapWidth, precision: 1);
     }
 
     [Fact]
-    public void BriefingScreen_compact_viewport_chrome_avoids_horizontal_bleed()
+    public void BriefingScreen_objectives_scroll_when_list_is_long()
     {
-        var screen = CreateLongBriefingScreen(out _);
-        var inner = new RecordingRenderer(CompactViewport);
-        var renderer = new ScaledUIRenderer(inner, new UIScaler(CompactViewport));
+        const string longObjective =
+            "Destroy all enemy super-heavy dreadnought production facilities in the outer rim sector while maintaining supply lines";
+
+        var screen = new BriefingScreen();
+        screen.SetMission(new MissionDefinition
+        {
+            DisplayName = "Operation Vanguard: Extended Deep Space Reconnaissance Campaign",
+            Description = "Fallback briefing body.",
+            Briefing = new BriefingDefinition
+            {
+                Text = "Commander, review all primary objectives before launch.",
+                ObjectivesPreview =
+                [
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                    longObjective,
+                ],
+            },
+        });
+
+        var objectivesScroll = FindWidget<ScrollPanel>(screen, "ObjectivesPreview");
+        Assert.NotNull(objectivesScroll);
+        Assert.True(objectivesScroll!.ContentHeight > objectivesScroll.Size.Y);
+        Assert.True(objectivesScroll.MaxScrollOffset(objectivesScroll.Size) > 0f);
+
+        for (int i = 0; i < 6; i++)
+        {
+            var objective = FindWidget<Label>(screen, $"Objective_{i}");
+            Assert.NotNull(objective);
+        }
+    }
+
+    [Theory]
+    [InlineData(1024f, 768f)]
+    [InlineData(390f, 844f)]
+    [InlineData(2560f, 1440f)]
+    public void MissionSelectScreen_viewport_matrix_preview_text_avoids_horizontal_bleed(
+        float viewportWidth, float viewportHeight)
+    {
+        var viewport = new Vector2(viewportWidth, viewportHeight);
+        var screen = new MissionSelectScreen();
+        screen.SetMissions(
+        [
+            new MissionEntry
+            {
+                Id = "ultrawide_matrix",
+                Title = "Operation Vanguard: Deep Space Reconnaissance and Extended Territorial Control",
+                Description = "A very long summary that should wrap inside the preview panel without overflowing the mission select layout.",
+                MapId = "sector_alpha_extended_operations_zone",
+                BriefingText =
+                    "Commander, hostile forces have established fortified positions across the outer rim. " +
+                    "Your orders are to neutralize their command infrastructure and secure all relay stations " +
+                    "before the enemy fleet completes its warp assembly sequence.",
+                ObjectivesPreview =
+                [
+                    "Destroy all enemy super-heavy dreadnought production facilities in the outer rim",
+                    "Protect the civilian evacuation corridor for at least fifteen minutes under continuous fire",
+                ],
+                PlanetName = "Helios Prime Extended Colony Zone Alpha Seven",
+                StarMapPosition = new Vector2(0.35f, 0.45f),
+            },
+        ]);
+
+        var inner = new RecordingRenderer(viewport);
+        var renderer = new ScaledUIRenderer(inner, new UIScaler(viewport));
         screen.Draw(renderer);
 
-        var chromeDraws = inner.TextDraws.Where(IsBriefingChromeDraw).ToList();
-        AssertNoHorizontalViewportBleed(chromeDraws, CompactViewport);
+        AssertNoHorizontalViewportBleed(inner.TextDraws, viewport);
+        AssertScreenTextWithinViewport(inner.TextDraws, viewport);
+    }
+
+    [Theory]
+    [InlineData(1024f, 768f)]
+    [InlineData(390f, 844f)]
+    [InlineData(2560f, 1440f)]
+    public void BriefingScreen_viewport_matrix_all_text_avoids_horizontal_bleed(float viewportWidth, float viewportHeight)
+    {
+        var viewport = new Vector2(viewportWidth, viewportHeight);
+        var screen = CreateLongBriefingScreen(out _);
+        var inner = new RecordingRenderer(viewport);
+        var renderer = new ScaledUIRenderer(inner, new UIScaler(viewport));
+        screen.Draw(renderer);
+
+        AssertNoHorizontalViewportBleed(inner.TextDraws, viewport);
+    }
+
+    [Theory]
+    [InlineData(1920f, 1080f)]
+    [InlineData(1024f, 768f)]
+    [InlineData(390f, 844f)]
+    [InlineData(2560f, 1440f)]
+    public void BriefingScreen_title_chrome_wraps_within_viewport_width(float viewportWidth, float viewportHeight)
+    {
+        var viewport = new Vector2(viewportWidth, viewportHeight);
+        var screen = CreateLongBriefingScreen(out _);
+        var inner = new RecordingRenderer(viewport);
+        ScaledUIRenderer? scaledRenderer = null;
+
+        if (viewport == ReferenceViewport)
+            screen.Draw(inner);
+        else
+        {
+            scaledRenderer = new ScaledUIRenderer(inner, new UIScaler(viewport));
+            screen.Draw(scaledRenderer);
+        }
+
+        var title = FindWidget<Label>(screen, "BriefingTitle");
+        var subtitle = FindWidget<Label>(screen, "BriefingSubtitle");
+        Assert.NotNull(title);
+        Assert.NotNull(subtitle);
+        Assert.True(title!.WrapWidth > 0f);
+        Assert.True(subtitle!.WrapWidth > 0f);
+
+        float referencePanelW = ReferenceViewport.X - 160f;
+        Assert.True(title.Size.X <= referencePanelW + 1f);
+        Assert.True(subtitle.Size.X <= referencePanelW + 1f);
+
+        var chromeDraws = inner.TextDraws
+            .Where(d => d.Text is "MISSION BRIEFING" or "Review objectives before launch")
+            .ToList();
+        Assert.NotEmpty(chromeDraws);
+        AssertNoHorizontalViewportBleed(chromeDraws, viewport);
     }
 
     [Fact]
@@ -697,6 +1040,61 @@ public class ScreenTextBoundsTests
                 : BriefingWrap;
             Assert.True(width <= maxWidth + 1f, draw.Text);
         });
+    }
+
+    [Fact]
+    public void SettingsScreen_help_scroll_band_wraps_long_override_summary()
+    {
+        string settingsDir = Path.Combine(Path.GetTempPath(), $"sg_settings_help_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(settingsDir);
+        try
+        {
+            var settings = new SettingsManager(Path.Combine(settingsDir, "settings.json"));
+            for (int i = 0; i < 12; i++)
+                settings.Current.KeyBindingOverrides[$"Action{i:D2}"] = $"Key{i}";
+
+            settings.Save();
+            var screen = new SettingsScreen(settings);
+
+            var helpScroll = FindWidget<ScrollPanel>(screen, "SettingsHelpScroll");
+            var helpLabel = FindWidget<Label>(screen, "SettingsHelp");
+            Assert.NotNull(helpScroll);
+            Assert.NotNull(helpLabel);
+
+            helpScroll!.SyncLabelWrapWidths();
+            float expectedWrap = UITextDrawing.ContentWrapWidth(
+                helpLabel!.Size.X - (helpScroll.ShowScrollbar ? 10f : 0f),
+                helpLabel.Padding);
+            Assert.Equal(expectedWrap, helpLabel.WrapWidth, precision: 1);
+            Assert.True(helpLabel.MeasureContentHeight() > helpScroll.Size.Y);
+            Assert.True(helpScroll.MaxScrollOffset(helpScroll.Size) > 0f);
+
+            var inner = new RecordingRenderer(ReferenceViewport);
+            screen.Draw(inner);
+
+            var helpDraws = inner.TextDraws
+                .Where(d => d.Text.Contains("Key rebind overrides", StringComparison.Ordinal))
+                .ToList();
+            Assert.NotEmpty(helpDraws);
+            Assert.All(helpDraws, draw =>
+            {
+                float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
+                float maxWidth = UITextDrawing.ContentWrapWidth(
+                    helpScroll!.Size.X - (helpScroll.ShowScrollbar ? 10f : 0f),
+                    helpLabel!.Padding);
+                Assert.True(width <= maxWidth + 1f, draw.Text);
+            });
+
+            var compactInner = new RecordingRenderer(CompactViewport);
+            var compactRenderer = new ScaledUIRenderer(compactInner, new UIScaler(CompactViewport));
+            screen.Draw(compactRenderer);
+            AssertNoHorizontalViewportBleed(compactInner.TextDraws, CompactViewport);
+        }
+        finally
+        {
+            if (Directory.Exists(settingsDir))
+                Directory.Delete(settingsDir, recursive: true);
+        }
     }
 
     [Fact]

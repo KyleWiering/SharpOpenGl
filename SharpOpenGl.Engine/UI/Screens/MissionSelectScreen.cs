@@ -54,6 +54,8 @@ public sealed class MissionSelectScreen : UIScreen
     private MissionEntry? _selected;
 
     private readonly MenuStarfieldBackground _starfield;
+    private readonly Label _titleLabel;
+    private readonly Label _subtitleLabel;
     private readonly StarMapCanvas _starMap;
     private readonly ScrollPanel _previewPanel;
     private const float PreviewPadding = 20f;
@@ -61,6 +63,11 @@ public sealed class MissionSelectScreen : UIScreen
     private const float PreviewEmptyIconSize = 24f;
     private const float PreviewMicroIconSize = 18f;
     private const float PreviewIconGap = 8f;
+    private const float PreviewTitleGap = 4f;
+    private const float PreviewMetaGap = 4f;
+    private const float PreviewSectionGap = 8f;
+    private const int PreviewObjectiveMaxLines = 4;
+    private const float PreviewObjectiveItemGap = 6f;
     private readonly IconButton _startButton;
     private readonly IconButton _backButton;
 
@@ -84,7 +91,7 @@ public sealed class MissionSelectScreen : UIScreen
         };
         AddWidget(_starfield);
 
-        AddWidget(new Label
+        _titleLabel = new Label
         {
             Name = "MissionSelectTitle",
             Text = "GALACTIC COMMAND",
@@ -93,9 +100,10 @@ public sealed class MissionSelectScreen : UIScreen
             Size = new Vector2(900f, 48f),
             FontSize = 34f,
             TextColor = MenuTheme.ScreenHeadingColor,
-        });
+        };
+        AddWidget(_titleLabel);
 
-        AddWidget(new Label
+        _subtitleLabel = new Label
         {
             Name = "MissionSelectSubtitle",
             Text = "Select a system to view briefing",
@@ -104,7 +112,8 @@ public sealed class MissionSelectScreen : UIScreen
             Size = new Vector2(700f, 28f),
             FontSize = 16f,
             TextColor = MenuTheme.SubtitleColor,
-        });
+        };
+        AddWidget(_subtitleLabel);
 
         _starMap = new StarMapCanvas
         {
@@ -123,6 +132,7 @@ public sealed class MissionSelectScreen : UIScreen
             Anchor = Anchor.TopLeft,
             Position = new Vector2(1380f, 110f),
             Size = new Vector2(500f, 700f),
+            AutoSyncWrapWidths = false,
         };
         MenuTheme.ApplyPanel(_previewPanel);
         AddWidget(_previewPanel);
@@ -163,6 +173,31 @@ public sealed class MissionSelectScreen : UIScreen
         IconButton.ApplyMenuTheme(_backButton, showGlow: true);
         _backButton.Clicked += () => BackRequested?.Invoke();
         AddWidget(_backButton);
+    }
+
+    /// <inheritdoc/>
+    public override void Draw(IUIRenderer renderer)
+    {
+        UIScaler? scaler = renderer.ViewportSize != UIScaler.ReferenceSize
+            ? new UIScaler(renderer.ViewportSize)
+            : null;
+        SyncChromeLayout(scaler);
+        SyncPreviewContentLayout(scaler);
+        base.Draw(renderer);
+    }
+
+    private void SyncChromeLayout(UIScaler? scaler)
+    {
+        Vector2 viewport = UIScaler.ReferenceSize;
+        float titleW = MathF.Min(900f, viewport.X - 80f);
+        _titleLabel.Size = new Vector2(titleW, 48f);
+        _titleLabel.WrapWidth = UITextDrawing.ScaleAwareWrapWidth(
+            UITextDrawing.ContentWrapWidth(titleW, 4f), _titleLabel.FontSize, scaler);
+
+        float subtitleW = MathF.Min(700f, viewport.X - 80f);
+        _subtitleLabel.Size = new Vector2(subtitleW, 28f);
+        _subtitleLabel.WrapWidth = UITextDrawing.ScaleAwareWrapWidth(
+            UITextDrawing.ContentWrapWidth(subtitleW, 4f), _subtitleLabel.FontSize, scaler);
     }
 
     /// <summary>
@@ -261,10 +296,7 @@ public sealed class MissionSelectScreen : UIScreen
         while (_previewPanel.Children.Count > 0)
             _previewPanel.RemoveChild(_previewPanel.Children[0]);
 
-        float panelW = _previewPanel.Size.X;
-        float wrapWidth = UITextDrawing.ContentWrapWidth(panelW, PreviewPadding);
-        float contentW = panelW - PreviewPadding * 2f;
-        float y = PreviewPadding;
+        float contentW = _previewPanel.Size.X - PreviewPadding * 2f;
 
         if (_selected == null)
         {
@@ -274,15 +306,14 @@ public sealed class MissionSelectScreen : UIScreen
                 Icon = MenuIconKind.NavBriefing,
                 Text = "Select an unlocked system to view the mission briefing.",
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(PreviewPadding, y),
+                Position = new Vector2(PreviewPadding, PreviewPadding),
                 Size = new Vector2(contentW, 80f),
                 IconSize = PreviewEmptyIconSize,
                 IconGap = PreviewIconGap,
                 FontSize = 18f,
-                WrapWidth = Math.Max(0f, wrapWidth - PreviewEmptyIconSize - PreviewIconGap),
                 TextColor = MenuTheme.MutedTextColor,
             });
-            _previewPanel.RecalculateContentHeight(_previewPanel.Size);
+            SyncPreviewContentLayout(scaler: null);
             return;
         }
 
@@ -295,16 +326,13 @@ public sealed class MissionSelectScreen : UIScreen
             Name = "PreviewTitle",
             Text = _selected.Title,
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(PreviewPadding, y),
+            Position = new Vector2(PreviewPadding, PreviewPadding),
             Size = new Vector2(contentW, 52f),
             FontSize = 28f,
-            WrapWidth = wrapWidth,
             MaxLines = 2,
             TextColor = new Vector4(0.55f, 0.85f, 1f, 1f),
         });
-        y += 56f;
 
-        float metaRowH = 16f * UITextDrawing.LineHeightFactor + LabelPadding * 2f;
         if (!string.IsNullOrEmpty(planetLine))
         {
             _previewPanel.AddChild(new Label
@@ -312,14 +340,12 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = "PreviewPlanet",
                 Text = planetLine,
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(PreviewPadding, y),
-                Size = new Vector2(contentW, metaRowH),
+                Position = new Vector2(PreviewPadding, 0f),
+                Size = new Vector2(contentW, 0f),
                 FontSize = 16f,
-                WrapWidth = wrapWidth,
                 MaxLines = 1,
                 TextColor = MenuTheme.MutedTextColor,
             });
-            y += metaRowH + 4f;
         }
 
         string mapLine = string.IsNullOrWhiteSpace(_selected.MapId)
@@ -332,14 +358,12 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = "PreviewMap",
                 Text = mapLine,
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(PreviewPadding, y),
-                Size = new Vector2(contentW, metaRowH),
+                Position = new Vector2(PreviewPadding, 0f),
+                Size = new Vector2(contentW, 0f),
                 FontSize = 16f,
-                WrapWidth = wrapWidth,
                 MaxLines = 1,
                 TextColor = new Vector4(0.65f, 0.75f, 0.9f, 1f),
             });
-            y += metaRowH + 4f;
         }
 
         string body = !string.IsNullOrWhiteSpace(_selected.BriefingText)
@@ -350,13 +374,11 @@ public sealed class MissionSelectScreen : UIScreen
             Name = "PreviewBody",
             Text = body,
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(PreviewPadding, y),
-            Size = new Vector2(contentW, 360f),
+            Position = new Vector2(PreviewPadding, 0f),
+            Size = new Vector2(contentW, 0f),
             FontSize = 17f,
-            WrapWidth = wrapWidth,
             TextColor = MenuTheme.BodyTextColor,
         });
-        y += 368f;
 
         _previewPanel.AddChild(new PreviewIconRow
         {
@@ -364,7 +386,7 @@ public sealed class MissionSelectScreen : UIScreen
             Icon = MenuIconKind.NavObjectives,
             Text = "OBJECTIVES",
             Anchor = Anchor.TopLeft,
-            Position = new Vector2(PreviewPadding, y),
+            Position = new Vector2(PreviewPadding, 0f),
             Size = new Vector2(contentW, 28f),
             IconSize = PreviewMicroIconSize,
             IconGap = PreviewIconGap,
@@ -372,7 +394,6 @@ public sealed class MissionSelectScreen : UIScreen
             MaxLines = 1,
             TextColor = new Vector4(0.7f, 0.8f, 1f, 1f),
         });
-        y += 32f;
 
         string[] objectives = _selected.ObjectivesPreview;
         for (int i = 0; i < objectives.Length; i++)
@@ -382,27 +403,24 @@ public sealed class MissionSelectScreen : UIScreen
                 Name = $"PreviewObjective_{i}",
                 Text = $"• {objectives[i]}",
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(PreviewPadding, y),
-                Size = new Vector2(contentW, 64f),
+                Position = new Vector2(PreviewPadding, 0f),
+                Size = new Vector2(contentW, 0f),
                 FontSize = 16f,
-                WrapWidth = wrapWidth,
-                MaxLines = 3,
+                MaxLines = PreviewObjectiveMaxLines,
                 TextColor = new Vector4(0.88f, 0.9f, 0.95f, 1f),
             });
-            y += 68f;
         }
 
         if (_selected.IsCompleted)
         {
-            float completedRowH = 16f * UITextDrawing.LineHeightFactor + LabelPadding * 2f;
             _previewPanel.AddChild(new PreviewIconRow
             {
                 Name = "PreviewCompleted",
                 Icon = MenuIconKind.NavCompleted,
                 Text = "Mission completed",
                 Anchor = Anchor.TopLeft,
-                Position = new Vector2(PreviewPadding, y),
-                Size = new Vector2(contentW, completedRowH),
+                Position = new Vector2(PreviewPadding, 0f),
+                Size = new Vector2(contentW, 0f),
                 IconSize = PreviewMicroIconSize,
                 IconGap = PreviewIconGap,
                 FontSize = 16f,
@@ -411,8 +429,68 @@ public sealed class MissionSelectScreen : UIScreen
             });
         }
 
+        SyncPreviewContentLayout(scaler: null);
+    }
+
+    private void SyncPreviewContentLayout(UIScaler? scaler)
+    {
+        float panelW = _previewPanel.Size.X;
+        float contentW = panelW - PreviewPadding * 2f;
+        float gutter = _previewPanel.ShowScrollbar ? 10f : 0f;
+
+        foreach (Widget child in _previewPanel.Children)
+        {
+            if (child is Label label)
+            {
+                label.Size = new Vector2(contentW, label.Size.Y);
+                float baseWrap = UITextDrawing.ContentWrapWidth(label.Size.X - gutter, label.Padding);
+                label.WrapWidth = UITextDrawing.ScaleAwareWrapWidth(baseWrap, label.FontSize, scaler);
+
+                if (label.Name is "PreviewBody"
+                    || (label.Name?.StartsWith("PreviewObjective_", StringComparison.Ordinal) ?? false)
+                    || label.Name is "PreviewPlanet" or "PreviewMap")
+                {
+                    label.Size = new Vector2(contentW, label.MeasureContentHeight());
+                }
+                else if (label.Name == "PreviewTitle")
+                {
+                    label.Size = new Vector2(contentW, MathF.Max(52f, label.MeasureContentHeight()));
+                }
+            }
+            else if (child is PreviewIconRow row)
+            {
+                row.Size = new Vector2(contentW, row.Size.Y);
+                float textW = MathF.Max(0f, contentW - row.IconSize - row.IconGap - gutter);
+                row.WrapWidth = UITextDrawing.ScaleAwareWrapWidth(textW, row.FontSize, scaler);
+                row.Size = new Vector2(contentW, row.MeasureContentHeight());
+            }
+        }
+
+        RelayoutPreviewChildren();
         _previewPanel.RecalculateContentHeight(_previewPanel.Size);
     }
+
+    private void RelayoutPreviewChildren()
+    {
+        float y = PreviewPadding;
+        foreach (Widget child in _previewPanel.Children)
+        {
+            child.Position = new Vector2(PreviewPadding, y);
+            y += child.Size.Y + PreviewGapAfter(child);
+        }
+    }
+
+    private static float PreviewGapAfter(Widget child) =>
+        child switch
+        {
+            Label { Name: "PreviewTitle" } => PreviewTitleGap,
+            Label { Name: "PreviewPlanet" or "PreviewMap" } => PreviewMetaGap,
+            Label { Name: "PreviewBody" } => PreviewSectionGap,
+            PreviewIconRow { Name: "PreviewObjectivesHeader" } => 4f,
+            Label label when label.Name?.StartsWith("PreviewObjective_", StringComparison.Ordinal) == true =>
+                PreviewObjectiveItemGap,
+            _ => PreviewSectionGap,
+        };
 
     private void ResetPreviewScroll()
     {
@@ -436,8 +514,23 @@ public sealed class MissionSelectScreen : UIScreen
         public Vector4 TextColor { get; init; } = MenuTheme.BodyTextColor;
         public float IconSize { get; init; } = PreviewMicroIconSize;
         public float IconGap { get; init; } = PreviewIconGap;
-        public float WrapWidth { get; init; }
+        public float WrapWidth { get; set; }
         public int MaxLines { get; init; }
+
+        public float MeasureContentHeight()
+        {
+            if (string.IsNullOrEmpty(Text))
+                return Size.Y;
+
+            float textW = WrapWidth > 0f
+                ? WrapWidth
+                : MathF.Max(0f, Size.X - IconSize - IconGap);
+            int lineCount = MaxLines > 0
+                ? UITextDrawing.WrapTextLimited(Text, textW, FontSize, MaxLines).Count
+                : UITextDrawing.WrapText(Text, textW, FontSize).Count;
+            float textH = lineCount * FontSize * UITextDrawing.LineHeightFactor;
+            return MathF.Max(IconSize, textH);
+        }
 
         protected override void OnDraw(IUIRenderer renderer, Vector2 position, Vector2 size)
         {

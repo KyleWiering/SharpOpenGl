@@ -61,7 +61,7 @@ public class TooltipWidgetTests
     public void ComputeBounds_keeps_tooltip_inside_1024x768_viewport(float pointerX, float pointerY)
     {
         var content = new TooltipContent(Title: "Structure", CostLine: "Cost: 100");
-        var (_, tooltipSize) = TooltipLayout.MeasureContent(content);
+        var (tooltipSize, _, _) = TooltipLayout.MeasureScrollViewport(content);
         Vector2 pointer = new(pointerX, pointerY);
 
         Vector2 position = TooltipLayout.ComputeBounds(pointer, tooltipSize, Viewport1024, TooltipWidget.PointerOffset);
@@ -81,7 +81,7 @@ public class TooltipWidgetTests
             Title: "Advanced Structure",
             CostLine: "Cost: 500 minerals / 200 gas",
             Prerequisites: ["Command Center", "Research Lab", "Power Plant"]);
-        var (_, tooltipSize) = TooltipLayout.MeasureContent(content);
+        var (tooltipSize, _, _) = TooltipLayout.MeasureScrollViewport(content);
         Vector2 pointer = new(pointerX, pointerY);
 
         Vector2 position = TooltipLayout.ComputeBounds(pointer, tooltipSize, Viewport1920, TooltipWidget.PointerOffset);
@@ -90,6 +90,38 @@ public class TooltipWidgetTests
         Assert.True(position.Y >= 0f);
         Assert.True(position.X + tooltipSize.X <= Viewport1920.X + 0.5f);
         Assert.True(position.Y + tooltipSize.Y <= Viewport1920.Y + 0.5f);
+    }
+
+    [Fact]
+    public void ComputeBounds_with_renderer_clamps_physical_right_edge_at_1024x768()
+    {
+        var content = new TooltipContent(
+            Title: "Orbital Defense Relay Station Extended Range",
+            CostLine: "Cost: 900 minerals / 400 gas",
+            Footprint: "Footprint: 4×4",
+            BuildTime: "Build: 90s",
+            Prerequisites: ["Command Center", "Sensor Array", "Power Reactor"]);
+        var inner = new BoundsRecordingRenderer(Viewport1024);
+        var scaler = new UIScaler(Viewport1024);
+        var scaledRenderer = new ScaledUIRenderer(inner, scaler);
+
+        var widget = new TooltipWidget();
+        widget.SetHover(content, new Vector2(400f, 400f));
+        widget.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+        widget.Draw(scaledRenderer, Vector2.Zero, Viewport1920);
+
+        Vector2 origin = widget.ResolveTooltipOrigin(scaledRenderer, Viewport1920);
+        float physX = scaledRenderer.ScaleToPhysical(origin.X);
+        float physW = scaledRenderer.ScaleToPhysical(widget.TooltipSize.X);
+
+        Assert.True(physX >= -0.5f);
+        Assert.True(physX + physW <= Viewport1024.X + 2f);
+
+        foreach (var draw in inner.TextDraws)
+        {
+            float width = UIFontMetrics.MeasureTextWidth(draw.Text, draw.FontSize);
+            Assert.True(draw.Position.X + width <= Viewport1024.X + 2f, draw.Text);
+        }
     }
 
     [Fact]
@@ -156,5 +188,111 @@ public class TooltipWidgetTests
     {
         var panel = new Panel();
         Assert.Null(panel.GetTooltipContent());
+    }
+
+    [Fact]
+    public void TooltipWidget_long_prerequisite_chain_enables_scroll_viewport()
+    {
+        var widget = new TooltipWidget();
+        var content = new TooltipContent(
+            Title: "Capstone Structure",
+            CostLine: "Cost: 900 minerals / 400 gas",
+            Footprint: "Footprint: 4×4",
+            BuildTime: "Build time: 120s",
+            Prerequisites:
+            [
+                "Command Center",
+                "Power Reactor",
+                "Research Lab",
+                "Advanced Factory",
+                "Orbital Relay",
+                "Defense Grid",
+            ],
+            LockReason: "Locked: complete prerequisite chain");
+
+        widget.SetHover(content, new Vector2(200f, 200f));
+        widget.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+
+        float twoLineCap = TooltipLayout.ScrollViewportCapHeight(TooltipWidget.FontSize);
+        Assert.True(widget.ScrollViewportHeight <= twoLineCap + 0.5f);
+        Assert.True(widget.ContentHeight > widget.ScrollViewportHeight);
+        Assert.True(widget.MaxScrollOffset > 0f);
+    }
+
+    [Fact]
+    public void TooltipWidget_recalculates_content_height_after_set_hover()
+    {
+        var widget = new TooltipWidget();
+        var shortContent = new TooltipContent(Title: "Refinery", CostLine: "Cost: 200");
+        var longContent = new TooltipContent(
+            Title: "Capstone Structure",
+            CostLine: "Cost: 900 minerals / 400 gas",
+            Prerequisites: ["Command Center", "Power Reactor", "Research Lab", "Advanced Factory", "Orbital Relay"],
+            LockReason: "Locked: complete prerequisite chain");
+
+        widget.SetHover(shortContent, new Vector2(100f, 100f));
+        widget.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+        float shortMaxScroll = widget.MaxScrollOffset;
+
+        widget.SetHover(longContent, new Vector2(100f, 100f));
+        widget.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+        float longMaxScroll = widget.MaxScrollOffset;
+
+        widget.SetHover(shortContent, new Vector2(100f, 100f));
+        widget.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+        float shortAgainMaxScroll = widget.MaxScrollOffset;
+
+        Assert.Equal(0f, shortMaxScroll);
+        Assert.True(longMaxScroll > shortMaxScroll);
+        Assert.True(shortAgainMaxScroll < longMaxScroll);
+        Assert.Equal(0f, shortAgainMaxScroll);
+    }
+
+    [Fact]
+    public void TooltipWidget_wrap_width_uses_content_wrap_width()
+    {
+        var widget = new TooltipWidget();
+        var content = new TooltipContent(
+            Title: "Capstone Structure",
+            Prerequisites: ["Command Center", "Power Reactor", "Research Lab", "Advanced Factory", "Orbital Relay"]);
+
+        widget.SetHover(content, new Vector2(150f, 150f));
+        widget.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+
+        float gutter = widget.ScrollHost.ShowScrollbar ? 10f : 0f;
+        float expectedWrap = UITextDrawing.ContentWrapWidth(widget.BodyLabel.Size.X - gutter, widget.BodyLabel.Padding);
+
+        Assert.Equal(expectedWrap, widget.BodyLabel.WrapWidth);
+    }
+
+    [Fact]
+    public void TooltipWidget_handle_scroll_consumes_wheel_over_visible_tooltip()
+    {
+        var widget = new TooltipWidget();
+        var content = new TooltipContent(
+            Title: "Capstone Structure",
+            Prerequisites: ["Command Center", "Power Reactor", "Research Lab", "Advanced Factory", "Orbital Relay"],
+            LockReason: "Locked: complete prerequisite chain");
+
+        widget.SetHover(content, new Vector2(200f, 200f));
+        widget.Update(TooltipWidget.HoverShowDelaySeconds + 0.05f);
+
+        Vector2 pointer = new(250f, 250f);
+        bool consumed = widget.HandleScroll(pointer, 1f, Vector2.Zero, Viewport1024);
+
+        Assert.True(consumed);
+        Assert.True(widget.ScrollHost.ScrollOffsetY > 0f);
+    }
+
+    private sealed class BoundsRecordingRenderer : IUIRenderer
+    {
+        public BoundsRecordingRenderer(Vector2 viewport) => ViewportSize = viewport;
+        public Vector2 ViewportSize { get; }
+        public List<(string Text, float FontSize, Vector2 Position)> TextDraws { get; } = new();
+
+        public void DrawRect(Vector2 position, Vector2 size, Vector4 color) { }
+        public void DrawRectOutline(Vector2 position, Vector2 size, Vector4 color) { }
+        public void DrawText(string text, Vector2 position, float fontSize, Vector4 color) =>
+            TextDraws.Add((text, fontSize, position));
     }
 }

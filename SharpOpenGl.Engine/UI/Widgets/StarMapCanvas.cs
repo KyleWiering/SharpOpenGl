@@ -174,20 +174,45 @@ public sealed class StarMapCanvas : Widget
             if (node.IsCompleted)
                 DrawVictoryMarker(renderer, center, PlanetVisualRadius);
 
-            DrawPlanetLabel(renderer, center, node.PlanetName, node.IsUnlocked, isSelected);
+            DrawPlanetLabel(renderer, position, size, center, node.PlanetName, node.IsUnlocked, isSelected);
         }
     }
 
+    private const float PlanetLabelMaxLogicalWidth = 240f;
+
     private static void DrawPlanetLabel(
-        IUIRenderer renderer, Vector2 center, string planetName, bool isUnlocked, bool isSelected)
+        IUIRenderer renderer, Vector2 canvasPosition, Vector2 canvasSize,
+        Vector2 center, string planetName, bool isUnlocked, bool isSelected)
     {
         if (string.IsNullOrWhiteSpace(planetName))
             return;
 
-        float textWidth = UIFontMetrics.MeasureTextWidth(planetName, PlanetLabelFontSize);
-        float scrimWidth = textWidth + PlanetLabelPaddingX * 2f;
+        float physicalScale = MathF.Max(renderer.ScaleToPhysical(1f), 0.001f);
+        float preferredPhysical = renderer.ResolveFontSize(PlanetLabelFontSize);
+        float physicalGutter = MathF.Max(2f, preferredPhysical * 0.12f);
+        float maxPhysicalWidth = MathF.Max(
+            0f,
+            renderer.ScaleToPhysical(PlanetLabelMaxLogicalWidth) - physicalGutter);
+
+        string display = UITextDrawing.TruncateWithEllipsis(planetName, maxPhysicalWidth, preferredPhysical);
+        if (string.IsNullOrEmpty(display))
+            return;
+
+        if (UIFontMetrics.MeasureTextWidth(display, preferredPhysical) > maxPhysicalWidth + UITextDrawing.WidthTolerance)
+            return;
+
+        float textWidthLogical = UIFontMetrics.MeasureTextWidth(display, preferredPhysical) / physicalScale;
+        float scrimWidth = textWidthLogical + PlanetLabelPaddingX * 2f;
         float scrimHeight = PlanetLabelFontSize + PlanetLabelPaddingY * 2f;
-        var scrimPos = new Vector2(center.X - scrimWidth * 0.5f, center.Y + PlanetVisualRadius + 8f);
+        float scrimLeft = center.X - scrimWidth * 0.5f;
+        float canvasLeft = canvasPosition.X + 4f;
+        float canvasRight = canvasPosition.X + canvasSize.X - 4f;
+        if (scrimLeft + scrimWidth > canvasRight)
+            scrimLeft = canvasRight - scrimWidth;
+        if (scrimLeft < canvasLeft)
+            scrimLeft = canvasLeft;
+
+        var scrimPos = new Vector2(scrimLeft, center.Y + PlanetVisualRadius + 8f);
 
         renderer.DrawRect(scrimPos, new Vector2(scrimWidth, scrimHeight), MenuTheme.StarMapLabelScrimColor);
 
@@ -196,7 +221,8 @@ public sealed class StarMapCanvas : Widget
             : MenuTheme.StarMapLockedLabelColor;
 
         var textPos = scrimPos + new Vector2(PlanetLabelPaddingX, PlanetLabelPaddingY);
-        renderer.DrawText(planetName, textPos, PlanetLabelFontSize, textColor);
+        float logicalDrawSize = preferredPhysical / physicalScale;
+        renderer.DrawText(display, textPos, logicalDrawSize, textColor);
     }
 
     private static void DrawLockBadge(IUIRenderer renderer, Vector2 center)
