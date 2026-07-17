@@ -95,7 +95,11 @@ public sealed class ScrollPanel : Panel
             if (!child.Visible) continue;
 
             var (childPos, childSize) = child.Resolve(scrolledOrigin, size);
-            if (!IntersectsVertical(childPos.Y, childSize.Y, pos.Y, size.Y))
+            // Labels often use Size.Y = 0 with content-driven height (tooltips); cull via measured height.
+            float childH = child is Label label
+                ? MathF.Max(childSize.Y, label.MeasureContentHeight())
+                : childSize.Y;
+            if (!IntersectsVertical(childPos.Y, childH, pos.Y, size.Y))
                 continue;
 
             child.Draw(renderer, scrolledOrigin, size);
