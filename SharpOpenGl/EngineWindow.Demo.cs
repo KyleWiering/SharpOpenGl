@@ -12,15 +12,19 @@ public partial class EngineWindow
     private DemoVideoRecorder? _demoRecorder;
     private float _demoElapsed;
     private bool _demoFinalizePending;
-    /// <summary>Wall-clock cap for demo recording (≤25s section target; prefer 20s for CI).</summary>
-    private const float DemoMaxDurationSeconds = 20f;
-    private const float DemoScriptDoneHoldSeconds = 1f;
+    /// <summary>Wall-clock cap for multi-act demo (combat + harvest + base). Prefer ~25–40s for watchability.</summary>
+    private const float DemoMaxDurationSeconds = 40f;
+    private const float DemoScriptDoneHoldSeconds = 1.5f;
     private const float DemoVictoryHoldSeconds = 2f;
-    private const int DemoCaptureTargetFps = 20;
-    /// <summary>Max PNG frames buffered for encode (20 fps × ~20s wall ≈ 400; hard cap 400).</summary>
-    private const int DemoCaptureMaxFrames = 400;
-    /// <summary>Speeds simulation during recording so CI finishes within the ~20s wall cap.</summary>
-    internal const float DemoSimulationTimeScale = 4f;
+    /// <summary>
+    /// Encode rate for the MP4. Headless capture is often ~8–12 rendered fps; encoding slower than
+    /// that (6 fps) yields a watchable multi-act clip without multi-minute CI wall time.
+    /// </summary>
+    private const int DemoCaptureTargetFps = 6;
+    /// <summary>Max PNG frames (6 fps × ~45s wall ≈ 270; headroom for bursty capture).</summary>
+    private const int DemoCaptureMaxFrames = 600;
+    /// <summary>Sim speed-up for CI; 2× keeps fleet/combat readable while finishing under the wall cap.</summary>
+    internal const float DemoSimulationTimeScale = 2f;
     private float _demoVictoryHold;
     private float _demoScriptDoneHold;
 
@@ -75,7 +79,12 @@ public partial class EngineWindow
 
         _missionController!.StartMission(_demoMissionId);
         _pendingMissionId = _demoMissionId;
-        _demoRecorder = new DemoVideoRecorder(_demoVideoPath, targetFps: DemoCaptureTargetFps, maxFrames: DemoCaptureMaxFrames);
+        // updateFps == targetFps → capture every frame; encode at 15 fps so playback ≈ wall length.
+        _demoRecorder = new DemoVideoRecorder(
+            _demoVideoPath,
+            targetFps: DemoCaptureTargetFps,
+            updateFps: DemoCaptureTargetFps,
+            maxFrames: DemoCaptureMaxFrames);
         Console.WriteLine($"[Demo] Recording mission '{_demoMissionId}' → {_demoVideoPath}");
     }
 
